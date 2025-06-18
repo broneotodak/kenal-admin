@@ -312,14 +312,9 @@ export default function DashboardPage() {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box>
-          <Typography variant="h4" fontWeight="bold" color="white">
-            Admin Dashboard
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Dashboard auto-refreshes every 30 seconds • Last updated: {currentTime || '...'}
-          </Typography>
-        </Box>
+        <Typography variant="body2" color="text.secondary">
+          Dashboard auto-refreshes every 30 seconds • Last updated: {currentTime || '...'}
+        </Typography>
       </Box>
 
       <Grid container spacing={3} sx={{ mb: 3 }}>

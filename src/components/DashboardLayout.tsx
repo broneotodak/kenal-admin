@@ -21,6 +21,7 @@ import {
   MenuItem,
   Collapse,
   Chip,
+  useTheme as useMUITheme,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -44,13 +45,14 @@ import { KenalLogo } from './KenalLogo'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 
-const drawerWidth = 260
+const drawerWidth = 280
 
 interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const muiTheme = useMUITheme()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [openUsers, setOpenUsers] = useState(true)
@@ -78,12 +80,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ p: 3, display: 'flex', alignItems: 'center' }}>
-        <KenalLogo size="medium" color="theme" />
-      </Box>
-      
-      <Box sx={{ px: 2, pb: 2 }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', pt: '64px' }}>
+      <Box sx={{ px: 2, py: 3 }}>
         <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.05em' }}>
           Navigation
         </Typography>
@@ -247,7 +245,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </List>
       
       <Box sx={{ flexGrow: 1 }} />
-      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.05)' }} />
+      <Divider sx={{ borderColor: muiTheme.palette.divider }} />
       <List sx={{ px: 1, pb: 2 }}>
         <ListItem disablePadding>
           <ListItemButton 
@@ -271,46 +269,90 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     </Box>
   )
 
+  // Get page title based on pathname
+  const getPageTitle = () => {
+    if (pathname === '/dashboard') return 'Admin Dashboard'
+    if (pathname === '/users') return 'Users Management'
+    if (pathname === '/analytics') return 'Analytics'
+    if (pathname === '/content') return 'Content'
+    if (pathname === '/feedback') return 'Feedback'
+    if (pathname === '/settings') return 'Settings'
+    return 'Admin Dashboard'
+  }
+
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <CssBaseline />
+      {/* Full-width AppBar */}
       <AppBar
         position="fixed"
         sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
+          zIndex: (theme) => theme.zIndex.drawer + 1,
           boxShadow: 'none',
+          borderBottom: `1px solid ${muiTheme.palette.divider}`,
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ px: { xs: 2, sm: 3 } }}>
+          {/* Mobile menu button */}
           <IconButton
             color="inherit"
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
+            sx={{ 
+              mr: 2, 
+              display: { sm: 'none' },
+              color: 'text.primary'
+            }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            Admin Dashboard
-          </Typography>
+          
+          {/* Logo on the left */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <KenalLogo size="medium" color={muiTheme.palette.mode === 'dark' ? 'white' : 'theme'} variant="text" />
+            <Typography 
+              variant="h6" 
+              noWrap 
+              component="div" 
+              sx={{ 
+                fontWeight: 500,
+                color: 'text.primary',
+                fontSize: '1rem',
+                display: { xs: 'none', sm: 'block' }
+              }}
+            >
+              {getPageTitle()}
+            </Typography>
+          </Box>
+          
+          <Box sx={{ flexGrow: 1 }} />
+
+          {/* Right side controls */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <IconButton
               onClick={toggleTheme}
-              color="inherit"
               size="small"
-              sx={{ p: 1 }}
+              sx={{ 
+                p: 1,
+                color: 'text.primary'
+              }}
             >
               {isDarkMode ? <LightMode /> : <DarkMode />}
             </IconButton>
-            <Typography variant="body2" color="text.secondary">
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                display: { xs: 'none', md: 'block' },
+                color: 'text.secondary'
+              }}
+            >
               {user?.email}
             </Typography>
             <IconButton
               size="large"
               onClick={handleMenu}
-              color="inherit"
+              sx={{ color: 'text.primary' }}
             >
               <AccountCircle />
             </IconButton>
@@ -318,6 +360,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
               onClose={handleClose}
+              PaperProps={{
+                sx: {
+                  mt: 1.5,
+                }
+              }}
             >
               <MenuItem onClick={handleClose}>Profile</MenuItem>
               <MenuItem onClick={handleLogout}>Logout</MenuItem>
@@ -325,6 +372,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </Box>
         </Toolbar>
       </AppBar>
+
+      {/* Drawer */}
       <Box
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
@@ -358,6 +407,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {drawer}
         </Drawer>
       </Box>
+
+      {/* Main content */}
       <Box
         component="main"
         sx={{
@@ -366,6 +417,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           mt: '64px',
           minHeight: 'calc(100vh - 64px)',
+          bgcolor: 'background.default',
         }}
       >
         {children}

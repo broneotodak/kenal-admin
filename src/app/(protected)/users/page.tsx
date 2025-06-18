@@ -274,21 +274,10 @@ export default function UsersPage() {
       {/* Header */}
       <Box sx={{ 
         display: 'flex', 
-        justifyContent: 'space-between', 
+        justifyContent: 'flex-end', 
         alignItems: 'center', 
         mb: 3,
-        flexDirection: { xs: 'column', sm: 'row' },
-        gap: { xs: 2, sm: 0 }
       }}>
-        <Typography 
-          variant="h4" 
-          sx={{ 
-            fontWeight: 600,
-            fontSize: { xs: '1.5rem', md: '2.125rem' }
-          }}
-        >
-          Users Management
-        </Typography>
         <Button
           variant="contained"
           startIcon={<Download />}
