@@ -65,6 +65,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('24hours')
   const [recentUsers, setRecentUsers] = useState<any[]>([])
+  const [currentTime, setCurrentTime] = useState<string>('')
 
   async function loadDashboard() {
     try {
@@ -128,6 +129,16 @@ export default function DashboardPage() {
     loadDashboard()
     const interval = setInterval(loadDashboard, 30000) // Refresh every 30 seconds
     return () => clearInterval(interval)
+  }, [])
+
+  // Update time only on client side to avoid hydration issues
+  useEffect(() => {
+    const updateTime = () => {
+      setCurrentTime(new Date().toLocaleTimeString('en-US', { hour12: false }))
+    }
+    updateTime()
+    const timeInterval = setInterval(updateTime, 1000)
+    return () => clearInterval(timeInterval)
   }, [])
 
   const chartData = {
@@ -245,7 +256,7 @@ export default function DashboardPage() {
             Admin Dashboard
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Dashboard auto-refreshes every 30 seconds • Last updated: {new Date().toLocaleTimeString()}
+            Dashboard auto-refreshes every 30 seconds • Last updated: {currentTime || '...'}
           </Typography>
         </Box>
       </Box>
@@ -294,7 +305,7 @@ export default function DashboardPage() {
                 Users & Identity Registration Trends
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Last updated: {new Date().toLocaleTimeString()}
+                Last updated: {currentTime || '...'}
               </Typography>
             </Box>
             <ButtonGroup size="small">
