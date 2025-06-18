@@ -1,75 +1,45 @@
-import React from 'react';
-import { Box, Typography } from '@mui/material';
-import { gradients } from '@/theme/kenalTheme';
+import { Box, Typography } from '@mui/material'
 
 interface KenalLogoProps {
-  size?: 'small' | 'medium' | 'large';
-  variant?: 'full' | 'icon';
-  color?: 'primary' | 'white' | 'gradient';
+  size?: 'small' | 'medium' | 'large'
+  variant?: 'full' | 'icon'
+  color?: 'primary' | 'white' | 'gradient'
 }
 
-export const KenalLogo: React.FC<KenalLogoProps> = ({ 
+export function KenalLogo({ 
   size = 'medium', 
   variant = 'full',
-  color = 'primary' 
-}) => {
-  const sizeMap = {
-    small: { icon: 32, font: '1.25rem' },
-    medium: { icon: 48, font: '1.75rem' },
-    large: { icon: 64, font: '2.25rem' }
-  };
+  color = 'white' 
+}: KenalLogoProps) {
+  const sizes = {
+    small: { fontSize: '1.25rem', iconSize: 24 },
+    medium: { fontSize: '1.5rem', iconSize: 32 },
+    large: { fontSize: '2rem', iconSize: 48 },
+  }
 
-  const currentSize = sizeMap[size];
+  const colors = {
+    primary: '#3b82f6',
+    white: '#ffffff',
+    gradient: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)',
+  }
 
   return (
-    <Box display="flex" alignItems="center" gap={variant === 'full' ? 2 : 0}>
-      {/* Use the actual KENAL logo from Supabase */}
-      <img 
-        src="https://etkuxatycjqwvfjjwxqm.supabase.co/storage/v1/object/public/images/kenal-logo-icon.png"
-        alt="Kenal Logo"
-        style={{ 
-          width: currentSize.icon, 
-          height: currentSize.icon, 
-          objectFit: 'contain',
-          filter: color === 'white' ? 'brightness(0) invert(1)' : 'none'
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Typography 
+        variant="h5" 
+        sx={{ 
+          fontWeight: 700,
+          fontSize: sizes[size].fontSize,
+          color: colors[color],
+          background: color === 'gradient' ? colors[color] : 'none',
+          backgroundClip: color === 'gradient' ? 'text' : 'unset',
+          WebkitBackgroundClip: color === 'gradient' ? 'text' : 'unset',
+          WebkitTextFillColor: color === 'gradient' ? 'transparent' : 'unset',
+          letterSpacing: '-0.02em',
         }}
-      />
-
-      {/* KENAL Text */}
-      {variant === 'full' && (
-        <Typography
-          sx={{
-            fontSize: currentSize.font,
-            fontWeight: 700,
-            letterSpacing: '0.05em',
-            color: color === 'white' ? '#ffffff' : '#1e3a8a',
-            background: color === 'gradient' ? gradients.primary : 'none',
-            backgroundClip: color === 'gradient' ? 'text' : 'unset',
-            WebkitBackgroundClip: color === 'gradient' ? 'text' : 'unset',
-            WebkitTextFillColor: color === 'gradient' ? 'transparent' : 'unset',
-          }}
-        >
-          KENAL
-        </Typography>
-      )}
+      >
+        KENAL
+      </Typography>
     </Box>
-  );
-};
-
-// Animated version for loading states
-export const KenalLogoAnimated: React.FC<KenalLogoProps> = (props) => {
-  return (
-    <Box
-      sx={{
-        animation: 'pulse 2s ease-in-out infinite',
-        '@keyframes pulse': {
-          '0%': { transform: 'scale(1)', opacity: 1 },
-          '50%': { transform: 'scale(1.05)', opacity: 0.8 },
-          '100%': { transform: 'scale(1)', opacity: 1 },
-        },
-      }}
-    >
-      <KenalLogo {...props} />
-    </Box>
-  );
-};
+  )
+}

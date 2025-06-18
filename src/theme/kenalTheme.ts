@@ -1,168 +1,105 @@
-import { createTheme } from '@mui/material/styles';
+import { createTheme } from '@mui/material/styles'
 
-// KENAL Brand Colors based on logo design
-const kenalColors = {
-  // Primary Blue (Bold Blue from logo)
-  primaryBlue: '#1e3a8a',
-  primaryBlueDark: '#1e2d5f',
-  primaryBlueLight: '#2563eb',
-  
-  // Secondary Orange-Red Gradient
-  orangeRed: '#dc2626',
-  orange: '#ea580c',
-  orangeLight: '#f97316',
-  
-  // Neutral colors
-  white: '#ffffff',
-  gray: {
-    50: '#f9fafb',
-    100: '#f3f4f6',
-    200: '#e5e7eb',
-    300: '#d1d5db',
-    400: '#9ca3af',
-    500: '#6b7280',
-    600: '#4b5563',
-    700: '#374151',
-    800: '#1f2937',
-    900: '#111827',
-  }
-};
-
-// Create KENAL theme
 export const kenalTheme = createTheme({
   palette: {
-    mode: 'light',
+    mode: 'dark',
     primary: {
-      main: kenalColors.primaryBlue,
-      dark: kenalColors.primaryBlueDark,
-      light: kenalColors.primaryBlueLight,
-      contrastText: kenalColors.white,
+      main: '#3b82f6', // Blue color from the chart
+      light: '#60a5fa',
+      dark: '#2563eb',
     },
     secondary: {
-      main: kenalColors.orange,
-      dark: kenalColors.orangeRed,
-      light: kenalColors.orangeLight,
-      contrastText: kenalColors.white,
+      main: '#f97316', // Orange for badges
+      light: '#fb923c',
+      dark: '#ea580c',
     },
     background: {
-      default: kenalColors.gray[50],
-      paper: kenalColors.white,
+      default: '#0a0a0a', // Very dark background
+      paper: '#1a1a1a', // Dark gray for cards
     },
     text: {
-      primary: kenalColors.gray[900],
-      secondary: kenalColors.gray[600],
+      primary: '#ffffff',
+      secondary: '#9ca3af',
     },
-    divider: kenalColors.gray[200],
-    error: {
-      main: kenalColors.orangeRed,
-    },
+    divider: 'rgba(255, 255, 255, 0.12)',
     success: {
       main: '#10b981',
     },
-    warning: {
-      main: kenalColors.orange,
+    error: {
+      main: '#ef4444',
     },
-    info: {
-      main: kenalColors.primaryBlue,
+    warning: {
+      main: '#f59e0b',
     },
   },
   typography: {
-    fontFamily: [
-      '-apple-system',
-      'BlinkMacSystemFont',
-      '"Segoe UI"',
-      'Roboto',
-      '"Helvetica Neue"',
-      'Arial',
-      'sans-serif',
-    ].join(','),
-    h1: {
-      fontSize: '2.5rem',
-      fontWeight: 700,
-      lineHeight: 1.2,
-      letterSpacing: '-0.02em',
-    },
-    h2: {
-      fontSize: '2rem',
-      fontWeight: 600,
-      lineHeight: 1.3,
-      letterSpacing: '-0.01em',
-    },
-    h3: {
-      fontSize: '1.5rem',
-      fontWeight: 600,
-      lineHeight: 1.4,
-    },
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     h4: {
+      fontWeight: 600,
+      fontSize: '1.5rem',
+    },
+    h5: {
+      fontWeight: 600,
       fontSize: '1.25rem',
-      fontWeight: 500,
-      lineHeight: 1.4,
+    },
+    h6: {
+      fontWeight: 600,
+      fontSize: '1rem',
     },
     body1: {
-      fontSize: '1rem',
-      lineHeight: 1.5,
+      fontSize: '0.875rem',
     },
     body2: {
-      fontSize: '0.875rem',
-      lineHeight: 1.5,
-    },
-    button: {
-      textTransform: 'none',
-      fontWeight: 500,
+      fontSize: '0.75rem',
     },
   },
   shape: {
-    borderRadius: 12,
+    borderRadius: 8,
   },
   components: {
-    MuiButton: {
+    MuiPaper: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
-          padding: '8px 16px',
-          transition: 'all 0.2s ease-in-out',
-          '&:hover': {
-            transform: 'translateY(-1px)',
-            boxShadow: '0 4px 12px rgba(30, 58, 138, 0.15)',
-          },
-        },
-        containedPrimary: {
-          background: `linear-gradient(135deg, ${kenalColors.primaryBlue} 0%, ${kenalColors.primaryBlueLight} 100%)`,
-          '&:hover': {
-            background: `linear-gradient(135deg, ${kenalColors.primaryBlueDark} 0%, ${kenalColors.primaryBlue} 100%)`,
-          },
-        },
-        containedSecondary: {
-          background: `linear-gradient(135deg, ${kenalColors.orange} 0%, ${kenalColors.orangeRed} 100%)`,
-          '&:hover': {
-            background: `linear-gradient(135deg, ${kenalColors.orangeRed} 0%, ${kenalColors.orange} 100%)`,
-          },
+          backgroundImage: 'none',
+          backgroundColor: '#1a1a1a',
         },
       },
     },
     MuiCard: {
       styleOverrides: {
         root: {
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-          borderRadius: 16,
-          border: `1px solid ${kenalColors.gray[100]}`,
-          transition: 'all 0.2s ease-in-out',
+          backgroundColor: '#262626',
+          backgroundImage: 'none',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 500,
+        },
+        contained: {
+          boxShadow: 'none',
           '&:hover': {
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-            transform: 'translateY(-2px)',
+            boxShadow: 'none',
           },
         },
       },
     },
-    MuiTextField: {
+    MuiListItemButton: {
       styleOverrides: {
         root: {
-          '& .MuiOutlinedInput-root': {
-            borderRadius: 8,
-            '&.Mui-focused fieldset': {
-              borderColor: kenalColors.primaryBlue,
-              borderWidth: 2,
+          '&.Mui-selected': {
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderLeft: '3px solid #3b82f6',
+            '&:hover': {
+              backgroundColor: 'rgba(59, 130, 246, 0.2)',
             },
+          },
+          '&:hover': {
+            backgroundColor: 'rgba(255, 255, 255, 0.05)',
           },
         },
       },
@@ -170,34 +107,18 @@ export const kenalTheme = createTheme({
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          background: `linear-gradient(180deg, ${kenalColors.primaryBlueDark} 0%, ${kenalColors.primaryBlue} 100%)`,
-          color: kenalColors.white,
+          backgroundColor: '#000000',
+          borderRight: '1px solid rgba(255, 255, 255, 0.05)',
         },
       },
     },
-    MuiListItemButton: {
+    MuiAppBar: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
-          margin: '4px 8px',
-          '&:hover': {
-            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-          },
-          '&.Mui-selected': {
-            backgroundColor: 'rgba(255, 255, 255, 0.15)',
-            '&:hover': {
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            },
-          },
+          backgroundColor: '#0a0a0a',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
         },
       },
     },
   },
-});
-
-// Gradient styles for special elements
-export const gradients = {
-  primary: `linear-gradient(135deg, ${kenalColors.primaryBlue} 0%, ${kenalColors.primaryBlueLight} 100%)`,
-  secondary: `linear-gradient(135deg, ${kenalColors.orange} 0%, ${kenalColors.orangeRed} 100%)`,
-  fingerprint: `linear-gradient(135deg, ${kenalColors.orange} 0%, ${kenalColors.orangeRed} 50%, ${kenalColors.orangeLight} 100%)`,
-};
+})

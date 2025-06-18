@@ -1,9 +1,9 @@
 'use client'
 
 import { Box, Typography, Paper, Chip } from '@mui/material'
-import { CreditCard } from '@mui/icons-material'
+import { Schedule } from '@mui/icons-material'
 
-export default function AnalyticsPage() {
+export default function UserAnalysisPage() {
   return (
     <Box sx={{ 
       display: 'flex', 
@@ -12,9 +12,9 @@ export default function AnalyticsPage() {
       minHeight: '60vh' 
     }}>
       <Paper sx={{ p: 6, textAlign: 'center', maxWidth: 500 }}>
-        <CreditCard sx={{ fontSize: 80, color: 'text.secondary', mb: 3 }} />
+        <Schedule sx={{ fontSize: 80, color: 'text.secondary', mb: 3 }} />
         <Typography variant="h4" gutterBottom fontWeight="600">
-          Transactions Analytics
+          User Analysis
         </Typography>
         <Chip 
           label="COMING SOON" 
@@ -27,7 +27,7 @@ export default function AnalyticsPage() {
           }} 
         />
         <Typography variant="body1" color="text.secondary">
-          Transaction analytics and revenue insights will be available here. Track payments, subscriptions, and financial metrics.
+          Advanced user analytics and insights will be available here. Track user behavior, engagement patterns, and element preferences.
         </Typography>
       </Paper>
     </Box>

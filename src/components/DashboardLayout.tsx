@@ -19,6 +19,8 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  Collapse,
+  Chip,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -30,11 +32,16 @@ import {
   Settings,
   Logout,
   AccountCircle,
+  ExpandLess,
+  ExpandMore,
+  Group,
+  BarChart,
+  CreditCard,
 } from '@mui/icons-material'
 import { KenalLogo } from './KenalLogo'
 import { useAuth } from '@/contexts/AuthContext'
 
-const drawerWidth = 240
+const drawerWidth = 260
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -43,6 +50,8 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [openUsers, setOpenUsers] = useState(true)
+  const [openAnalytics, setOpenAnalytics] = useState(true)
   const router = useRouter()
   const pathname = usePathname()
   const { user, signOut } = useAuth()
@@ -64,54 +73,192 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     router.push('/login')
   }
 
-  const menuItems = [
-    { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
-    { text: 'Users', icon: <People />, path: '/users' },
-    { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
-    { text: 'Content', icon: <Article />, path: '/content' },
-    { text: 'Feedback', icon: <Feedback />, path: '/feedback' },
-    { text: 'Settings', icon: <Settings />, path: '/settings' },
-  ]
-
   const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Toolbar sx={{ py: 2, px: 2 }}>
-        <KenalLogo size="medium" variant="full" color="white" />
-      </Toolbar>
-      <Divider sx={{ backgroundColor: 'rgba(255, 255, 255, 0.12)' }} />
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#000' }}>
+      <Box sx={{ p: 3, display: 'flex', alignItems: 'center' }}>
+        <KenalLogo size="medium" color="white" />
+      </Box>
+      
+      <Box sx={{ px: 2, pb: 2 }}>
+        <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '0.05em' }}>
+          Navigation
+        </Typography>
+      </Box>
+      
       <List sx={{ px: 1 }}>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
+        <ListItem disablePadding>
+          <ListItemButton 
+            onClick={() => router.push('/dashboard')}
+            selected={pathname === '/dashboard'}
+            sx={{
+              color: 'text.secondary',
+              '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
+              '&.Mui-selected': {
+                color: 'primary.main',
+                '& .MuiListItemIcon-root': { color: 'primary.main' },
+              },
+            }}
+          >
+            <ListItemIcon>
+              <Dashboard fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Dashboard" />
+          </ListItemButton>
+        </ListItem>
+
+        <ListItem disablePadding>
+          <ListItemButton 
+            onClick={() => setOpenUsers(!openUsers)}
+            sx={{
+              color: 'text.secondary',
+              '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
+            }}
+          >
+            <ListItemIcon>
+              <People fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Users" />
+            {openUsers ? <ExpandLess /> : <ExpandMore />}
+          </ListItemButton>
+        </ListItem>
+        <Collapse in={openUsers} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
             <ListItemButton 
-              onClick={() => router.push(item.path)}
-              selected={pathname === item.path}
-              sx={{
-                color: 'white',
-                '& .MuiListItemIcon-root': { color: 'white' },
-                '&.Mui-selected': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                },
-              }}
+              sx={{ pl: 4 }}
+              onClick={() => router.push('/users')}
+              selected={pathname === '/users'}
             >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
+              <ListItemIcon>
+                <Group fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="All Users" />
             </ListItemButton>
-          </ListItem>
-        ))}
+            <ListItemButton 
+              sx={{ pl: 4 }}
+              onClick={() => router.push('/users/analysis')}
+              selected={pathname === '/users/analysis'}
+            >
+              <ListItemIcon>
+                <BarChart fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="User Analysis" />
+              <Chip label="Coming Soon" size="small" sx={{ bgcolor: 'text.secondary', height: 20 }} />
+            </ListItemButton>
+          </List>
+        </Collapse>
+
+        <ListItem disablePadding>
+          <ListItemButton 
+            onClick={() => setOpenAnalytics(!openAnalytics)}
+            sx={{
+              color: 'text.secondary',
+              '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
+            }}
+          >
+            <ListItemIcon>
+              <Analytics fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Analytics" />
+            {openAnalytics ? <ExpandLess /> : <ExpandMore />}
+          </ListItemButton>
+        </ListItem>
+        <Collapse in={openAnalytics} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            <ListItemButton 
+              sx={{ pl: 4 }}
+              onClick={() => router.push('/analytics')}
+              selected={pathname === '/analytics'}
+            >
+              <ListItemIcon>
+                <CreditCard fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="Transactions" />
+              <Chip label="Coming Soon" size="small" sx={{ bgcolor: 'text.secondary', height: 20 }} />
+            </ListItemButton>
+          </List>
+        </Collapse>
+
+        <ListItem disablePadding>
+          <ListItemButton 
+            onClick={() => router.push('/content')}
+            selected={pathname === '/content'}
+            sx={{
+              color: 'text.secondary',
+              '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
+              '&.Mui-selected': {
+                color: 'primary.main',
+                '& .MuiListItemIcon-root': { color: 'primary.main' },
+              },
+            }}
+          >
+            <ListItemIcon>
+              <Article fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Content" />
+            <Chip label="Coming Soon" size="small" sx={{ bgcolor: 'text.secondary', height: 20 }} />
+          </ListItemButton>
+        </ListItem>
+
+        <ListItem disablePadding>
+          <ListItemButton 
+            onClick={() => router.push('/feedback')}
+            selected={pathname === '/feedback'}
+            sx={{
+              color: 'text.secondary',
+              '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
+              '&.Mui-selected': {
+                color: 'primary.main',
+                '& .MuiListItemIcon-root': { color: 'primary.main' },
+              },
+            }}
+          >
+            <ListItemIcon>
+              <Feedback fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Feedback" />
+            <Chip label="Coming Soon" size="small" sx={{ bgcolor: 'text.secondary', height: 20 }} />
+          </ListItemButton>
+        </ListItem>
+
+        <ListItem disablePadding>
+          <ListItemButton 
+            onClick={() => router.push('/settings')}
+            selected={pathname === '/settings'}
+            sx={{
+              color: 'text.secondary',
+              '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
+              '&.Mui-selected': {
+                color: 'primary.main',
+                '& .MuiListItemIcon-root': { color: 'primary.main' },
+              },
+            }}
+          >
+            <ListItemIcon>
+              <Settings fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Settings" />
+            <Chip label="Coming Soon" size="small" sx={{ bgcolor: 'text.secondary', height: 20 }} />
+          </ListItemButton>
+        </ListItem>
       </List>
+      
       <Box sx={{ flexGrow: 1 }} />
-      <Divider sx={{ backgroundColor: 'rgba(255, 255, 255, 0.12)' }} />
+      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.05)' }} />
       <List sx={{ px: 1, pb: 2 }}>
         <ListItem disablePadding>
           <ListItemButton 
             onClick={handleLogout}
             sx={{
-              color: 'white',
-              '& .MuiListItemIcon-root': { color: 'white' },
+              color: 'text.secondary',
+              '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
+              '&:hover': {
+                color: 'error.main',
+                '& .MuiListItemIcon-root': { color: 'error.main' },
+              },
             }}
           >
             <ListItemIcon>
-              <Logout />
+              <Logout fontSize="small" />
             </ListItemIcon>
             <ListItemText primary="Logout" />
           </ListItemButton>
@@ -128,9 +275,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
-          backgroundColor: 'background.paper',
+          backgroundColor: '#0a0a0a',
           color: 'text.primary',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+          boxShadow: 'none',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
         }}
       >
         <Toolbar>
@@ -143,8 +291,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {menuItems.find(item => item.path === pathname)?.text || 'Dashboard'}
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
+            Admin Dashboard
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Typography variant="body2" color="text.secondary">
@@ -155,9 +303,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               onClick={handleMenu}
               color="inherit"
             >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                <AccountCircle />
-              </Avatar>
+              <AccountCircle />
             </IconButton>
             <Menu
               anchorEl={anchorEl}
@@ -184,7 +330,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             '& .MuiDrawer-paper': { 
               boxSizing: 'border-box', 
               width: drawerWidth,
-              background: 'linear-gradient(180deg, #1e2d5f 0%, #1e3a8a 100%)',
+              backgroundColor: '#000000',
             },
           }}
         >
@@ -197,8 +343,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             '& .MuiDrawer-paper': { 
               boxSizing: 'border-box', 
               width: drawerWidth,
-              background: 'linear-gradient(180deg, #1e2d5f 0%, #1e3a8a 100%)',
-              borderRight: 'none',
+              backgroundColor: '#000000',
+              borderRight: '1px solid rgba(255, 255, 255, 0.05)',
             },
           }}
           open
@@ -213,7 +359,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           mt: '64px',
-          backgroundColor: 'background.default',
+          backgroundColor: '#0a0a0a',
           minHeight: 'calc(100vh - 64px)',
         }}
       >
