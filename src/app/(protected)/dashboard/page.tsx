@@ -38,35 +38,16 @@ import {
   RestartAlt,
 } from '@mui/icons-material'
 import { supabase } from '@/lib/supabase'
-import { Line } from 'react-chartjs-2'
 import { useTheme as useThemeMode } from '@mui/material/styles'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip as ChartTooltip,
-  Legend,
-  Filler,
-  ChartOptions,
-  TooltipItem,
-  InteractionMode,
-} from 'chart.js'
-import zoomPlugin from 'chartjs-plugin-zoom'
+import dynamic from 'next/dynamic'
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  ChartTooltip,
-  Legend,
-  Filler,
-  zoomPlugin
-)
+// Dynamically import Chart components to avoid SSR issues
+const Line = dynamic(() => import('react-chartjs-2').then((mod) => ({ default: mod.Line })), {
+  ssr: false,
+})
+
+// Use any for chart options due to dynamic import
+type ChartOptions = any
 
 interface ChartDataPoint {
   date: string
@@ -505,14 +486,14 @@ export default function DashboardPage() {
     return () => clearInterval(timeInterval)
   }, [])
 
-  const chartOptions: ChartOptions<'line'> = {
+  const chartOptions: ChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     interaction: {
-      mode: 'index' as InteractionMode,
+      mode: 'index',
       intersect: false,
     },
-    onClick: (event, activeElements) => {
+    onClick: (event: any, activeElements: any[]) => {
       if (activeElements.length > 0) {
         const index = activeElements[0].index
         const dataPoint = chartDataPoints[index]
@@ -541,7 +522,7 @@ export default function DashboardPage() {
         padding: 12,
         cornerRadius: 6,
         callbacks: {
-          label: function(context: TooltipItem<'line'>) {
+          label: function(context: any) {
             let label = context.dataset.label || '';
             if (label) {
               label += ': ';
@@ -551,7 +532,7 @@ export default function DashboardPage() {
             }
             return label;
           },
-          afterLabel: function(context: TooltipItem<'line'>) {
+          afterLabel: function(context: any) {
             const dataPoint = chartDataPoints[context.dataIndex]
             if (dataPoint && dataPoint.details && dataPoint.details.length > 0) {
               return `Click to see ${dataPoint.details.length} user details`;

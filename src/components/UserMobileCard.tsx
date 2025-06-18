@@ -108,10 +108,10 @@ export const UserMobileCard: React.FC<UserCardProps> = ({ user, onView, getEleme
                 />
               )}
               <Chip
-                label={`${user.identity_count} ID`}
+                label={`${user.identity_count || 0} ID`}
                 size="small"
                 variant="outlined"
-                color={user.identity_count > 0 ? 'success' : 'default'}
+                color={(user.identity_count || 0) > 0 ? 'success' : 'default'}
               />
             </Box>
           </Box>

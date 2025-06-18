@@ -15,6 +15,7 @@
     "@mui/icons-material": "^6.4.12",
     "@mui/material": "^6.4.12",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
+    "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.50.0",
     "chart.js": "^4.5.0",
     "chartjs-plugin-zoom": "^2.2.0",
