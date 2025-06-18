@@ -39,12 +39,7 @@ import {
 } from '@mui/icons-material'
 import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
-import dynamic from 'next/dynamic'
-
-// Dynamically import Chart components to avoid SSR issues
-const Line = dynamic(() => import('react-chartjs-2').then((mod) => ({ default: mod.Line })), {
-  ssr: false,
-})
+import { Chart } from '@/components/Chart'
 
 // Use any for chart options due to dynamic import
 type ChartOptions = any
@@ -834,7 +829,7 @@ export default function DashboardPage() {
               </Box>
             ) : (
               <>
-                <Line ref={chartRef} data={chartData} options={chartOptions} />
+                                        <Chart ref={chartRef} data={chartData} options={chartOptions} />
                 <Box sx={{ 
                   position: 'absolute', 
                   bottom: -40, 
