@@ -300,6 +300,7 @@ export default function UsersPage() {
     country: ''
   })
   const [availableCountries, setAvailableCountries] = useState<string[]>([])
+  const [totalMutualCount, setTotalMutualCount] = useState<number>(0)
   const router = useRouter()
 
   // Fetch available countries from database
@@ -317,6 +318,32 @@ export default function UsersPage() {
       }
     } catch (error) {
       console.error('Error fetching countries:', error)
+    }
+  }
+
+  // Calculate total mutual count for all user identities
+  const calculateTotalMutualCount = async (identities: any[]) => {
+    try {
+      let totalMutual = 0
+      
+      for (const identity of identities) {
+        // Get other users who have this same identity pattern
+        const patternToMatch = identity.pattern_name || identity.name || identity.id
+        const { data: identityData, error } = await supabase
+          .from('kd_identity')
+          .select('user_id')
+          .eq(identity.pattern_name ? 'pattern_name' : (identity.name ? 'name' : 'id'), patternToMatch)
+          .neq('user_id', identity.user_id) // Exclude current user
+        
+        if (!error && identityData) {
+          totalMutual += identityData.length
+        }
+      }
+      
+      setTotalMutualCount(totalMutual)
+    } catch (error) {
+      console.error('Error calculating total mutual count:', error)
+      setTotalMutualCount(0)
     }
   }
 
@@ -510,6 +537,7 @@ export default function UsersPage() {
     setEditingUser({ ...user })
     setOpenModal(true)
     setIsEditing(true)
+    setTotalMutualCount(0) // Reset mutual count
     
     // Fetch real identity count and details for this user
     try {
@@ -527,6 +555,11 @@ export default function UsersPage() {
         }
         setEditingUser(updatedUser)
         setSelectedUser(updatedUser)
+        
+        // Calculate total mutual count for all identities
+        if (identityData.length > 0) {
+          await calculateTotalMutualCount(identityData)
+        }
       }
     } catch (error) {
       console.error('Error fetching identity details:', error)
@@ -538,6 +571,7 @@ export default function UsersPage() {
     setSelectedUser(null)
     setEditingUser(null)
     setIsEditing(false)
+    setTotalMutualCount(0) // Reset mutual count
   }
 
   const handleSaveUser = async () => {
@@ -1119,6 +1153,14 @@ export default function UsersPage() {
                     >
                       <Category sx={{ color: theme.palette.primary.main }} /> 
                       User Identities ({selectedUser.kd_identity.length})
+                      {totalMutualCount > 0 && (
+                        <Chip
+                          label={`${totalMutualCount} mutual`}
+                          size="small"
+                          color="secondary"
+                          sx={{ ml: 1, fontSize: '0.7rem', height: 22 }}
+                        />
+                      )}
                     </Typography>
                     <Stack spacing={2}>
                       {selectedUser.kd_identity.map((identity: any) => (

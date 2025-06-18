@@ -170,12 +170,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               sx={{ pl: 4 }}
               onClick={() => router.push('/analytics')}
               selected={pathname === '/analytics'}
-              disabled
             >
               <ListItemIcon>
-                <CreditCard fontSize="small" />
+                <BarChart fontSize="small" />
               </ListItemIcon>
-              <ListItemText primary="Transactions" />
+              <ListItemText primary="User Analytics" />
             </ListItemButton>
           </List>
         </Collapse>
