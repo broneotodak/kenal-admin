@@ -428,9 +428,9 @@ export default function DashboardPage() {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ borderBottom: '2px solid rgba(255, 255, 255, 0.1)', pb: 2 }}>Name</TableCell>
-                    <TableCell sx={{ borderBottom: '2px solid rgba(255, 255, 255, 0.1)', pb: 2 }}>Email</TableCell>
-                    <TableCell sx={{ borderBottom: '2px solid rgba(255, 255, 255, 0.1)', pb: 2 }}>Joined</TableCell>
+                    <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Name</TableCell>
+                    <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Email</TableCell>
+                    <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Joined</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -445,8 +445,8 @@ export default function DashboardPage() {
                       <TableRow 
                         key={user.id}
                         sx={{ 
-                          '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.02)' },
-                          '& td': { borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }
+                          '&:hover': { bgcolor: (theme) => theme.palette.action.hover },
+                          '& td': { borderBottom: (theme) => `1px solid ${theme.palette.divider}` }
                         }}
                       >
                         <TableCell>
@@ -546,9 +546,9 @@ export default function DashboardPage() {
                     <Box sx={{ 
                       mt: 3, 
                       p: 3, 
-                      bgcolor: 'rgba(255, 255, 255, 0.02)', 
+                      bgcolor: (theme) => theme.palette.action.hover, 
                       borderRadius: 2,
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      border: (theme) => `1px solid ${theme.palette.divider}`,
                     }}>
                       <Typography 
                         variant="body1" 
@@ -563,7 +563,7 @@ export default function DashboardPage() {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Box sx={{ 
                           flex: 1, 
-                          bgcolor: 'rgba(255, 255, 255, 0.05)', 
+                          bgcolor: (theme) => theme.palette.action.selected, 
                           borderRadius: 1, 
                           overflow: 'hidden',
                           height: 12,
