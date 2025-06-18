@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { 
   Box, 
   Typography, 
@@ -18,6 +18,11 @@ import {
   Button,
   ButtonGroup,
   Chip,
+  CircularProgress,
+  IconButton,
+  Menu,
+  MenuItem,
+  Tooltip,
 } from '@mui/material'
 import { 
   People, 
@@ -26,6 +31,11 @@ import {
   TrendingDown,
   Assessment,
   Group,
+  Download,
+  MoreVert,
+  ZoomIn,
+  ZoomOut,
+  RestartAlt,
 } from '@mui/icons-material'
 import { supabase } from '@/lib/supabase'
 import { Line } from 'react-chartjs-2'
@@ -37,10 +47,14 @@ import {
   PointElement,
   LineElement,
   Title,
-  Tooltip,
+  Tooltip as ChartTooltip,
   Legend,
   Filler,
+  ChartOptions,
+  TooltipItem,
+  InteractionMode,
 } from 'chart.js'
+import zoomPlugin from 'chartjs-plugin-zoom'
 
 ChartJS.register(
   CategoryScale,
@@ -48,14 +62,26 @@ ChartJS.register(
   PointElement,
   LineElement,
   Title,
-  Tooltip,
+  ChartTooltip,
   Legend,
-  Filler
+  Filler,
+  zoomPlugin
 )
+
+interface ChartDataPoint {
+  date: string
+  hour?: string
+  newUsers: number
+  usersWithIdentity: number
+  details?: any[]
+}
 
 export default function DashboardPage() {
   const theme = useThemeMode()
   const isDarkMode = theme.palette.mode === 'dark'
+  const chartRef = useRef<any>(null)
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [selectedDataPoint, setSelectedDataPoint] = useState<ChartDataPoint | null>(null)
   
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -68,9 +94,326 @@ export default function DashboardPage() {
     todayGrowth: '+13.8',
   })
   const [loading, setLoading] = useState(true)
+  const [chartLoading, setChartLoading] = useState(true)
   const [timeRange, setTimeRange] = useState('24hours')
   const [recentUsers, setRecentUsers] = useState<any[]>([])
   const [currentTime, setCurrentTime] = useState<string>('')
+  const [chartDataPoints, setChartDataPoints] = useState<ChartDataPoint[]>([])
+  const [chartData, setChartData] = useState({
+    labels: [] as string[],
+    datasets: [
+      {
+        label: 'New Users',
+        data: [] as number[],
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        tension: 0.4,
+        fill: true,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBackgroundColor: '#3b82f6',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointHoverBackgroundColor: '#3b82f6',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 3,
+      },
+      {
+        label: 'Users with Identity',
+        data: [] as number[],
+        borderColor: '#f97316',
+        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+        tension: 0.4,
+        fill: true,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBackgroundColor: '#f97316',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointHoverBackgroundColor: '#f97316',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 3,
+      },
+    ],
+  })
+
+  const handleExportChart = () => {
+    setAnchorEl(null)
+    const csvData = chartDataPoints.map((point, index) => ({
+      'Date/Time': chartData.labels[index],
+      'New Users': point.newUsers,
+      'Users with Identity': point.usersWithIdentity,
+    }))
+    
+    const csvContent = [
+      Object.keys(csvData[0]).join(','),
+      ...csvData.map(row => Object.values(row).join(','))
+    ].join('\n')
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `kenal-users-${timeRange}-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
+  const handleResetZoom = () => {
+    if (chartRef.current) {
+      chartRef.current.resetZoom()
+    }
+  }
+
+  async function loadChartData(range: string) {
+    setChartLoading(true)
+    try {
+      const now = new Date()
+      let startDate: Date
+      let labels: string[] = []
+      let userCounts: number[] = []
+      let identityCounts: number[] = []
+      let dataPoints: ChartDataPoint[] = []
+
+      if (range === '24hours') {
+        // Last 24 hours, grouped by hour
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+        
+        // Get all users created in last 24 hours
+        const { data: users } = await supabase
+          .from('kd_users')
+          .select('id, name, email, created_at')
+          .gte('created_at', startDate.toISOString())
+          .order('created_at', { ascending: true })
+
+        // Get all users with identities created in last 24 hours
+        const { data: identities } = await supabase
+          .from('kd_identity')
+          .select('created_at, user_id')
+          .gte('created_at', startDate.toISOString())
+          .order('created_at', { ascending: true })
+
+        // Initialize hour buckets
+        for (let i = 0; i < 24; i++) {
+          const hour = new Date(now.getTime() - (23 - i) * 60 * 60 * 1000)
+          const hourStr = hour.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })
+          labels.push(hourStr)
+          userCounts.push(0)
+          identityCounts.push(0)
+          dataPoints.push({
+            date: hour.toISOString(),
+            hour: hourStr,
+            newUsers: 0,
+            usersWithIdentity: 0,
+            details: []
+          })
+        }
+
+        // Count users per hour and store details
+        users?.forEach(user => {
+          const hourDiff = Math.floor((new Date(user.created_at).getTime() - startDate.getTime()) / (60 * 60 * 1000))
+          if (hourDiff >= 0 && hourDiff < 24) {
+            userCounts[hourDiff]++
+            dataPoints[hourDiff].newUsers++
+            dataPoints[hourDiff].details?.push({
+              type: 'user',
+              name: user.name,
+              email: user.email,
+              time: new Date(user.created_at).toLocaleTimeString()
+            })
+          }
+        })
+
+        // Count unique users with identities per hour
+        const uniqueUsersWithIdentities = new Set<string>()
+        identities?.forEach(identity => {
+          if (!uniqueUsersWithIdentities.has(identity.user_id)) {
+            uniqueUsersWithIdentities.add(identity.user_id)
+            const hourDiff = Math.floor((new Date(identity.created_at).getTime() - startDate.getTime()) / (60 * 60 * 1000))
+            if (hourDiff >= 0 && hourDiff < 24) {
+              identityCounts[hourDiff]++
+              dataPoints[hourDiff].usersWithIdentity++
+            }
+          }
+        })
+
+      } else if (range === '7days') {
+        // Last 7 days, grouped by day
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        
+        const { data: users } = await supabase
+          .from('kd_users')
+          .select('id, name, email, created_at')
+          .gte('created_at', startDate.toISOString())
+          .order('created_at', { ascending: true })
+
+        const { data: identities } = await supabase
+          .from('kd_identity')
+          .select('created_at, user_id')
+          .gte('created_at', startDate.toISOString())
+          .order('created_at', { ascending: true })
+
+        // Initialize day buckets
+        for (let i = 0; i < 7; i++) {
+          const day = new Date(now.getTime() - (6 - i) * 24 * 60 * 60 * 1000)
+          const dayStr = day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+          labels.push(dayStr)
+          userCounts.push(0)
+          identityCounts.push(0)
+          dataPoints.push({
+            date: day.toISOString(),
+            newUsers: 0,
+            usersWithIdentity: 0,
+            details: []
+          })
+        }
+
+        // Count users per day
+        users?.forEach(user => {
+          const dayDiff = Math.floor((new Date(user.created_at).getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000))
+          if (dayDiff >= 0 && dayDiff < 7) {
+            userCounts[dayDiff]++
+            dataPoints[dayDiff].newUsers++
+            dataPoints[dayDiff].details?.push({
+              type: 'user',
+              name: user.name,
+              email: user.email,
+              time: new Date(user.created_at).toLocaleDateString()
+            })
+          }
+        })
+
+        // Count unique users with identities per day
+        const dailyIdentities: { [key: number]: Set<string> } = {}
+        for (let i = 0; i < 7; i++) {
+          dailyIdentities[i] = new Set()
+        }
+
+        identities?.forEach(identity => {
+          const dayDiff = Math.floor((new Date(identity.created_at).getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000))
+          if (dayDiff >= 0 && dayDiff < 7) {
+            dailyIdentities[dayDiff].add(identity.user_id)
+          }
+        })
+
+        for (let i = 0; i < 7; i++) {
+          identityCounts[i] = dailyIdentities[i].size
+          dataPoints[i].usersWithIdentity = dailyIdentities[i].size
+        }
+
+      } else {
+        // Last 12 months, grouped by month
+        startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1)
+        
+        const { data: users } = await supabase
+          .from('kd_users')
+          .select('id, name, email, created_at')
+          .gte('created_at', startDate.toISOString())
+          .order('created_at', { ascending: true })
+
+        const { data: identities } = await supabase
+          .from('kd_identity')
+          .select('created_at, user_id')
+          .gte('created_at', startDate.toISOString())
+          .order('created_at', { ascending: true })
+
+        // Initialize month buckets
+        for (let i = 0; i < 12; i++) {
+          const month = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1)
+          const monthStr = month.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+          labels.push(monthStr)
+          userCounts.push(0)
+          identityCounts.push(0)
+          dataPoints.push({
+            date: month.toISOString(),
+            newUsers: 0,
+            usersWithIdentity: 0,
+            details: []
+          })
+        }
+
+        // Count users per month
+        users?.forEach(user => {
+          const userDate = new Date(user.created_at)
+          const monthDiff = (userDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                           (userDate.getMonth() - startDate.getMonth())
+          if (monthDiff >= 0 && monthDiff < 12) {
+            userCounts[monthDiff]++
+            dataPoints[monthDiff].newUsers++
+            dataPoints[monthDiff].details?.push({
+              type: 'user',
+              name: user.name,
+              email: user.email,
+              time: userDate.toLocaleDateString()
+            })
+          }
+        })
+
+        // Count unique users with identities per month
+        const monthlyIdentities: { [key: number]: Set<string> } = {}
+        for (let i = 0; i < 12; i++) {
+          monthlyIdentities[i] = new Set()
+        }
+
+        identities?.forEach(identity => {
+          const identityDate = new Date(identity.created_at)
+          const monthDiff = (identityDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                           (identityDate.getMonth() - startDate.getMonth())
+          if (monthDiff >= 0 && monthDiff < 12) {
+            monthlyIdentities[monthDiff].add(identity.user_id)
+          }
+        })
+
+        for (let i = 0; i < 12; i++) {
+          identityCounts[i] = monthlyIdentities[i].size
+          dataPoints[i].usersWithIdentity = monthlyIdentities[i].size
+        }
+      }
+
+      setChartDataPoints(dataPoints)
+      setChartData({
+        labels,
+        datasets: [
+          {
+            label: 'New Users',
+            data: userCounts,
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.4,
+            fill: true,
+            pointRadius: 5,
+            pointHoverRadius: 8,
+            pointBackgroundColor: '#3b82f6',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverBackgroundColor: '#3b82f6',
+            pointHoverBorderColor: '#fff',
+            pointHoverBorderWidth: 3,
+          },
+          {
+            label: 'Users with Identity',
+            data: identityCounts,
+            borderColor: '#f97316',
+            backgroundColor: 'rgba(249, 115, 22, 0.1)',
+            tension: 0.4,
+            fill: true,
+            pointRadius: 5,
+            pointHoverRadius: 8,
+            pointBackgroundColor: '#f97316',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointHoverBackgroundColor: '#f97316',
+            pointHoverBorderColor: '#fff',
+            pointHoverBorderWidth: 3,
+          },
+        ],
+      })
+    } catch (error) {
+      console.error('Error loading chart data:', error)
+    } finally {
+      setChartLoading(false)
+    }
+  }
 
   async function loadDashboard() {
     try {
@@ -79,11 +422,15 @@ export default function DashboardPage() {
         .from('kd_users')
         .select('*', { count: 'exact', head: true })
 
-      // Get active users (with identities)
-      const { count: activeUsers } = await supabase
-        .from('user_identities')
-        .select('*', { count: 'exact', head: true })
-        .not('identity_data', 'is', null)
+      // Get active users (have at least one identity)
+      const { data: usersWithIdentity } = await supabase
+        .from('kd_identity')
+        .select('user_id', { count: 'exact' })
+        .not('user_id', 'is', null)
+      
+      // Count unique users with identities
+      const uniqueUsersWithIdentity = new Set(usersWithIdentity?.map(item => item.user_id) || [])
+      const activeUsers = uniqueUsersWithIdentity.size
 
       // Get today's registrations
       const today = new Date()
@@ -93,6 +440,17 @@ export default function DashboardPage() {
         .select('*', { count: 'exact', head: true })
         .gte('created_at', today.toISOString())
 
+      // Calculate growth percentages (comparing to last month/week)
+      const lastMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+      const { count: lastMonthUsers } = await supabase
+        .from('kd_users')
+        .select('*', { count: 'exact', head: true })
+        .lt('created_at', lastMonth.toISOString())
+
+      const userGrowth = lastMonthUsers && lastMonthUsers > 0 
+        ? ((totalUsers! - lastMonthUsers) / lastMonthUsers * 100).toFixed(1)
+        : '0'
+
       // Get recent users
       const { data: recent } = await supabase
         .from('kd_users')
@@ -101,30 +459,19 @@ export default function DashboardPage() {
         .limit(5)
 
       setStats({
-        totalUsers: totalUsers || 281,
-        activeUsers: activeUsers || 144,
-        todayRegistrations: todayRegistrations || 33,
+        totalUsers: totalUsers || 0,
+        activeUsers: activeUsers || 0,
+        todayRegistrations: todayRegistrations || 0,
         totalRevenue: 452808,
-        userGrowth: '+12.5',
+        userGrowth: userGrowth.startsWith('-') ? userGrowth : `+${userGrowth}`,
         activeGrowth: '+8.3',
         revenueGrowth: '+15.2',
-        todayGrowth: '+13.8',
+        todayGrowth: todayRegistrations && todayRegistrations > 0 ? '+13.8' : '0',
       })
 
       setRecentUsers(recent || [])
     } catch (error) {
       console.error('Error loading dashboard:', error)
-      // Use fallback data
-      setStats({
-        totalUsers: 281,
-        activeUsers: 144,
-        todayRegistrations: 33,
-        totalRevenue: 452808,
-        userGrowth: '+12.5',
-        activeGrowth: '+8.3',
-        revenueGrowth: '+15.2',
-        todayGrowth: '+13.8',
-      })
     } finally {
       setLoading(false)
     }
@@ -136,6 +483,10 @@ export default function DashboardPage() {
     return () => clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    loadChartData(timeRange)
+  }, [timeRange])
+
   // Update time only on client side to avoid hydration issues
   useEffect(() => {
     const updateTime = () => {
@@ -146,31 +497,20 @@ export default function DashboardPage() {
     return () => clearInterval(timeInterval)
   }, [])
 
-  const chartData = {
-    labels: ['12 AM', '2 AM', '4 AM', '6 AM', '8 AM', '10 AM', '12 PM', '2 PM', '4 PM', '6 PM', '8 PM', '10 PM'],
-    datasets: [
-      {
-        label: 'New Users',
-        data: [2, 1, 0, 0, 3, 7, 14, 8, 5, 3, 2, 1],
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        tension: 0.4,
-        fill: true,
-      },
-      {
-        label: 'Users with Identity',
-        data: [1, 0, 0, 0, 2, 5, 10, 6, 4, 2, 1, 1],
-        borderColor: '#f97316',
-        backgroundColor: 'rgba(249, 115, 22, 0.1)',
-        tension: 0.4,
-        fill: true,
-      },
-    ],
-  }
-
-  const chartOptions = {
+  const chartOptions: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: {
+      mode: 'index' as InteractionMode,
+      intersect: false,
+    },
+    onClick: (event, activeElements) => {
+      if (activeElements.length > 0) {
+        const index = activeElements[0].index
+        const dataPoint = chartDataPoints[index]
+        setSelectedDataPoint(dataPoint)
+      }
+    },
     plugins: {
       legend: {
         position: 'bottom' as const,
@@ -180,7 +520,7 @@ export default function DashboardPage() {
           usePointStyle: true,
           font: {
             size: 12,
-            weight: '500',
+            weight: 500 as const,
           },
         },
       },
@@ -192,13 +532,52 @@ export default function DashboardPage() {
         borderWidth: 1,
         padding: 12,
         cornerRadius: 6,
+        callbacks: {
+          label: function(context: TooltipItem<'line'>) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += context.parsed.y + ' users';
+            }
+            return label;
+          },
+          afterLabel: function(context: TooltipItem<'line'>) {
+            const dataPoint = chartDataPoints[context.dataIndex]
+            if (dataPoint && dataPoint.details && dataPoint.details.length > 0) {
+              return `Click to see ${dataPoint.details.length} user details`;
+            }
+            return '';
+          }
+        }
       },
+      zoom: {
+        zoom: {
+          wheel: {
+            enabled: true,
+          },
+          pinch: {
+            enabled: true
+          },
+          mode: 'x',
+        },
+        pan: {
+          enabled: true,
+          mode: 'x',
+        },
+        limits: {
+          x: {min: 'original', max: 'original'},
+        },
+      }
     },
     scales: {
       x: {
+        border: {
+          color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        },
         grid: {
           color: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
-          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
         },
         ticks: {
           color: isDarkMode ? '#6b7280' : '#374151',
@@ -208,15 +587,19 @@ export default function DashboardPage() {
         },
       },
       y: {
+        beginAtZero: true,
+        border: {
+          color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+        },
         grid: {
           color: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
-          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
         },
         ticks: {
           color: isDarkMode ? '#6b7280' : '#374151',
           font: {
             size: 11,
           },
+          stepSize: 1,
         },
       },
     },
@@ -294,7 +677,7 @@ export default function DashboardPage() {
                     fontSize: '0.875rem'
                   }}
                 >
-                  {growth}% vs last {timeRange === '24hours' ? 'month' : timeRange === '7days' ? 'week' : 'month'}
+                  {growth}% vs last month
                 </Typography>
               </Box>
             </Box>
@@ -372,57 +755,148 @@ export default function DashboardPage() {
                 Users & Identity Registration Trends
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Last updated: {currentTime || '...'}
+                Last updated: {currentTime || '...'} • Click on data points for details
               </Typography>
             </Box>
-            <ButtonGroup size="small">
-              <Button 
-                variant={timeRange === '24hours' ? 'contained' : 'outlined'}
-                onClick={() => setTimeRange('24hours')}
-                sx={{
-                  color: timeRange === '24hours' ? 'white' : (theme) => theme.palette.text.primary,
-                  borderColor: (theme) => theme.palette.divider,
-                  '&:hover': {
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <ButtonGroup size="small">
+                <Button 
+                  variant={timeRange === '24hours' ? 'contained' : 'outlined'}
+                  onClick={() => setTimeRange('24hours')}
+                  sx={{
+                    color: timeRange === '24hours' ? 'white' : (theme) => theme.palette.text.primary,
                     borderColor: (theme) => theme.palette.divider,
-                    backgroundColor: timeRange === '24hours' ? undefined : (theme) => theme.palette.action.hover,
-                  },
-                }}
-              >
-                24 HOURS
-              </Button>
-              <Button 
-                variant={timeRange === '7days' ? 'contained' : 'outlined'}
-                onClick={() => setTimeRange('7days')}
-                sx={{
-                  color: timeRange === '7days' ? 'white' : (theme) => theme.palette.text.primary,
-                  borderColor: (theme) => theme.palette.divider,
-                  '&:hover': {
+                    '&:hover': {
+                      borderColor: (theme) => theme.palette.divider,
+                      backgroundColor: timeRange === '24hours' ? undefined : (theme) => theme.palette.action.hover,
+                    },
+                  }}
+                >
+                  24 HOURS
+                </Button>
+                <Button 
+                  variant={timeRange === '7days' ? 'contained' : 'outlined'}
+                  onClick={() => setTimeRange('7days')}
+                  sx={{
+                    color: timeRange === '7days' ? 'white' : (theme) => theme.palette.text.primary,
                     borderColor: (theme) => theme.palette.divider,
-                    backgroundColor: timeRange === '7days' ? undefined : (theme) => theme.palette.action.hover,
-                  },
-                }}
-              >
-                7 DAYS
-              </Button>
-              <Button 
-                variant={timeRange === '12months' ? 'contained' : 'outlined'}
-                onClick={() => setTimeRange('12months')}
-                sx={{
-                  color: timeRange === '12months' ? 'white' : (theme) => theme.palette.text.primary,
-                  borderColor: (theme) => theme.palette.divider,
-                  '&:hover': {
+                    '&:hover': {
+                      borderColor: (theme) => theme.palette.divider,
+                      backgroundColor: timeRange === '7days' ? undefined : (theme) => theme.palette.action.hover,
+                    },
+                  }}
+                >
+                  7 DAYS
+                </Button>
+                <Button 
+                  variant={timeRange === '12months' ? 'contained' : 'outlined'}
+                  onClick={() => setTimeRange('12months')}
+                  sx={{
+                    color: timeRange === '12months' ? 'white' : (theme) => theme.palette.text.primary,
                     borderColor: (theme) => theme.palette.divider,
-                    backgroundColor: timeRange === '12months' ? undefined : (theme) => theme.palette.action.hover,
-                  },
-                }}
-              >
-                12 MONTHS
-              </Button>
-            </ButtonGroup>
+                    '&:hover': {
+                      borderColor: (theme) => theme.palette.divider,
+                      backgroundColor: timeRange === '12months' ? undefined : (theme) => theme.palette.action.hover,
+                    },
+                  }}
+                >
+                  12 MONTHS
+                </Button>
+              </ButtonGroup>
+              <Tooltip title="Chart Options">
+                <IconButton 
+                  size="small" 
+                  onClick={(e) => setAnchorEl(e.currentTarget)}
+                  sx={{ ml: 1 }}
+                >
+                  <MoreVert />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
-          <Box sx={{ height: 300 }}>
-            <Line data={chartData} options={chartOptions} />
+
+          {/* Chart Actions Menu */}
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => setAnchorEl(null)}
+          >
+            <MenuItem onClick={handleExportChart}>
+              <Download sx={{ mr: 1, fontSize: 20 }} />
+              Export as CSV
+            </MenuItem>
+            <MenuItem onClick={handleResetZoom}>
+              <RestartAlt sx={{ mr: 1, fontSize: 20 }} />
+              Reset Zoom
+            </MenuItem>
+          </Menu>
+
+          <Box sx={{ height: 300, position: 'relative' }}>
+            {chartLoading ? (
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                height: '100%',
+                bgcolor: theme.palette.action.hover,
+                borderRadius: 1,
+              }}>
+                <CircularProgress size={40} />
+              </Box>
+            ) : (
+              <>
+                <Line ref={chartRef} data={chartData} options={chartOptions} />
+                <Box sx={{ 
+                  position: 'absolute', 
+                  bottom: -40, 
+                  right: 0,
+                  display: 'flex',
+                  gap: 1,
+                  fontSize: '0.75rem',
+                  color: 'text.secondary'
+                }}>
+                  <Typography variant="caption">
+                    <ZoomIn sx={{ fontSize: 14, verticalAlign: 'middle' }} /> Scroll to zoom
+                  </Typography>
+                  <Typography variant="caption">
+                    • Click data points for details
+                  </Typography>
+                </Box>
+              </>
+            )}
           </Box>
+
+          {/* Selected Data Point Details */}
+          {selectedDataPoint && selectedDataPoint.details && selectedDataPoint.details.length > 0 && (
+            <Box sx={{ 
+              mt: 4, 
+              p: 2, 
+              bgcolor: (theme) => theme.palette.action.hover,
+              borderRadius: 1,
+              border: (theme) => `1px solid ${theme.palette.divider}`
+            }}>
+              <Typography variant="subtitle2" fontWeight="600" gutterBottom>
+                Details for {selectedDataPoint.hour || chartData.labels[chartDataPoints.indexOf(selectedDataPoint)]}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                {selectedDataPoint.newUsers} new users, {selectedDataPoint.usersWithIdentity} with identity
+              </Typography>
+              <Box sx={{ mt: 1, maxHeight: 200, overflow: 'auto' }}>
+                {selectedDataPoint.details.slice(0, 10).map((detail, index) => (
+                  <Box key={index} sx={{ py: 0.5 }}>
+                    <Typography variant="caption">
+                      {detail.name || 'N/A'} ({detail.email}) - {detail.time}
+                    </Typography>
+                  </Box>
+                ))}
+                {selectedDataPoint.details.length > 10 && (
+                  <Typography variant="caption" color="text.secondary">
+                    ... and {selectedDataPoint.details.length - 10} more
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          )}
         </CardContent>
       </Card>
 
@@ -516,9 +990,12 @@ export default function DashboardPage() {
                       borderRadius: 2,
                       border: '1px solid rgba(59, 130, 246, 0.1)',
                       transition: 'all 0.3s ease',
+                      cursor: 'pointer',
                       '&:hover': {
                         bgcolor: 'rgba(59, 130, 246, 0.08)',
                         borderColor: 'rgba(59, 130, 246, 0.2)',
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
                       }
                     }}>
                       <Typography variant="h3" sx={{ color: '#3b82f6', fontWeight: 700, mb: 1 }}>
@@ -537,9 +1014,12 @@ export default function DashboardPage() {
                       borderRadius: 2,
                       border: '1px solid rgba(156, 163, 175, 0.1)',
                       transition: 'all 0.3s ease',
+                      cursor: 'pointer',
                       '&:hover': {
                         bgcolor: 'rgba(156, 163, 175, 0.08)',
                         borderColor: 'rgba(156, 163, 175, 0.2)',
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(156, 163, 175, 0.15)',
                       }
                     }}>
                       <Typography variant="h3" sx={{ color: '#6b7280', fontWeight: 700, mb: 1 }}>
@@ -578,7 +1058,7 @@ export default function DashboardPage() {
                         }}>
                           <Box 
                             sx={{ 
-                              width: `${(stats.activeUsers / stats.totalUsers * 100).toFixed(1)}%`, 
+                              width: `${stats.totalUsers > 0 ? (stats.activeUsers / stats.totalUsers * 100).toFixed(1) : 0}%`, 
                               height: '100%', 
                               bgcolor: 'primary.main',
                               background: 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)',
@@ -595,7 +1075,7 @@ export default function DashboardPage() {
                             textAlign: 'right'
                           }}
                         >
-                          {(stats.activeUsers / stats.totalUsers * 100).toFixed(1)}%
+                          {stats.totalUsers > 0 ? (stats.activeUsers / stats.totalUsers * 100).toFixed(1) : 0}%
                         </Typography>
                       </Box>
                     </Box>

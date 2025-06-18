@@ -1,48 +1,111 @@
+# Kenal Admin Dashboard
 
-## 🎨 Features Implemented
+## Overview
+Admin dashboard for Kenal.com - A platform for personality analysis based on elements.
 
-### Dashboard
-- **Real-time Statistics**: Total users, active users, identities, today's registrations
-- **User Registration Trend**: 7-day chart showing registration patterns
-- **Recent Users**: Latest 5 users with identity count
-- **Auto-refresh**: Updates every 30 seconds
+## Tech Stack
+- **Frontend**: Next.js 14.2.3, TypeScript, Material-UI
+- **Backend**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Deployment**: Netlify (planned)
 
-### Users Management
-- **User Table**: Comprehensive list with pagination
-- **Search**: Filter by name or email
-- **User Details**: Name, email, element number, gender, identity count
-- **Status Indicators**: Active/Inactive status chips
+## Project Status
+✅ MVP Complete with:
+- Authentication system (admin only)
+- Dashboard with interactive charts
+- User management
+- Dark/Light theme support
+- Mobile responsive
 
-### Design
-- **Dark Theme**: Professional dark UI
-- **Kenal Branding**: 
-  - Primary Blue: #2B5CE6
-  - Secondary Orange: #FF6B35
-  - Logo: Fingerprint icon
-- **Responsive**: Works on desktop and mobile
+## Getting Started
 
-## 🛠️ Customization
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+- Supabase project access
 
-### Adding New Pages
-1. Create a new folder in `src/app/(protected)/your-page/`
-2. Add a `page.tsx` file
-3. Update navigation in `src/components/DashboardLayout.tsx`
+### Installation
+```bash
+# Clone the repository
+git clone [your-repo-url]
+cd kenal-admin-next
 
-### Modifying Theme
-Edit the theme configuration in `src/components/ThemeProvider.tsx`
+# Install dependencies
+npm install
 
-### Database Queries
-All Supabase queries are in the respective page components. Modify as needed.
+# Set up environment variables
+cp .env.local.example .env.local
+# Edit .env.local with your Supabase credentials
+```
 
-## 📊 Database Tables Used
-- `kd_users` - User information
-- `kd_identity` - User identities
-- `kd_login_logs` - Login tracking
-- `kd_element_ms` - Element master data
-- `kd_pola_2digit` - Pattern interpretations
+### Environment Variables
+Create `.env.local` with:
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://etkuxatycjqwvfjjwxqm.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=[your-anon-key]
+SUPABASE_SERVICE_ROLE_KEY=[your-service-role-key]
+```
 
-## 🚨 Important Notes
-- This is a Next.js 14 app with App Router
-- Uses Material-UI for components
-- Supabase for backend and authentication
-- Environment variables in `.env.local`
+### Development
+```bash
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Run production build locally
+npm start
+```
+
+## Project Structure
+```
+kenal-admin-next/
+├── src/
+│   ├── app/
+│   │   ├── (auth)/
+│   │   │   └── login/
+│   │   ├── (protected)/
+│   │   │   ├── dashboard/
+│   │   │   ├── users/
+│   │   │   └── [other pages]/
+│   │   └── layout.tsx
+│   ├── components/
+│   │   └── DashboardLayout.tsx
+│   ├── lib/
+│   │   └── supabase.ts
+│   └── theme/
+├── public/
+├── package.json
+└── README.md
+```
+
+## Database Schema
+- **kd_users**: User accounts
+- **kd_identity**: User personality patterns
+- Admin users have `user_type = 5`
+
+## Known Issues
+- Build warnings about module type (add `"type": "module"` to package.json if needed)
+- Some TypeScript strict mode warnings
+
+## Deployment
+Target: admin.kenal.com (Netlify)
+
+```bash
+# Deploy to Netlify
+netlify deploy --dir ./.next --prod
+```
+
+## Admin Users
+- neo@todak.com
+- lan@todak.com
+- (see PROJECT-KENAL.md for full list)
+
+## Documentation
+- `/PROJECT-KENAL.md` - Main project documentation
+- `/KENAL-ADMIN-HANDOVER.md` - Handover notes
+- SQL files for database fixes
+
+## Support
+For issues with Supabase connection, check `/src/app/(protected)/diagnose-kenal`

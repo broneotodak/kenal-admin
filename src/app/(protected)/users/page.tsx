@@ -1,58 +1,3 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import {
-  Box,
-  Card,
-  CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  TextField,
-  InputAdornment,
-  Chip,
-  Avatar,
-  IconButton,
-  Typography,
-  Button,
-  Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Grid,
-  Divider,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Stack,
-  Skeleton,
-  useTheme,
-  Paper,
-  alpha,
-  useMediaQuery,
-  Pagination,
-} from '@mui/material'
-import {
-  Search,
-  Visibility,
-  Edit,
-  FilterList,
-  Download,
-  Close,
-  Person,
-  Email,
-  CalendarToday,
-  Category,
-  Psychology,
-  Badge,
-  Cake,
-} from '@mui/icons-material'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { UserMobileCard } from '@/components/UserMobileCard'
@@ -518,10 +463,10 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>
                       <Chip
-                        label={`${user.identity_count} identities`}
+                        label={`${user.identity_count || 0} identities`}
                         size="small"
                         variant="outlined"
-                        color={user.identity_count > 0 ? 'success' : 'default'}
+                        color={(user.identity_count || 0) > 0 ? 'success' : 'default'}
                         sx={{ fontWeight: 500 }}
                       />
                     </TableCell>
