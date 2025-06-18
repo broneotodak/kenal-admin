@@ -11,7 +11,7 @@ This is the Kenal Admin Dashboard - an admin panel for kenal.com (personality an
 ## Important Notes
 
 ### 1. Supabase Configuration
-- **Project**: KENAL (etkuxatycjqwvfjjwxqm)
+- **Project**: KENAL
 - **Owner**: Lan Todak
 - **RLS**: DISABLED (no Row Level Security)
 - **DO NOT**: Modify Supabase settings without permission
@@ -58,7 +58,7 @@ npm run dev
 ### 6. Environment Variables
 Required in `.env.local`:
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://etkuxatycjqwvfjjwxqm.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=[get from Supabase dashboard]
 NEXT_PUBLIC_SUPABASE_ANON_KEY=[get from Supabase dashboard]
 SUPABASE_SERVICE_ROLE_KEY=[optional, for server-side]
 ```
