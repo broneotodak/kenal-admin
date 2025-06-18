@@ -1,6 +1,7 @@
 [build]
   command = "npm run build"
   publish = "out"
+  environment = { SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY" }
 
 # SPA fallback for client-side routing
 [[redirects]]
