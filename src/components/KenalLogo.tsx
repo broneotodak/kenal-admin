@@ -3,7 +3,7 @@ import { Box, Typography } from '@mui/material'
 interface KenalLogoProps {
   size?: 'small' | 'medium' | 'large'
   variant?: 'full' | 'icon'
-  color?: 'primary' | 'white' | 'gradient'
+  color?: 'primary' | 'white' | 'gradient' | 'theme'
 }
 
 export function KenalLogo({ 
@@ -30,7 +30,7 @@ export function KenalLogo({
         sx={{ 
           fontWeight: 700,
           fontSize: sizes[size].fontSize,
-          color: colors[color],
+          color: color === 'theme' ? 'text.primary' : colors[color],
           background: color === 'gradient' ? colors[color] : 'none',
           backgroundClip: color === 'gradient' ? 'text' : 'unset',
           WebkitBackgroundClip: color === 'gradient' ? 'text' : 'unset',

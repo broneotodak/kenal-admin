@@ -1,6 +1,6 @@
 import { createTheme } from '@mui/material/styles'
 
-export const kenalTheme = createTheme({
+export const darkTheme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
@@ -68,9 +68,24 @@ export const kenalTheme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          backgroundColor: '#262626',
+          backgroundColor: '#1a1a1a',
           backgroundImage: 'none',
-          border: '1px solid rgba(255, 255, 255, 0.05)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+          transition: 'box-shadow 0.3s ease',
+          '&:hover': {
+            boxShadow: '0 6px 20px rgba(0, 0, 0, 0.6)',
+          },
+        },
+      },
+    },
+    MuiCardContent: {
+      styleOverrides: {
+        root: {
+          padding: '24px',
+          '&:last-child': {
+            paddingBottom: '24px',
+          },
         },
       },
     },
@@ -100,6 +115,9 @@ export const kenalTheme = createTheme({
           },
           '&:hover': {
             backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          },
+          '&.Mui-disabled': {
+            opacity: 0.5,
           },
         },
       },

@@ -23,11 +23,13 @@ import {
   People, 
   PersonAdd,
   TrendingUp,
+  TrendingDown,
   Assessment,
   Group,
 } from '@mui/icons-material'
 import { supabase } from '@/lib/supabase'
 import { Line } from 'react-chartjs-2'
+import { useTheme as useThemeMode } from '@mui/material/styles'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -52,6 +54,9 @@ ChartJS.register(
 )
 
 export default function DashboardPage() {
+  const theme = useThemeMode()
+  const isDarkMode = theme.palette.mode === 'dark'
+  
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
@@ -170,83 +175,139 @@ export default function DashboardPage() {
       legend: {
         position: 'bottom' as const,
         labels: {
-          color: '#9ca3af',
+          color: isDarkMode ? '#9ca3af' : '#374151',
           padding: 20,
           usePointStyle: true,
+          font: {
+            size: 12,
+            weight: '500',
+          },
         },
       },
       tooltip: {
-        backgroundColor: '#1a1a1a',
+        backgroundColor: isDarkMode ? '#1a1a1a' : '#1f2937',
         titleColor: '#ffffff',
-        bodyColor: '#9ca3af',
-        borderColor: 'rgba(255, 255, 255, 0.1)',
+        bodyColor: isDarkMode ? '#9ca3af' : '#d1d5db',
+        borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
         borderWidth: 1,
+        padding: 12,
+        cornerRadius: 6,
       },
     },
     scales: {
       x: {
         grid: {
-          color: 'rgba(255, 255, 255, 0.05)',
-          borderColor: 'rgba(255, 255, 255, 0.1)',
+          color: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
         },
         ticks: {
-          color: '#6b7280',
+          color: isDarkMode ? '#6b7280' : '#374151',
+          font: {
+            size: 11,
+          },
         },
       },
       y: {
         grid: {
-          color: 'rgba(255, 255, 255, 0.05)',
-          borderColor: 'rgba(255, 255, 255, 0.1)',
+          color: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+          borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
         },
         ticks: {
-          color: '#6b7280',
+          color: isDarkMode ? '#6b7280' : '#374151',
+          font: {
+            size: 11,
+          },
         },
       },
     },
   }
 
-  const StatCard = ({ icon, title, value, growth, isRevenue = false }: any) => (
-    <Card sx={{ height: '100%', position: 'relative', overflow: 'visible' }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-          <Box>
-            <Typography color="text.secondary" gutterBottom variant="body2" sx={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {title}
-            </Typography>
-            <Typography variant="h4" component="div" sx={{ fontWeight: 600, mb: 1 }}>
-              {loading ? <Skeleton width={100} /> : isRevenue ? `RM ${value.toLocaleString()}` : value.toLocaleString()}
-            </Typography>
-            <Typography variant="body2" sx={{ color: growth.startsWith('+') ? '#10b981' : '#ef4444' }}>
-              {growth}% vs last {timeRange === '24hours' ? 'month' : timeRange === '7days' ? 'week' : 'month'}
-            </Typography>
-          </Box>
-          <Avatar sx={{ bgcolor: icon.props.sx?.color || 'primary.main', width: 48, height: 48 }}>
-            {icon}
-          </Avatar>
-        </Box>
-        {isRevenue && (
-          <Box sx={{ 
-            position: 'absolute', 
-            top: -10, 
-            right: -10,
-            transform: 'rotate(45deg)',
-          }}>
-            <Chip 
-              label="COMING SOON" 
-              size="small" 
+  const StatCard = ({ icon, title, value, growth, isRevenue = false }: any) => {
+    const isPositive = growth.startsWith('+');
+    const GrowthIcon = isPositive ? TrendingUp : TrendingDown;
+    
+    return (
+      <Card sx={{ height: '100%', position: 'relative', overflow: 'visible' }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <Box sx={{ flex: 1 }}>
+              <Typography 
+                color="text.secondary" 
+                gutterBottom 
+                variant="body2" 
+                sx={{ 
+                  fontSize: '0.75rem', 
+                  textTransform: 'uppercase', 
+                  letterSpacing: '0.1em',
+                  fontWeight: 500,
+                  mb: 1.5
+                }}
+              >
+                {title}
+              </Typography>
+              {isRevenue && (
+                <Chip 
+                  label="COMING SOON" 
+                  size="small" 
+                  sx={{ 
+                    bgcolor: '#f97316',
+                    color: 'white',
+                    fontSize: '0.65rem',
+                    height: 22,
+                    fontWeight: 600,
+                    mb: 1.5,
+                  }} 
+                />
+              )}
+              <Typography 
+                variant="h4" 
+                component="div" 
+                sx={{ 
+                  fontWeight: 700, 
+                  mb: 1.5,
+                  fontSize: '2rem',
+                  lineHeight: 1.2
+                }}
+              >
+                {loading ? <Skeleton width={100} /> : isRevenue ? `RM ${value.toLocaleString()}` : value.toLocaleString()}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <GrowthIcon 
+                  sx={{ 
+                    fontSize: '1rem', 
+                    color: isPositive ? '#10b981' : '#ef4444' 
+                  }} 
+                />
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    color: isPositive ? '#10b981' : '#ef4444',
+                    fontWeight: 600,
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  {growth}% vs last {timeRange === '24hours' ? 'month' : timeRange === '7days' ? 'week' : 'month'}
+                </Typography>
+              </Box>
+            </Box>
+            <Avatar 
               sx={{ 
-                bgcolor: '#f97316',
-                color: 'white',
-                fontSize: '0.65rem',
-                height: 24,
-                fontWeight: 600,
-              }} 
-            />
+                bgcolor: 'rgba(59, 130, 246, 0.1)', 
+                width: 56, 
+                height: 56,
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                '& .MuiSvgIcon-root': {
+                  fontSize: '1.75rem'
+                }
+              }}
+            >
+              {icon}
+            </Avatar>
           </Box>
-        )}
-      </CardContent>
-    </Card>
-  )
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Box>
@@ -297,7 +358,10 @@ export default function DashboardPage() {
         </Grid>
       </Grid>
 
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ 
+        mb: 3,
+        bgcolor: (theme) => theme.palette.mode === 'light' ? '#f9fafb' : theme.palette.background.paper,
+      }}>
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box>
@@ -312,18 +376,42 @@ export default function DashboardPage() {
               <Button 
                 variant={timeRange === '24hours' ? 'contained' : 'outlined'}
                 onClick={() => setTimeRange('24hours')}
+                sx={{
+                  color: timeRange === '24hours' ? 'white' : (theme) => theme.palette.text.primary,
+                  borderColor: (theme) => theme.palette.divider,
+                  '&:hover': {
+                    borderColor: (theme) => theme.palette.divider,
+                    backgroundColor: timeRange === '24hours' ? undefined : (theme) => theme.palette.action.hover,
+                  },
+                }}
               >
                 24 HOURS
               </Button>
               <Button 
                 variant={timeRange === '7days' ? 'contained' : 'outlined'}
                 onClick={() => setTimeRange('7days')}
+                sx={{
+                  color: timeRange === '7days' ? 'white' : (theme) => theme.palette.text.primary,
+                  borderColor: (theme) => theme.palette.divider,
+                  '&:hover': {
+                    borderColor: (theme) => theme.palette.divider,
+                    backgroundColor: timeRange === '7days' ? undefined : (theme) => theme.palette.action.hover,
+                  },
+                }}
               >
                 7 DAYS
               </Button>
               <Button 
                 variant={timeRange === '12months' ? 'contained' : 'outlined'}
                 onClick={() => setTimeRange('12months')}
+                sx={{
+                  color: timeRange === '12months' ? 'white' : (theme) => theme.palette.text.primary,
+                  borderColor: (theme) => theme.palette.divider,
+                  '&:hover': {
+                    borderColor: (theme) => theme.palette.divider,
+                    backgroundColor: timeRange === '12months' ? undefined : (theme) => theme.palette.action.hover,
+                  },
+                }}
               >
                 12 MONTHS
               </Button>
@@ -345,9 +433,9 @@ export default function DashboardPage() {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Email</TableCell>
-                    <TableCell>Joined</TableCell>
+                    <TableCell sx={{ borderBottom: '2px solid rgba(255, 255, 255, 0.1)', pb: 2 }}>Name</TableCell>
+                    <TableCell sx={{ borderBottom: '2px solid rgba(255, 255, 255, 0.1)', pb: 2 }}>Email</TableCell>
+                    <TableCell sx={{ borderBottom: '2px solid rgba(255, 255, 255, 0.1)', pb: 2 }}>Joined</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -359,18 +447,40 @@ export default function DashboardPage() {
                     </TableRow>
                   ) : recentUsers.length > 0 ? (
                     recentUsers.map((user) => (
-                      <TableRow key={user.id}>
+                      <TableRow 
+                        key={user.id}
+                        sx={{ 
+                          '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.02)' },
+                          '& td': { borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }
+                        }}
+                      >
                         <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Avatar sx={{ width: 32, height: 32 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Avatar 
+                              sx={{ 
+                                width: 36, 
+                                height: 36,
+                                bgcolor: 'primary.main',
+                                fontSize: '0.875rem',
+                                fontWeight: 600
+                              }}
+                            >
                               {user.name?.[0] || user.email[0].toUpperCase()}
                             </Avatar>
-                            {user.name || 'N/A'}
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {user.name || 'N/A'}
+                            </Typography>
                           </Box>
                         </TableCell>
-                        <TableCell>{user.email}</TableCell>
                         <TableCell>
-                          {new Date(user.created_at).toLocaleDateString()}
+                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                            {user.email}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </Typography>
                         </TableCell>
                       </TableRow>
                     ))
@@ -396,41 +506,92 @@ export default function DashboardPage() {
               <Box sx={{ mt: 2 }}>
                 <Grid container spacing={2}>
                   <Grid item xs={6}>
-                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-                      <Typography variant="h4" color="primary.main" fontWeight="600">
+                    <Box sx={{ 
+                      textAlign: 'center', 
+                      p: 3, 
+                      bgcolor: 'rgba(59, 130, 246, 0.05)', 
+                      borderRadius: 2,
+                      border: '1px solid rgba(59, 130, 246, 0.1)',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        bgcolor: 'rgba(59, 130, 246, 0.08)',
+                        borderColor: 'rgba(59, 130, 246, 0.2)',
+                      }
+                    }}>
+                      <Typography variant="h3" sx={{ color: '#3b82f6', fontWeight: 700, mb: 1 }}>
                         {stats.activeUsers}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                         With Identity
                       </Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={6}>
-                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-                      <Typography variant="h4" color="text.secondary" fontWeight="600">
+                    <Box sx={{ 
+                      textAlign: 'center', 
+                      p: 3, 
+                      bgcolor: 'rgba(156, 163, 175, 0.05)', 
+                      borderRadius: 2,
+                      border: '1px solid rgba(156, 163, 175, 0.1)',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        bgcolor: 'rgba(156, 163, 175, 0.08)',
+                        borderColor: 'rgba(156, 163, 175, 0.2)',
+                      }
+                    }}>
+                      <Typography variant="h3" sx={{ color: '#6b7280', fontWeight: 700, mb: 1 }}>
                         {stats.totalUsers - stats.activeUsers}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                         Without Identity
                       </Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={12}>
-                    <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <Box sx={{ 
+                      mt: 3, 
+                      p: 3, 
+                      bgcolor: 'rgba(255, 255, 255, 0.02)', 
+                      borderRadius: 2,
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                    }}>
+                      <Typography 
+                        variant="body1" 
+                        sx={{ 
+                          color: 'text.secondary', 
+                          fontWeight: 500,
+                          mb: 2 
+                        }}
+                      >
                         Identity Completion Rate
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Box sx={{ flex: 1, bgcolor: 'background.paper', borderRadius: 1, overflow: 'hidden' }}>
+                        <Box sx={{ 
+                          flex: 1, 
+                          bgcolor: 'rgba(255, 255, 255, 0.05)', 
+                          borderRadius: 1, 
+                          overflow: 'hidden',
+                          height: 12,
+                        }}>
                           <Box 
                             sx={{ 
                               width: `${(stats.activeUsers / stats.totalUsers * 100).toFixed(1)}%`, 
-                              height: 8, 
-                              bgcolor: 'primary.main' 
+                              height: '100%', 
+                              bgcolor: 'primary.main',
+                              background: 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)',
+                              transition: 'width 0.3s ease',
                             }} 
                           />
                         </Box>
-                        <Typography variant="body2" fontWeight="600">
+                        <Typography 
+                          variant="h6" 
+                          sx={{ 
+                            fontWeight: 700,
+                            color: 'primary.main',
+                            minWidth: '60px',
+                            textAlign: 'right'
+                          }}
+                        >
                           {(stats.activeUsers / stats.totalUsers * 100).toFixed(1)}%
                         </Typography>
                       </Box>

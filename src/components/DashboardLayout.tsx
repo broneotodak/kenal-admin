@@ -37,9 +37,12 @@ import {
   Group,
   BarChart,
   CreditCard,
+  LightMode,
+  DarkMode,
 } from '@mui/icons-material'
 import { KenalLogo } from './KenalLogo'
 import { useAuth } from '@/contexts/AuthContext'
+import { useTheme } from '@/contexts/ThemeContext'
 
 const drawerWidth = 260
 
@@ -55,6 +58,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { user, signOut } = useAuth()
+  const { isDarkMode, toggleTheme } = useTheme()
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
@@ -74,9 +78,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#000' }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ p: 3, display: 'flex', alignItems: 'center' }}>
-        <KenalLogo size="medium" color="white" />
+        <KenalLogo size="medium" color="theme" />
       </Box>
       
       <Box sx={{ px: 2, pb: 2 }}>
@@ -137,12 +141,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               sx={{ pl: 4 }}
               onClick={() => router.push('/users/analysis')}
               selected={pathname === '/users/analysis'}
+              disabled
             >
               <ListItemIcon>
                 <BarChart fontSize="small" />
               </ListItemIcon>
               <ListItemText primary="User Analysis" />
-              <Chip label="Coming Soon" size="small" sx={{ bgcolor: 'text.secondary', height: 20 }} />
             </ListItemButton>
           </List>
         </Collapse>
@@ -168,12 +172,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               sx={{ pl: 4 }}
               onClick={() => router.push('/analytics')}
               selected={pathname === '/analytics'}
+              disabled
             >
               <ListItemIcon>
                 <CreditCard fontSize="small" />
               </ListItemIcon>
               <ListItemText primary="Transactions" />
-              <Chip label="Coming Soon" size="small" sx={{ bgcolor: 'text.secondary', height: 20 }} />
             </ListItemButton>
           </List>
         </Collapse>
@@ -182,6 +186,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <ListItemButton 
             onClick={() => router.push('/content')}
             selected={pathname === '/content'}
+            disabled
             sx={{
               color: 'text.secondary',
               '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
@@ -195,7 +200,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Article fontSize="small" />
             </ListItemIcon>
             <ListItemText primary="Content" />
-            <Chip label="Coming Soon" size="small" sx={{ bgcolor: 'text.secondary', height: 20 }} />
           </ListItemButton>
         </ListItem>
 
@@ -203,6 +207,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <ListItemButton 
             onClick={() => router.push('/feedback')}
             selected={pathname === '/feedback'}
+            disabled
             sx={{
               color: 'text.secondary',
               '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
@@ -216,7 +221,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Feedback fontSize="small" />
             </ListItemIcon>
             <ListItemText primary="Feedback" />
-            <Chip label="Coming Soon" size="small" sx={{ bgcolor: 'text.secondary', height: 20 }} />
           </ListItemButton>
         </ListItem>
 
@@ -224,6 +228,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <ListItemButton 
             onClick={() => router.push('/settings')}
             selected={pathname === '/settings'}
+            disabled
             sx={{
               color: 'text.secondary',
               '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
@@ -237,7 +242,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Settings fontSize="small" />
             </ListItemIcon>
             <ListItemText primary="Settings" />
-            <Chip label="Coming Soon" size="small" sx={{ bgcolor: 'text.secondary', height: 20 }} />
           </ListItemButton>
         </ListItem>
       </List>
@@ -275,10 +279,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
-          backgroundColor: '#0a0a0a',
-          color: 'text.primary',
           boxShadow: 'none',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
         }}
       >
         <Toolbar>
@@ -295,6 +296,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             Admin Dashboard
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <IconButton
+              onClick={toggleTheme}
+              color="inherit"
+              size="small"
+              sx={{ p: 1 }}
+            >
+              {isDarkMode ? <LightMode /> : <DarkMode />}
+            </IconButton>
             <Typography variant="body2" color="text.secondary">
               {user?.email}
             </Typography>
@@ -330,7 +339,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             '& .MuiDrawer-paper': { 
               boxSizing: 'border-box', 
               width: drawerWidth,
-              backgroundColor: '#000000',
             },
           }}
         >
@@ -343,8 +351,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             '& .MuiDrawer-paper': { 
               boxSizing: 'border-box', 
               width: drawerWidth,
-              backgroundColor: '#000000',
-              borderRight: '1px solid rgba(255, 255, 255, 0.05)',
             },
           }}
           open
@@ -359,7 +365,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           mt: '64px',
-          backgroundColor: '#0a0a0a',
           minHeight: 'calc(100vh - 64px)',
         }}
       >
