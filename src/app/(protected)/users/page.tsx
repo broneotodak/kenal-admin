@@ -1,5 +1,58 @@
-import { supabase } from '@/lib/supabase'
+'use client'
+
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  Box,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  TextField,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  InputAdornment,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  Skeleton,
+  Avatar,
+  Chip,
+  IconButton,
+  Tooltip,
+  Pagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Stack,
+  Divider,
+  Paper,
+  useTheme,
+  useMediaQuery,
+  alpha,
+} from '@mui/material'
+import {
+  Search,
+  Download,
+  Visibility,
+  Close,
+  Email,
+  Person,
+  CalendarToday,
+  Cake,
+  Psychology,
+  Category,
+  Delete,
+} from '@mui/icons-material'
+import { supabase } from '@/lib/supabase'
 import { UserMobileCard } from '@/components/UserMobileCard'
 
 interface User {
@@ -9,17 +62,18 @@ interface User {
   created_at: string
   gender?: string
   element_number?: number
+  user_type?: number
   active: boolean
   identity_count?: number
-  birthdate?: string
-  pattern_info?: string
+  birth_date?: string
+  country?: string
   kd_identity?: any[]
 }
 
 interface UserFilters {
-  element: string
+  user_type: string
   gender: string
-  status: string
+  country: string
 }
 
 // Element visualization component
@@ -90,6 +144,143 @@ const TableRowSkeleton = () => (
   </TableRow>
 )
 
+// Identity Card component with mutual users
+const IdentityCard = ({ identity, theme }: { identity: any, theme: any }) => {
+  const [mutualUsers, setMutualUsers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchMutualUsers = async () => {
+      try {
+        // Debug: log identity object to see available fields
+        console.log('Identity object:', identity)
+        console.log('Registration status:', {
+          registered: identity.registered,
+          email: identity.email,
+          isRegistered: identity.registered !== null && identity.email
+        })
+        
+        // Get other users who have this same identity pattern
+        const patternToMatch = identity.pattern_name || identity.name || identity.id
+        const { data: identityData, error } = await supabase
+          .from('kd_identity')
+          .select('user_id')
+          .eq(identity.pattern_name ? 'pattern_name' : (identity.name ? 'name' : 'id'), patternToMatch)
+          .neq('user_id', identity.user_id) // Exclude current user
+        
+        if (!error && identityData && identityData.length > 0) {
+          const userIds = identityData.map(item => item.user_id)
+          
+          // Get user details for those user IDs
+          const { data: userData, error: userError } = await supabase
+            .from('kd_users')
+            .select('id, name, email, birth_date, active')
+            .in('id', userIds)
+          
+          if (!userError && userData) {
+            setMutualUsers(userData)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching mutual users:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (identity.pattern_name || identity.name || identity.id) {
+      fetchMutualUsers()
+    } else {
+      setLoading(false)
+    }
+  }, [identity])
+
+  return (
+    <Card 
+      variant="outlined" 
+      sx={{ 
+        p: 2,
+        bgcolor: theme.palette.mode === 'dark' 
+          ? 'rgba(255, 255, 255, 0.03)' 
+          : 'rgba(0, 0, 0, 0.02)',
+        borderColor: theme.palette.divider
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+        <Typography variant="subtitle1" fontWeight={600}>
+          {identity.pattern_name || identity.name || `Identity #${identity.id?.slice(-8) || 'Unknown'}`}
+        </Typography>
+        <Chip
+          label={identity.registered !== null && identity.email ? 'Registered' : 'Not Registered'}
+          size="small"
+          color={identity.registered !== null && identity.email ? 'success' : 'warning'}
+          sx={{ fontSize: '0.7rem', height: 20 }}
+        />
+      </Box>
+      
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        {identity.email ? `📧 ${identity.email}` : 'No e-mail registered'}
+      </Typography>
+      
+      {/* Show mutual users */}
+      {mutualUsers.length > 0 && (
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Other users with this identity:
+            </Typography>
+            {!loading && (
+              <Chip
+                label={`${mutualUsers.length} mutual`}
+                size="small"
+                color={mutualUsers.length > 0 ? 'secondary' : 'default'}
+                sx={{ fontSize: '0.7rem', height: 18 }}
+              />
+            )}
+          </Box>
+          <Stack spacing={1}>
+            {mutualUsers.map((user) => (
+              <Box 
+                key={user.id}
+                sx={{ 
+                  p: 1, 
+                  bgcolor: theme.palette.mode === 'dark' 
+                    ? 'rgba(255, 255, 255, 0.05)' 
+                    : 'rgba(0, 0, 0, 0.03)',
+                  borderRadius: 1,
+                  border: `1px solid ${theme.palette.divider}`
+                }}
+              >
+                <Typography variant="body2" fontWeight={500}>
+                  {user.name || 'No name'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {user.email || 'No email'}
+                </Typography>
+                {user.birth_date && (
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
+                    Born: {new Date(user.birth_date).toLocaleDateString()}
+                  </Typography>
+                )}
+                <Chip
+                  label={user.active ? 'Active' : 'Inactive'}
+                  size="small"
+                  color={user.active ? 'success' : 'default'}
+                  sx={{ ml: 1, fontSize: '0.7rem', height: 20 }}
+                />
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      )}
+      
+      <Typography variant="caption" color="text.secondary">
+        Created: {new Date(identity.created_at).toLocaleDateString()}
+      </Typography>
+    </Card>
+  )
+}
+
 export default function UsersPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -101,36 +292,120 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [openModal, setOpenModal] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
   const [filters, setFilters] = useState<UserFilters>({
-    element: '',
+    user_type: '',
     gender: '',
-    status: ''
+    country: ''
   })
+  const [availableCountries, setAvailableCountries] = useState<string[]>([])
   const router = useRouter()
+
+  // Fetch available countries from database
+  const fetchAvailableCountries = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('kd_users')
+        .select('country')
+        .not('country', 'is', null)
+        .neq('country', '')
+
+      if (!error && data) {
+        const uniqueCountries = Array.from(new Set(data.map(item => item.country).filter(Boolean)))
+        setAvailableCountries(uniqueCountries.sort())
+      }
+    } catch (error) {
+      console.error('Error fetching countries:', error)
+    }
+  }
 
   const fetchUsers = async () => {
     setLoading(true)
     try {
-      // Build query
-      let query = supabase
-        .from('kd_users')
-        .select(`
-          id,
-          name,
-          email,
-          created_at,
-          gender,
-          element_number,
-          active,
-          birthdate,
-          pattern_info,
-          kd_identity!kd_identity_user_id_fkey(
+      console.log('=== FETCHING USERS DEBUG START ===')
+      
+      // Test if Supabase client is working at all
+      console.log('Testing Supabase client...')
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        console.log('Auth user check:', user ? 'User authenticated' : 'No user')
+      } catch (authErr) {
+        console.error('Auth check failed:', authErr)
+      }
+      
+      // Test basic table access - try different approaches
+      console.log('Testing basic table access...')
+      
+      // Try 1: Most basic query possible
+      try {
+        console.log('Try 1: Basic count query...')
+        const { count, error: countError } = await Promise.race([
+          supabase.from('kd_users').select('*', { count: 'exact', head: true }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Count timeout')), 5000))
+        ]) as any
+        console.log('Count result:', { count, countError })
+      } catch (countErr) {
+        console.error('Count query failed:', countErr)
+      }
+      
+      // Try 2: Check if table exists with a different method
+      try {
+        console.log('Try 2: Simple select query...')
+        const { data: testUsers, error: testError } = await Promise.race([
+          supabase
+            .from('kd_users')
+            .select('id')
+            .limit(1),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Select timeout')), 5000))
+        ]) as any
+        console.log('Simple select result:', { testUsers, testError })
+        
+        if (testError) {
+          console.error('Simple query failed with error:', testError)
+          
+          // Check if it's an RLS issue
+          if (testError.message?.includes('RLS') || testError.message?.includes('policy')) {
+            console.log('🚨 RLS Policy Issue Detected!')
+            console.log('Even though docs say RLS is disabled, there might be policies blocking access')
+          }
+          
+          // Check if it's a table access issue
+          if (testError.message?.includes('relation') || testError.message?.includes('does not exist')) {
+            console.log('🚨 Table Access Issue - kd_users table may not exist or be accessible')
+          }
+          
+          setUsers([])
+          setTotalCount(0)
+          return
+        }
+        
+        if (testUsers && testUsers.length >= 0) {
+          console.log('✅ Basic query successful! Table is accessible.')
+        }
+        
+      } catch (selectErr) {
+        console.error('Select query timed out:', selectErr)
+        setUsers([])
+        setTotalCount(0)
+        return
+      }
+      
+      console.log('Basic query successful, fetching full data...')
+      
+              // Build simpler query first (without the complex join)
+        let query = supabase
+          .from('kd_users')
+          .select(`
             id,
-            pattern_name,
-            pattern_description,
-            created_at
-          )
-        `, { count: 'exact' })
+            name,
+            email,
+            created_at,
+            gender,
+            element_number,
+            active,
+            birth_date
+          `, { count: 'exact' })
 
       // Apply search filter
       if (searchQuery) {
@@ -138,16 +413,18 @@ export default function UsersPage() {
       }
 
       // Apply filters
-      if (filters.element) {
-        query = query.eq('element_number', parseInt(filters.element))
+      if (filters.user_type) {
+        if (filters.user_type === 'Admin') {
+          query = query.eq('user_type', 5)
+        } else if (filters.user_type === 'Public') {
+          query = query.not('user_type', 'eq', 5)
+        }
       }
       if (filters.gender) {
         query = query.eq('gender', filters.gender)
       }
-      if (filters.status === 'active') {
-        query = query.eq('active', true)
-      } else if (filters.status === 'inactive') {
-        query = query.eq('active', false)
+      if (filters.country) {
+        query = query.eq('country', filters.country)
       }
 
       // Add pagination
@@ -155,23 +432,57 @@ export default function UsersPage() {
         .order('created_at', { ascending: false })
         .range(page * rowsPerPage, (page + 1) * rowsPerPage - 1)
 
-      const { data, error, count } = await query
+      console.log('Executing main query...')
+      const { data, error, count } = await Promise.race([
+        query,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Main query timeout')), 10000))
+      ]) as any
+
+      console.log('Main query result:', { data: data?.length, error, count })
 
       if (error) {
         console.error('Error fetching users:', error)
+        setUsers([])
+        setTotalCount(0)
         return
       }
 
-      // Transform data to include identity count
+      // Get real identity counts for these users
+      const userIds = data?.map((user: any) => user.id) || []
+      let identityCounts: { [key: string]: number } = {}
+      
+      if (userIds.length > 0) {
+        try {
+          const { data: identityData, error: identityError } = await supabase
+            .from('kd_identity')
+            .select('user_id')
+            .in('user_id', userIds)
+          
+          if (!identityError && identityData) {
+            // Count identities per user
+            identityData.forEach(identity => {
+              identityCounts[identity.user_id] = (identityCounts[identity.user_id] || 0) + 1
+            })
+          }
+        } catch (error) {
+          console.error('Error fetching identity counts:', error)
+        }
+      }
+
       const transformedUsers = data?.map((user: any) => ({
         ...user,
-        identity_count: user.kd_identity?.length || 0,
+        identity_count: identityCounts[user.id] || 0,
       })) || []
 
+      console.log('Transformed users:', transformedUsers.length)
       setUsers(transformedUsers)
       setTotalCount(count || 0)
+      
+      console.log('=== FETCHING USERS DEBUG END ===')
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Fetch users error:', error)
+      setUsers([])
+      setTotalCount(0)
     } finally {
       setLoading(false)
     }
@@ -180,6 +491,10 @@ export default function UsersPage() {
   useEffect(() => {
     fetchUsers()
   }, [page, rowsPerPage, searchQuery, filters])
+
+  useEffect(() => {
+    fetchAvailableCountries()
+  }, [])
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage)
@@ -190,14 +505,75 @@ export default function UsersPage() {
     setPage(0)
   }
 
-  const handleViewUser = (user: User) => {
+  const handleViewUser = async (user: User) => {
     setSelectedUser(user)
+    setEditingUser({ ...user })
     setOpenModal(true)
+    setIsEditing(true)
+    
+    // Fetch real identity count and details for this user
+    try {
+      const { data: identityData, error } = await supabase
+        .from('kd_identity')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+      
+      if (!error && identityData) {
+        const updatedUser = { 
+          ...user, 
+          identity_count: identityData.length,
+          kd_identity: identityData
+        }
+        setEditingUser(updatedUser)
+        setSelectedUser(updatedUser)
+      }
+    } catch (error) {
+      console.error('Error fetching identity details:', error)
+    }
   }
 
   const handleCloseModal = () => {
     setOpenModal(false)
     setSelectedUser(null)
+    setEditingUser(null)
+    setIsEditing(false)
+  }
+
+  const handleSaveUser = async () => {
+    if (!editingUser) return
+
+    try {
+      const { error } = await supabase
+        .from('kd_users')
+        .update({
+          name: editingUser.name,
+          email: editingUser.email,
+          gender: editingUser.gender,
+          element_number: editingUser.element_number,
+          active: editingUser.active,
+          birth_date: editingUser.birth_date
+        })
+        .eq('id', editingUser.id)
+
+      if (error) {
+        console.error('Error updating user:', error)
+        alert('Error updating user. Please try again.')
+      } else {
+        alert('User updated successfully!')
+        fetchUsers() // Refresh the user list
+        handleCloseModal()
+      }
+    } catch (error) {
+      console.error('Update user error:', error)
+      alert('Error updating user. Please try again.')
+    }
+  }
+
+  const handleEditingUserChange = (field: keyof User, value: any) => {
+    if (editingUser) {
+      setEditingUser({ ...editingUser, [field]: value })
+    }
   }
 
   const getElementColor = (element?: number) => {
@@ -207,6 +583,38 @@ export default function UsersPage() {
       7: '#FFD700', 8: '#4B0082', 9: '#9370DB',
     }
     return colors[element as keyof typeof colors] || '#9E9E9E'
+  }
+
+  const getCountryFlag = (countryCode?: string) => {
+    const flags: { [key: string]: string } = {
+      'US': '🇺🇸', 'UK': '🇬🇧', 'CA': '🇨🇦', 'AU': '🇦🇺',
+      'DE': '🇩🇪', 'FR': '🇫🇷', 'MY': '🇲🇾', 'SG': '🇸🇬',
+      'IN': '🇮🇳', 'JP': '🇯🇵', 'CN': '🇨🇳', 'KR': '🇰🇷',
+      'TH': '🇹🇭', 'VN': '🇻🇳', 'ID': '🇮🇩', 'PH': '🇵🇭'
+    }
+    return flags[countryCode || ''] || '🌍'
+  }
+
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (window.confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
+      try {
+        const { error } = await supabase
+          .from('kd_users')
+          .delete()
+          .eq('id', userId)
+        
+        if (error) {
+          console.error('Error deleting user:', error)
+          alert('Error deleting user. Please try again.')
+        } else {
+          alert('User deleted successfully!')
+          fetchUsers() // Refresh the user list
+        }
+      } catch (error) {
+        console.error('Delete user error:', error)
+        alert('Error deleting user. Please try again.')
+      }
+    }
   }
 
   const handleFilterChange = (filterType: keyof UserFilters, value: string) => {
@@ -270,18 +678,15 @@ export default function UsersPage() {
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="medium">
-                <InputLabel>Element</InputLabel>
+                <InputLabel>User Type</InputLabel>
                 <Select
-                  value={filters.element}
-                  onChange={(e) => handleFilterChange('element', e.target.value)}
-                  label="Element"
+                  value={filters.user_type}
+                  onChange={(e) => handleFilterChange('user_type', e.target.value)}
+                  label="User Type"
                 >
                   <MenuItem value="">All</MenuItem>
-                  {[1,2,3,4,5,6,7,8,9].map(num => (
-                    <MenuItem key={num} value={num.toString()}>
-                      Element {num}
-                    </MenuItem>
-                  ))}
+                  <MenuItem value="Admin">Admin</MenuItem>
+                  <MenuItem value="Public">Public</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -302,15 +707,18 @@ export default function UsersPage() {
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="medium">
-                <InputLabel>Status</InputLabel>
+                <InputLabel>Country</InputLabel>
                 <Select
-                  value={filters.status}
-                  onChange={(e) => handleFilterChange('status', e.target.value)}
-                  label="Status"
+                  value={filters.country}
+                  onChange={(e) => handleFilterChange('country', e.target.value)}
+                  label="Country"
                 >
                   <MenuItem value="">All</MenuItem>
-                  <MenuItem value="active">Active</MenuItem>
-                  <MenuItem value="inactive">Inactive</MenuItem>
+                  {availableCountries.map((country) => (
+                    <MenuItem key={country} value={country}>
+                      {country}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
             </Grid>
@@ -381,12 +789,12 @@ export default function UsersPage() {
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 600 }}>User</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Element</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>User Type</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Gender</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Identities</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Country</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Joined</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600 }}>Delete</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -410,6 +818,7 @@ export default function UsersPage() {
                   <TableRow 
                     key={user.id} 
                     hover
+                    onClick={() => handleViewUser(user)}
                     sx={{
                       cursor: 'pointer',
                       '&:hover': {
@@ -441,20 +850,13 @@ export default function UsersPage() {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      {user.element_number ? (
-                        <Chip
-                          label={`Element ${user.element_number}`}
-                          size="small"
-                          sx={{ 
-                            bgcolor: alpha(getElementColor(user.element_number), 0.2),
-                            color: getElementColor(user.element_number),
-                            border: `1px solid ${alpha(getElementColor(user.element_number), 0.3)}`,
-                            fontWeight: 500
-                          }}
-                        />
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">-</Typography>
-                      )}
+                      <Chip
+                        label={user.user_type === 5 ? 'Admin' : 'Public'}
+                        size="small"
+                        color={user.user_type === 5 ? 'error' : 'default'}
+                        variant="outlined"
+                        sx={{ fontWeight: 500 }}
+                      />
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" textTransform="capitalize">
@@ -471,12 +873,14 @@ export default function UsersPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={user.active ? 'Active' : 'Inactive'}
-                        size="small"
-                        color={user.active ? 'success' : 'error'}
-                        sx={{ fontWeight: 500 }}
-                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="h6" sx={{ fontSize: '1.5rem' }}>
+                          {getCountryFlag(user.country)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {user.country || 'N/A'}
+                        </Typography>
+                      </Box>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
@@ -484,21 +888,21 @@ export default function UsersPage() {
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <Tooltip title="View Details">
+                      <Tooltip title="Delete User">
                         <IconButton 
                           size="small" 
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleViewUser(user)
+                            handleDeleteUser(user.id, user.name)
                           }}
                           sx={{
-                            color: theme.palette.primary.main,
+                            color: theme.palette.error.main,
                             '&:hover': {
-                              bgcolor: alpha(theme.palette.primary.main, 0.1)
+                              bgcolor: alpha(theme.palette.error.main, 0.1)
                             }
                           }}
                         >
-                          <Visibility />
+                          <Delete />
                         </IconButton>
                       </Tooltip>
                     </TableCell>
@@ -544,7 +948,9 @@ export default function UsersPage() {
           <>
             <DialogTitle>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h5" fontWeight={600}>User Details</Typography>
+                <Typography variant="h5" fontWeight={600}>
+                  {isEditing ? 'Edit User' : 'User Details'}
+                </Typography>
                 <IconButton 
                   onClick={handleCloseModal}
                   sx={{
@@ -559,7 +965,7 @@ export default function UsersPage() {
               </Box>
             </DialogTitle>
             <DialogContent dividers>
-              <Grid container spacing={4}>
+              <Grid container spacing={3}>
                 {/* User Info Section */}
                 <Grid item xs={12} md={6}>
                   <Stack spacing={3}>
@@ -568,52 +974,118 @@ export default function UsersPage() {
                         sx={{ 
                           width: 80, 
                           height: 80, 
-                          bgcolor: alpha(getElementColor(selectedUser.element_number), 0.2),
-                          color: getElementColor(selectedUser.element_number),
-                          border: `3px solid ${alpha(getElementColor(selectedUser.element_number), 0.3)}`,
+                          bgcolor: alpha(getElementColor(editingUser?.element_number), 0.2),
+                          color: getElementColor(editingUser?.element_number),
+                          border: `3px solid ${alpha(getElementColor(editingUser?.element_number), 0.3)}`,
                           fontSize: '2rem',
                           fontWeight: 'bold'
                         }}
                       >
-                        {selectedUser.name?.charAt(0).toUpperCase()}
+                        {editingUser?.name?.charAt(0).toUpperCase()}
                       </Avatar>
-                      <Box>
-                        <Typography variant="h6" fontWeight={600}>{selectedUser.name}</Typography>
-                        <Chip
-                          label={selectedUser.active ? 'Active' : 'Inactive'}
-                          size="small"
-                          color={selectedUser.active ? 'success' : 'error'}
-                          sx={{ mt: 1, fontWeight: 500 }}
+                      <Box sx={{ flex: 1 }}>
+                        <TextField
+                          fullWidth
+                          label="Name"
+                          value={editingUser?.name || ''}
+                          onChange={(e) => handleEditingUserChange('name', e.target.value)}
+                          disabled={!isEditing}
+                          sx={{ mb: 1 }}
                         />
+                        <FormControl fullWidth>
+                          <InputLabel>Status</InputLabel>
+                          <Select
+                            value={editingUser?.active ? 'active' : 'inactive'}
+                            onChange={(e) => handleEditingUserChange('active', e.target.value === 'active')}
+                            disabled={!isEditing}
+                            label="Status"
+                          >
+                            <MenuItem value="active">Active</MenuItem>
+                            <MenuItem value="inactive">Inactive</MenuItem>
+                          </Select>
+                        </FormControl>
                       </Box>
                     </Box>
 
                     <Divider />
 
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Email sx={{ color: theme.palette.text.secondary }} />
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">Email</Typography>
-                        <Typography variant="body1">{selectedUser.email}</Typography>
-                      </Box>
-                    </Box>
+                    <TextField
+                      fullWidth
+                      label="Email"
+                      value={editingUser?.email || ''}
+                      onChange={(e) => handleEditingUserChange('email', e.target.value)}
+                      disabled={!isEditing}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <Email sx={{ color: theme.palette.text.secondary }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
 
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Person sx={{ color: theme.palette.text.secondary }} />
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">Gender</Typography>
-                        <Typography variant="body1" textTransform="capitalize">
-                          {selectedUser.gender || 'Not specified'}
-                        </Typography>
-                      </Box>
-                    </Box>
+                    <FormControl fullWidth>
+                      <InputLabel>Gender</InputLabel>
+                      <Select
+                        value={editingUser?.gender || ''}
+                        onChange={(e) => handleEditingUserChange('gender', e.target.value)}
+                        disabled={!isEditing}
+                        label="Gender"
+                        startAdornment={
+                          <InputAdornment position="start">
+                            <Person sx={{ color: theme.palette.text.secondary }} />
+                          </InputAdornment>
+                        }
+                      >
+                        <MenuItem value="">Not specified</MenuItem>
+                        <MenuItem value="male">Male</MenuItem>
+                        <MenuItem value="female">Female</MenuItem>
+                        <MenuItem value="other">Other</MenuItem>
+                      </Select>
+                    </FormControl>
+
+                    <FormControl fullWidth>
+                      <InputLabel>Element</InputLabel>
+                      <Select
+                        value={editingUser?.element_number?.toString() || ''}
+                        onChange={(e) => handleEditingUserChange('element_number', e.target.value ? parseInt(e.target.value) : null)}
+                        disabled={!isEditing}
+                        label="Element"
+                      >
+                        <MenuItem value="">None</MenuItem>
+                        {[1,2,3,4,5,6,7,8,9].map(num => (
+                          <MenuItem key={num} value={num}>Element {num}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    {/* Country field removed - column doesn't exist in database */}
+
+                    <TextField
+                      fullWidth
+                      label="Birth Date"
+                      type="date"
+                      value={editingUser?.birth_date || ''}
+                      onChange={(e) => handleEditingUserChange('birth_date', e.target.value)}
+                      disabled={!isEditing}
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <Cake sx={{ color: theme.palette.text.secondary }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
 
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                       <CalendarToday sx={{ color: theme.palette.text.secondary }} />
                       <Box>
                         <Typography variant="caption" color="text.secondary">Member Since</Typography>
                         <Typography variant="body1">
-                          {new Date(selectedUser.created_at).toLocaleDateString('en-US', {
+                          {editingUser && new Date(editingUser.created_at).toLocaleDateString('en-US', {
                             year: 'numeric',
                             month: 'long',
                             day: 'numeric'
@@ -621,66 +1093,18 @@ export default function UsersPage() {
                         </Typography>
                       </Box>
                     </Box>
-
-                    {selectedUser.birthdate && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Cake sx={{ color: theme.palette.text.secondary }} />
-                        <Box>
-                          <Typography variant="caption" color="text.secondary">Birthday</Typography>
-                          <Typography variant="body1">
-                            {new Date(selectedUser.birthdate).toLocaleDateString('en-US', {
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    )}
                   </Stack>
                 </Grid>
 
                 {/* Element Visualization */}
                 <Grid item xs={12} md={6}>
-                  {selectedUser.element_number && (
-                    <ElementVisualization element={selectedUser.element_number} />
+                  {editingUser?.element_number && (
+                    <ElementVisualization element={editingUser.element_number} />
                   )}
                 </Grid>
 
-                {/* Pattern Information */}
-                {selectedUser.pattern_info && (
-                  <Grid item xs={12}>
-                    <Paper 
-                      variant="outlined" 
-                      sx={{ 
-                        p: 3, 
-                        bgcolor: theme.palette.mode === 'dark' 
-                          ? 'rgba(255, 255, 255, 0.03)' 
-                          : 'rgba(0, 0, 0, 0.02)',
-                        borderColor: theme.palette.divider
-                      }}
-                    >
-                      <Typography 
-                        variant="h6" 
-                        gutterBottom 
-                        sx={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 1,
-                          fontWeight: 600
-                        }}
-                      >
-                        <Psychology sx={{ color: theme.palette.primary.main }} /> 
-                        Pattern Information
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {selectedUser.pattern_info}
-                      </Typography>
-                    </Paper>
-                  </Grid>
-                )}
-
                 {/* Identities */}
-                {selectedUser.kd_identity && selectedUser.kd_identity.length > 0 && (
+                {selectedUser?.kd_identity && selectedUser.kd_identity.length > 0 && (
                   <Grid item xs={12}>
                     <Typography 
                       variant="h6" 
@@ -698,46 +1122,46 @@ export default function UsersPage() {
                     </Typography>
                     <Stack spacing={2}>
                       {selectedUser.kd_identity.map((identity: any) => (
-                        <Card 
+                        <IdentityCard 
                           key={identity.id} 
-                          variant="outlined" 
-                          sx={{ 
-                            p: 2,
-                            bgcolor: theme.palette.mode === 'dark' 
-                              ? 'rgba(255, 255, 255, 0.03)' 
-                              : 'rgba(0, 0, 0, 0.02)',
-                            borderColor: theme.palette.divider
-                          }}
-                        >
-                          <Typography variant="subtitle1" fontWeight={600}>
-                            {identity.pattern_name}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                            {identity.pattern_description}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                            Created: {new Date(identity.created_at).toLocaleDateString()}
-                          </Typography>
-                        </Card>
+                          identity={identity}
+                          theme={theme}
+                        />
                       ))}
                     </Stack>
                   </Grid>
                 )}
               </Grid>
             </DialogContent>
-            <DialogActions sx={{ p: 3 }}>
+            <DialogActions sx={{ p: 3, gap: 2 }}>
               <Button 
                 onClick={handleCloseModal}
-                variant="contained"
+                variant="outlined"
                 sx={{
-                  bgcolor: theme.palette.primary.main,
+                  borderColor: theme.palette.primary.main,
+                  color: theme.palette.primary.main,
                   '&:hover': {
-                    bgcolor: theme.palette.primary.dark,
+                    borderColor: theme.palette.primary.dark,
+                    bgcolor: alpha(theme.palette.primary.main, 0.1)
                   }
                 }}
               >
-                Close
+                Cancel
               </Button>
+              {isEditing && (
+                <Button 
+                  onClick={handleSaveUser}
+                  variant="contained"
+                  sx={{
+                    bgcolor: theme.palette.primary.main,
+                    '&:hover': {
+                      bgcolor: theme.palette.primary.dark,
+                    }
+                  }}
+                >
+                  Save Changes
+                </Button>
+              )}
             </DialogActions>
           </>
         )}

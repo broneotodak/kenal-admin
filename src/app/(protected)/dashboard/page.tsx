@@ -139,11 +139,17 @@ export default function DashboardPage() {
 
   const handleExportChart = () => {
     setAnchorEl(null)
+    
+    // Only run on client side
+    if (typeof window === 'undefined') return
+    
     const csvData = chartDataPoints.map((point, index) => ({
       'Date/Time': chartData.labels[index],
       'New Users': point.newUsers,
       'Users with Identity': point.usersWithIdentity,
     }))
+    
+    if (csvData.length === 0) return
     
     const csvContent = [
       Object.keys(csvData[0]).join(','),
@@ -489,6 +495,8 @@ export default function DashboardPage() {
 
   // Update time only on client side to avoid hydration issues
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    
     const updateTime = () => {
       setCurrentTime(new Date().toLocaleTimeString('en-US', { hour12: false }))
     }
