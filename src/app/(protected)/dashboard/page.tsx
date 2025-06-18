@@ -227,7 +227,29 @@ export default function DashboardPage() {
     const GrowthIcon = isPositive ? TrendingUp : TrendingDown;
     
     return (
-      <Card sx={{ height: '100%', position: 'relative', overflow: 'visible' }}>
+      <Card sx={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
+        {isRevenue && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 20,
+              right: -30,
+              bgcolor: '#f97316',
+              color: 'white',
+              px: 4,
+              py: 0.5,
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              transform: 'rotate(45deg)',
+              transformOrigin: 'center',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              zIndex: 1,
+              letterSpacing: '0.05em',
+            }}
+          >
+            COMING SOON
+          </Box>
+        )}
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <Box sx={{ flex: 1 }}>
@@ -245,20 +267,6 @@ export default function DashboardPage() {
               >
                 {title}
               </Typography>
-              {isRevenue && (
-                <Chip 
-                  label="COMING SOON" 
-                  size="small" 
-                  sx={{ 
-                    bgcolor: '#f97316',
-                    color: 'white',
-                    fontSize: '0.65rem',
-                    height: 22,
-                    fontWeight: 600,
-                    mb: 1.5,
-                  }} 
-                />
-              )}
               <Typography 
                 variant="h4" 
                 component="div" 
