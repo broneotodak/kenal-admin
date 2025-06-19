@@ -40,7 +40,7 @@ import {
 } from '@mui/icons-material'
 import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
-import { Chart } from '@/components/Chart'
+import Chart from '@/components/Chart'
 import { useSmartDashboard } from '@/hooks/useSmartDashboard'
 
 // Helper function to get country flag emoji

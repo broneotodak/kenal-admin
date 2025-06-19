@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase, queryCache } from '@/lib/supabase'
 
 // Timezone utility for Malaysia/Singapore (UTC+8)
@@ -45,7 +45,7 @@ export const useFallbackDashboardStats = (timeRange: '24hours' | '7days' | '12mo
 
   const loadStats = useCallback(async () => {
     try {
-      console.log(`🔄 Loading dashboard stats with ${timeRange} comparison...`)
+      console.log('🔄 Loading dashboard stats with', timeRange, 'comparison...')
       setLoading(true)
 
       // Use Malaysia timezone for consistent calculations
@@ -197,15 +197,15 @@ export const useFallbackDashboardStats = (timeRange: '24hours' | '7days' | '12mo
       // Cache for 1 minute (shorter because it's dynamic)
       queryCache.set(cacheKey, dashboardStats, 60000)
       
-      console.log(`✅ Dashboard stats loaded for ${timeRange}: ${totalUsers} total users, ${todayRegistrations} today, comparing vs ${comparisonText}`)
+      console.log('✅ Dashboard stats loaded for', timeRange + ':', totalUsers, 'total users,', todayRegistrations, 'today, comparing vs', comparisonText)
       
       // Debug timezone calculations
       const todayStartMalaysia = new Date(malaysiaTime.getFullYear(), malaysiaTime.getMonth(), malaysiaTime.getDate(), 0, 0, 0, 0)
       const todayStartUTC = new Date(todayStartMalaysia.getTime() - 8 * 60 * 60 * 1000)
       const tomorrowStartUTC = new Date(todayStartMalaysia.getTime() - 8 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000)
-      console.log(`📅 Today in Malaysia: ${todayStartMalaysia.toISOString()} (Malaysia midnight)`)
-      console.log(`📅 Today query range: ${todayStartUTC.toISOString()} to ${tomorrowStartUTC.toISOString()} (UTC)`)
-      console.log(`👥 Today registrations: ${todayRegistrations}`)
+      console.log('📅 Today in Malaysia:', todayStartMalaysia.toISOString(), '(Malaysia midnight)')
+      console.log('📅 Today query range:', todayStartUTC.toISOString(), 'to', tomorrowStartUTC.toISOString(), '(UTC)')
+      console.log('👥 Today registrations:', todayRegistrations)
     } catch (error: any) {
       console.error('❌ Error loading dashboard stats:', error)
     } finally {
@@ -271,7 +271,7 @@ export const useFallbackRecentUsers = (limit: number = 5) => {
       // Cache for 2 minutes
       queryCache.set(cacheKey, transformedUsers, 120000)
       
-      console.log(`✅ Recent users loaded: ${transformedUsers.length} users with Malaysia timezone`)
+      console.log('✅ Recent users loaded:', transformedUsers.length, 'users with Malaysia timezone')
     } catch (error: any) {
       console.error('❌ Error loading recent users:', error)
     } finally {
@@ -286,10 +286,8 @@ export const useFallbackRecentUsers = (limit: number = 5) => {
   return { recentUsers, loading, refetch: loadRecentUsers }
 }
 
-// Enhanced chart data hook with Malaysia timezone
+// Enhanced chart data hook with Malaysia timezone - FIXED VERSION
 export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months') => {
-  console.log(`🚀 useFallbackChartData hook initialized for timeRange: ${timeRange}`)
-  
   const [chartData, setChartData] = useState<{
     labels: string[]
     datasets: {
@@ -304,14 +302,16 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
   const [chartDataPoints, setChartDataPoints] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Memoize timeRange to prevent infinite re-renders
+  const stableTimeRange = useMemo(() => timeRange, [timeRange])
+
   const loadChartData = useCallback(async () => {
-    console.log(`🔄 loadChartData called for ${timeRange}`)
     try {
-      console.log(`🔄 Loading chart data for ${timeRange} with Malaysia timezone...`)
+      console.log('🔄 Loading chart data for', stableTimeRange, 'with Malaysia timezone...')
       setLoading(true)
 
       // Check cache first (5-minute cache for chart data)
-      const cacheKey = `chart_data_${timeRange}_my_tz`
+      const cacheKey = 'chart_data_' + stableTimeRange + '_my_tz'
       const cached = queryCache.get(cacheKey)
       if (cached) {
         console.log('⚡ Chart data loaded from cache')
@@ -325,42 +325,31 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
       const malaysiaTime = toMalaysiaTime(now)
       let startTime: Date
       let queryEndTime: Date
-      let bucketSize: string
-      let labelFormat: string
 
-      switch (timeRange) {
+      switch (stableTimeRange) {
         case '24hours':
-          // Start at 00:00 today in Malaysia timezone, end at current time
           const todayStart = new Date(malaysiaTime.getFullYear(), malaysiaTime.getMonth(), malaysiaTime.getDate(), 0, 0, 0, 0)
-          startTime = new Date(todayStart.getTime() - 8 * 60 * 60 * 1000) // Convert to UTC for query
+          startTime = new Date(todayStart.getTime() - 8 * 60 * 60 * 1000)
           queryEndTime = malaysiaTime
-          bucketSize = '1 hour'
-          labelFormat = 'HH:mm'
           break
         case '7days':
           startTime = new Date(malaysiaTime.getTime() - 7 * 24 * 60 * 60 * 1000)
           queryEndTime = malaysiaTime
-          bucketSize = '1 day'
-          labelFormat = 'MMM DD'
           break
         case '12months':
           startTime = new Date(malaysiaTime.getTime() - 365 * 24 * 60 * 60 * 1000)
           queryEndTime = malaysiaTime
-          bucketSize = '1 month'
-          labelFormat = 'MMM YY'
           break
         default:
           const defaultTodayStart = new Date(malaysiaTime.getFullYear(), malaysiaTime.getMonth(), malaysiaTime.getDate(), 0, 0, 0, 0)
           startTime = new Date(defaultTodayStart.getTime() - 8 * 60 * 60 * 1000)
           queryEndTime = malaysiaTime
-          bucketSize = '1 hour'
-          labelFormat = 'HH:mm'
       }
 
-      console.log(`📊 Chart query range: ${startTime.toISOString()} to ${queryEndTime.toISOString()}`)
+      console.log('📊 Chart query range:', startTime.toISOString(), 'to', queryEndTime.toISOString())
 
-      // Get user registrations with proper time range
-      console.log(`🔍 Querying kd_users table...`)
+      // Get user registrations
+      console.log('🔍 Querying kd_users table...')
       const { data: userData, error: userError } = await supabase
         .from('kd_users')
         .select('id, name, email, created_at, registration_country, join_by_invitation, first_name, last_name')
@@ -368,44 +357,39 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
         .lte('created_at', queryEndTime.toISOString())
         .order('created_at')
 
-      console.log(`🔍 User query result:`, { userData: userData?.length, userError })
+      console.log('🔍 User query result:', { userData: userData?.length, userError })
 
       if (userError) {
         console.error('❌ Error fetching user data for chart:', userError)
-        throw new Error(`User data fetch failed: ${userError.message}`)
+        throw new Error('User data fetch failed: ' + userError.message)
       }
 
-      // Get identity data for the same period
-      console.log(`🔍 Querying kd_identity table...`)
+      // Get identity data
+      console.log('🔍 Querying kd_identity table...')
       const { data: identityData, error: identityError } = await supabase
         .from('kd_identity')
         .select('user_id, created_at')
         .gte('created_at', startTime.toISOString())
         .lte('created_at', queryEndTime.toISOString())
 
-      console.log(`🔍 Identity query result:`, { identityData: identityData?.length, identityError })
+      console.log('🔍 Identity query result:', { identityData: identityData?.length, identityError })
 
       if (identityError) {
         console.error('⚠️ Error fetching identity data for chart:', identityError)
-        // Don't throw, just log warning and continue with empty identity data
       }
 
-      console.log(`📊 Data fetched: ${userData?.length || 0} users, ${identityData?.length || 0} identities from ${startTime.toISOString()} to ${queryEndTime.toISOString()}`)
+      console.log('📊 Data fetched:', userData?.length || 0, 'users,', identityData?.length || 0, 'identities')
 
-      // Process data into time buckets with Malaysia timezone
+      // Process data into time buckets
       const buckets = new Map()
       const labels = []
 
-      // Create time buckets based on Malaysia timezone
-      if (timeRange === '24hours') {
-        // Create 24 hourly buckets (00:00 to 23:00) + current hour if needed
+      if (stableTimeRange === '24hours') {
         const today = new Date(malaysiaTime.getFullYear(), malaysiaTime.getMonth(), malaysiaTime.getDate())
         const currentHour = malaysiaTime.getHours()
         
         for (let hour = 0; hour <= Math.max(23, currentHour); hour++) {
-          const bucketTime = new Date(today.getTime() + hour * 60 * 60 * 1000)
           const label = hour.toString().padStart(2, '0') + ':00'
-          
           labels.push(label)
           buckets.set(hour, {
             newUsers: 0,
@@ -415,7 +399,6 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
           })
         }
       } else {
-        // Original logic for 7days and 12months
         let currentTime = new Date(startTime)
         const endTime = queryEndTime
         
@@ -423,7 +406,7 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
           const malaysiaCurrentTime = toMalaysiaTime(currentTime)
           const label = malaysiaCurrentTime.toLocaleString('en-MY', {
             timeZone: 'Asia/Kuala_Lumpur',
-            ...(timeRange === '7days' ? { month: 'short', day: '2-digit' } :
+            ...(stableTimeRange === '7days' ? { month: 'short', day: '2-digit' } :
                { month: 'short', year: '2-digit' })
           })
           
@@ -435,16 +418,15 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
             time: currentTime
           })
 
-          // Increment based on bucket size
-          if (timeRange === '7days') {
-            currentTime = new Date(currentTime.getTime() + 24 * 60 * 60 * 1000) // 1 day
+          if (stableTimeRange === '7days') {
+            currentTime = new Date(currentTime.getTime() + 24 * 60 * 60 * 1000)
           } else {
-            currentTime = new Date(currentTime.getFullYear(), currentTime.getMonth() + 1, 1) // 1 month
+            currentTime = new Date(currentTime.getFullYear(), currentTime.getMonth() + 1, 1)
           }
         }
       }
 
-      console.log(`📊 Created ${buckets.size} time buckets for ${timeRange}`)
+      console.log('📊 Created', buckets.size, 'time buckets for', stableTimeRange)
 
       // Fill buckets with user data
       (userData || []).forEach((user: any) => {
@@ -452,14 +434,12 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
         const malaysiaUserTime = toMalaysiaTime(userTime)
         
         let bucket
-        if (timeRange === '24hours') {
-          // Simple hour-based bucketing for 24-hour view
+        if (stableTimeRange === '24hours') {
           const hour = malaysiaUserTime.getHours()
           bucket = buckets.get(hour)
         } else {
-          // Original logic for other time ranges
           let bucketTime: Date
-          if (timeRange === '7days') {
+          if (stableTimeRange === '7days') {
             bucketTime = new Date(malaysiaUserTime.getFullYear(), malaysiaUserTime.getMonth(), malaysiaUserTime.getDate())
           } else {
             bucketTime = new Date(malaysiaUserTime.getFullYear(), malaysiaUserTime.getMonth(), 1)
@@ -473,7 +453,7 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
           bucket.details.push({
             id: user.id,
             name: user.first_name && user.last_name 
-              ? `${user.first_name} ${user.last_name}` 
+              ? user.first_name + ' ' + user.last_name
               : user.name || 'N/A',
             email: user.email,
             country: user.registration_country,
@@ -485,7 +465,7 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
             })
           })
         } else {
-          console.log(`⚠️ No bucket found for user at ${malaysiaUserTime.toISOString()} (hour: ${malaysiaUserTime.getHours()})`)
+          console.log('⚠️ No bucket found for user at', malaysiaUserTime.toISOString(), '(hour:', malaysiaUserTime.getHours() + ')')
         }
       })
 
@@ -496,14 +476,12 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
         const malaysiaIdentityTime = toMalaysiaTime(identityTime)
         
         let bucket
-        if (timeRange === '24hours') {
-          // Simple hour-based bucketing for 24-hour view
+        if (stableTimeRange === '24hours') {
           const hour = malaysiaIdentityTime.getHours()
           bucket = buckets.get(hour)
         } else {
-          // Original logic for other time ranges
           let bucketTime: Date
-          if (timeRange === '7days') {
+          if (stableTimeRange === '7days') {
             bucketTime = new Date(malaysiaIdentityTime.getFullYear(), malaysiaIdentityTime.getMonth(), malaysiaIdentityTime.getDate())
           } else {
             bucketTime = new Date(malaysiaIdentityTime.getFullYear(), malaysiaIdentityTime.getMonth(), 1)
@@ -522,10 +500,6 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
       const dataPoints = Array.from(buckets.values())
       const newUsersData = dataPoints.map(point => point.newUsers || 0)
       const identityUsersData = dataPoints.map(point => point.usersWithIdentity || 0)
-
-      // Safe calculation of totals  
-      const totalNewUsers = newUsersData.length > 0 ? newUsersData.reduce((a, b) => a + b, 0) : 0
-      const totalIdentityUsers = identityUsersData.length > 0 ? identityUsersData.reduce((a, b) => a + b, 0) : 0
 
       const chart = {
         labels,
@@ -555,11 +529,10 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
       // Cache for 5 minutes
       queryCache.set(cacheKey, { chartData: chart, chartDataPoints: dataPoints }, 300000)
       
-      console.log(`✅ Chart data loaded for ${timeRange} with Malaysia timezone: ${labels.length} data points`)
+      console.log('✅ Chart data loaded for', stableTimeRange, 'with Malaysia timezone:', labels.length, 'data points')
     } catch (error: any) {
       console.error('❌ Error loading chart data:', error)
       
-      // Set empty chart data on error to prevent infinite loading
       const emptyChart = {
         labels: ['No Data'],
         datasets: [
@@ -587,7 +560,7 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
     } finally {
       setLoading(false)
     }
-  }, [timeRange])
+  }, [stableTimeRange])
 
   useEffect(() => {
     loadChartData()

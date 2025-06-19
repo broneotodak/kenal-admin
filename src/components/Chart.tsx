@@ -12,7 +12,7 @@ interface ChartProps {
   options: any
 }
 
-export const Chart = forwardRef<any, ChartProps>(({ data, options }, ref) => {
+const Chart = forwardRef<any, ChartProps>(({ data, options }, ref) => {
   const chartRef = useRef<any>(null)
 
   useImperativeHandle(ref, () => ({
@@ -82,4 +82,6 @@ export const Chart = forwardRef<any, ChartProps>(({ data, options }, ref) => {
   return <LineChart ref={chartRef} data={data} options={options} />
 })
 
-Chart.displayName = 'Chart' 
+Chart.displayName = 'Chart'
+
+export default Chart 
