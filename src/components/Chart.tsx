@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, forwardRef, useImperativeHandle, useRef } from 'react'
 import dynamic from 'next/dynamic'
 
 const LineChart = dynamic(() => import('react-chartjs-2').then((mod) => ({ default: mod.Line })), {
@@ -10,10 +10,18 @@ const LineChart = dynamic(() => import('react-chartjs-2').then((mod) => ({ defau
 interface ChartProps {
   data: any
   options: any
-  ref?: any
 }
 
-export const Chart: React.FC<ChartProps> = ({ data, options, ref }) => {
+export const Chart = forwardRef<any, ChartProps>(({ data, options }, ref) => {
+  const chartRef = useRef<any>(null)
+
+  useImperativeHandle(ref, () => ({
+    resetZoom: () => {
+      if (chartRef.current) {
+        chartRef.current.resetZoom()
+      }
+    }
+  }), [])
   const [isChartReady, setIsChartReady] = useState(false)
 
   useEffect(() => {
@@ -71,5 +79,7 @@ export const Chart: React.FC<ChartProps> = ({ data, options, ref }) => {
     )
   }
 
-  return <LineChart ref={ref} data={data} options={options} />
-} 
+  return <LineChart ref={chartRef} data={data} options={options} />
+})
+
+Chart.displayName = 'Chart' 

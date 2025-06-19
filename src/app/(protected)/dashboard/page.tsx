@@ -40,6 +40,11 @@ import {
 import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
 import { Chart } from '@/components/Chart'
+import { 
+  useFallbackDashboardStats, 
+  useFallbackRecentUsers, 
+  useFallbackChartData 
+} from '@/hooks/useOptimizedDashboardFallback'
 
 // Helper function to get country flag emoji
 const getCountryFlag = (countryCode?: string): string => {
@@ -114,60 +119,13 @@ export default function DashboardPage() {
   const chartRef = useRef<any>(null)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [selectedDataPoint, setSelectedDataPoint] = useState<ChartDataPoint | null>(null)
-  
-  const [stats, setStats] = useState({
-    totalUsers: 0,
-    activeUsers: 0,
-    todayRegistrations: 0,
-    totalRevenue: 452808,
-    userGrowth: '+12.5',
-    activeGrowth: '+8.3',
-    revenueGrowth: '+15.2',
-    todayGrowth: '+13.8',
-  })
-  const [loading, setLoading] = useState(true)
-  const [chartLoading, setChartLoading] = useState(true)
-  const [timeRange, setTimeRange] = useState('24hours')
-  const [recentUsers, setRecentUsers] = useState<any[]>([])
+  const [timeRange, setTimeRange] = useState<'24hours' | '7days' | '12months'>('24hours')
   const [currentTime, setCurrentTime] = useState<string>('')
-  const [chartDataPoints, setChartDataPoints] = useState<ChartDataPoint[]>([])
-  const [chartData, setChartData] = useState({
-    labels: [] as string[],
-    datasets: [
-      {
-        label: 'New Users',
-        data: [] as number[],
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        tension: 0.4,
-        fill: true,
-        pointRadius: 5,
-        pointHoverRadius: 8,
-        pointBackgroundColor: '#3b82f6',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointHoverBackgroundColor: '#3b82f6',
-        pointHoverBorderColor: '#fff',
-        pointHoverBorderWidth: 3,
-      },
-      {
-        label: 'Users with Identity',
-        data: [] as number[],
-        borderColor: '#f97316',
-        backgroundColor: 'rgba(249, 115, 22, 0.1)',
-        tension: 0.4,
-        fill: true,
-        pointRadius: 5,
-        pointHoverRadius: 8,
-        pointBackgroundColor: '#f97316',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointHoverBackgroundColor: '#f97316',
-        pointHoverBorderColor: '#fff',
-        pointHoverBorderWidth: 3,
-      },
-    ],
-  })
+
+  // Use fallback hooks for immediate data loading (no database views required)
+  const { stats, loading: statsLoading } = useFallbackDashboardStats(30000) // 30s refresh
+  const { recentUsers, loading: usersLoading } = useFallbackRecentUsers(5)
+  const { chartData, chartDataPoints, loading: chartLoading } = useFallbackChartData(timeRange)
 
   const handleExportChart = () => {
     setAnchorEl(null)
@@ -175,7 +133,7 @@ export default function DashboardPage() {
     // Only run on client side
     if (typeof window === 'undefined') return
     
-    const csvData = chartDataPoints.map((point, index) => ({
+    const csvData = chartDataPoints.map((point: any, index: number) => ({
       'Date/Time': chartData.labels[index],
       'New Users': point.newUsers,
       'Users with Identity': point.usersWithIdentity,
@@ -185,7 +143,7 @@ export default function DashboardPage() {
     
     const csvContent = [
       Object.keys(csvData[0]).join(','),
-      ...csvData.map(row => Object.values(row).join(','))
+      ...csvData.map((row: any) => Object.values(row).join(','))
     ].join('\n')
     
     const blob = new Blob([csvContent], { type: 'text/csv' })
@@ -202,334 +160,6 @@ export default function DashboardPage() {
       chartRef.current.resetZoom()
     }
   }
-
-  async function loadChartData(range: string) {
-    setChartLoading(true)
-    try {
-      const now = new Date()
-      let startDate: Date
-      let labels: string[] = []
-      let userCounts: number[] = []
-      let identityCounts: number[] = []
-      let dataPoints: ChartDataPoint[] = []
-
-      if (range === '24hours') {
-        // Last 24 hours, grouped by hour
-        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-        
-        // Get all users created in last 24 hours
-        const { data: users } = await supabase
-          .from('kd_users')
-          .select('id, name, email, created_at, country, join_by_invitation')
-          .gte('created_at', startDate.toISOString())
-          .order('created_at', { ascending: true })
-
-        // Get all users with identities created in last 24 hours
-        const { data: identities } = await supabase
-          .from('kd_identity')
-          .select('created_at, user_id')
-          .gte('created_at', startDate.toISOString())
-          .order('created_at', { ascending: true })
-
-        // Initialize hour buckets
-        for (let i = 0; i < 24; i++) {
-          const hour = new Date(now.getTime() - (23 - i) * 60 * 60 * 1000)
-          const hourStr = hour.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })
-          labels.push(hourStr)
-          userCounts.push(0)
-          identityCounts.push(0)
-          dataPoints.push({
-            date: hour.toISOString(),
-            hour: hourStr,
-            newUsers: 0,
-            usersWithIdentity: 0,
-            details: []
-          })
-        }
-
-        // Count users per hour and store details
-        users?.forEach(user => {
-          const hourDiff = Math.floor((new Date(user.created_at).getTime() - startDate.getTime()) / (60 * 60 * 1000))
-          if (hourDiff >= 0 && hourDiff < 24) {
-            userCounts[hourDiff]++
-            dataPoints[hourDiff].newUsers++
-            dataPoints[hourDiff].details?.push({
-              type: 'user',
-              name: user.name,
-              email: user.email,
-              country: user.country,
-              registrationType: user.join_by_invitation ? 'Invited' : 'Direct',
-              time: new Date(user.created_at).toLocaleTimeString()
-            })
-          }
-        })
-
-        // Count unique users with identities per hour
-        const uniqueUsersWithIdentities = new Set<string>()
-        identities?.forEach(identity => {
-          if (!uniqueUsersWithIdentities.has(identity.user_id)) {
-            uniqueUsersWithIdentities.add(identity.user_id)
-            const hourDiff = Math.floor((new Date(identity.created_at).getTime() - startDate.getTime()) / (60 * 60 * 1000))
-            if (hourDiff >= 0 && hourDiff < 24) {
-              identityCounts[hourDiff]++
-              dataPoints[hourDiff].usersWithIdentity++
-            }
-          }
-        })
-
-      } else if (range === '7days') {
-        // Last 7 days, grouped by day
-        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        
-        const { data: users } = await supabase
-          .from('kd_users')
-          .select('id, name, email, created_at, country, join_by_invitation')
-          .gte('created_at', startDate.toISOString())
-          .order('created_at', { ascending: true })
-
-        const { data: identities } = await supabase
-          .from('kd_identity')
-          .select('created_at, user_id')
-          .gte('created_at', startDate.toISOString())
-          .order('created_at', { ascending: true })
-
-        // Initialize day buckets
-        for (let i = 0; i < 7; i++) {
-          const day = new Date(now.getTime() - (6 - i) * 24 * 60 * 60 * 1000)
-          const dayStr = day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-          labels.push(dayStr)
-          userCounts.push(0)
-          identityCounts.push(0)
-          dataPoints.push({
-            date: day.toISOString(),
-            newUsers: 0,
-            usersWithIdentity: 0,
-            details: []
-          })
-        }
-
-        // Count users per day
-        users?.forEach(user => {
-          const dayDiff = Math.floor((new Date(user.created_at).getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000))
-          if (dayDiff >= 0 && dayDiff < 7) {
-            userCounts[dayDiff]++
-            dataPoints[dayDiff].newUsers++
-            dataPoints[dayDiff].details?.push({
-              type: 'user',
-              name: user.name,
-              email: user.email,
-              country: user.country,
-              registrationType: user.join_by_invitation ? 'Invited' : 'Direct',
-              time: new Date(user.created_at).toLocaleDateString()
-            })
-          }
-        })
-
-        // Count unique users with identities per day
-        const dailyIdentities: { [key: number]: Set<string> } = {}
-        for (let i = 0; i < 7; i++) {
-          dailyIdentities[i] = new Set()
-        }
-
-        identities?.forEach(identity => {
-          const dayDiff = Math.floor((new Date(identity.created_at).getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000))
-          if (dayDiff >= 0 && dayDiff < 7) {
-            dailyIdentities[dayDiff].add(identity.user_id)
-          }
-        })
-
-        for (let i = 0; i < 7; i++) {
-          identityCounts[i] = dailyIdentities[i].size
-          dataPoints[i].usersWithIdentity = dailyIdentities[i].size
-        }
-
-      } else {
-        // Last 12 months, grouped by month
-        startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1)
-        
-        const { data: users } = await supabase
-          .from('kd_users')
-          .select('id, name, email, created_at, country, join_by_invitation')
-          .gte('created_at', startDate.toISOString())
-          .order('created_at', { ascending: true })
-
-        const { data: identities } = await supabase
-          .from('kd_identity')
-          .select('created_at, user_id')
-          .gte('created_at', startDate.toISOString())
-          .order('created_at', { ascending: true })
-
-        // Initialize month buckets
-        for (let i = 0; i < 12; i++) {
-          const month = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1)
-          const monthStr = month.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-          labels.push(monthStr)
-          userCounts.push(0)
-          identityCounts.push(0)
-          dataPoints.push({
-            date: month.toISOString(),
-            newUsers: 0,
-            usersWithIdentity: 0,
-            details: []
-          })
-        }
-
-        // Count users per month
-        users?.forEach(user => {
-          const userDate = new Date(user.created_at)
-          const monthDiff = (userDate.getFullYear() - startDate.getFullYear()) * 12 + 
-                           (userDate.getMonth() - startDate.getMonth())
-          if (monthDiff >= 0 && monthDiff < 12) {
-            userCounts[monthDiff]++
-            dataPoints[monthDiff].newUsers++
-            dataPoints[monthDiff].details?.push({
-              type: 'user',
-              name: user.name,
-              email: user.email,
-              country: user.country,
-              registrationType: user.join_by_invitation ? 'Invited' : 'Direct',
-              time: userDate.toLocaleDateString()
-            })
-          }
-        })
-
-        // Count unique users with identities per month
-        const monthlyIdentities: { [key: number]: Set<string> } = {}
-        for (let i = 0; i < 12; i++) {
-          monthlyIdentities[i] = new Set()
-        }
-
-        identities?.forEach(identity => {
-          const identityDate = new Date(identity.created_at)
-          const monthDiff = (identityDate.getFullYear() - startDate.getFullYear()) * 12 + 
-                           (identityDate.getMonth() - startDate.getMonth())
-          if (monthDiff >= 0 && monthDiff < 12) {
-            monthlyIdentities[monthDiff].add(identity.user_id)
-          }
-        })
-
-        for (let i = 0; i < 12; i++) {
-          identityCounts[i] = monthlyIdentities[i].size
-          dataPoints[i].usersWithIdentity = monthlyIdentities[i].size
-        }
-      }
-
-      setChartDataPoints(dataPoints)
-      setChartData({
-        labels,
-        datasets: [
-          {
-            label: 'New Users',
-            data: userCounts,
-            borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            tension: 0.4,
-            fill: true,
-            pointRadius: 5,
-            pointHoverRadius: 8,
-            pointBackgroundColor: '#3b82f6',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointHoverBackgroundColor: '#3b82f6',
-            pointHoverBorderColor: '#fff',
-            pointHoverBorderWidth: 3,
-          },
-          {
-            label: 'Users with Identity',
-            data: identityCounts,
-            borderColor: '#f97316',
-            backgroundColor: 'rgba(249, 115, 22, 0.1)',
-            tension: 0.4,
-            fill: true,
-            pointRadius: 5,
-            pointHoverRadius: 8,
-            pointBackgroundColor: '#f97316',
-            pointBorderColor: '#fff',
-            pointBorderWidth: 2,
-            pointHoverBackgroundColor: '#f97316',
-            pointHoverBorderColor: '#fff',
-            pointHoverBorderWidth: 3,
-          },
-        ],
-      })
-    } catch (error) {
-      console.error('Error loading chart data:', error)
-    } finally {
-      setChartLoading(false)
-    }
-  }
-
-  async function loadDashboard() {
-    try {
-      // Get total users
-      const { count: totalUsers } = await supabase
-        .from('kd_users')
-        .select('*', { count: 'exact', head: true })
-
-      // Get active users (have at least one identity)
-      const { data: usersWithIdentity } = await supabase
-        .from('kd_identity')
-        .select('user_id', { count: 'exact' })
-        .not('user_id', 'is', null)
-      
-      // Count unique users with identities
-      const uniqueUsersWithIdentity = new Set(usersWithIdentity?.map(item => item.user_id) || [])
-      const activeUsers = uniqueUsersWithIdentity.size
-
-      // Get today's registrations
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const { count: todayRegistrations } = await supabase
-        .from('kd_users')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', today.toISOString())
-
-      // Calculate growth percentages (comparing to last month/week)
-      const lastMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-      const { count: lastMonthUsers } = await supabase
-        .from('kd_users')
-        .select('*', { count: 'exact', head: true })
-        .lt('created_at', lastMonth.toISOString())
-
-      const userGrowth = lastMonthUsers && lastMonthUsers > 0 
-        ? ((totalUsers! - lastMonthUsers) / lastMonthUsers * 100).toFixed(1)
-        : '0'
-
-      // Get recent users with country and registration type
-      const { data: recent } = await supabase
-        .from('kd_users')
-        .select('id, name, email, created_at, country, join_by_invitation')
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      setStats({
-        totalUsers: totalUsers || 0,
-        activeUsers: activeUsers || 0,
-        todayRegistrations: todayRegistrations || 0,
-        totalRevenue: 452808,
-        userGrowth: userGrowth.startsWith('-') ? userGrowth : `+${userGrowth}`,
-        activeGrowth: '+8.3',
-        revenueGrowth: '+15.2',
-        todayGrowth: todayRegistrations && todayRegistrations > 0 ? '+13.8' : '0',
-      })
-
-      setRecentUsers(recent || [])
-    } catch (error) {
-      console.error('Error loading dashboard:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    loadDashboard()
-    const interval = setInterval(loadDashboard, 30000) // Refresh every 30 seconds
-    return () => clearInterval(interval)
-  }, [])
-
-  useEffect(() => {
-    loadChartData(timeRange)
-  }, [timeRange])
 
   // Update time only on client side to avoid hydration issues
   useEffect(() => {
@@ -706,7 +336,7 @@ export default function DashboardPage() {
                   lineHeight: 1.2
                 }}
               >
-                {loading ? <Skeleton width={100} /> : isRevenue ? `RM ${value.toLocaleString()}` : value.toLocaleString()}
+                {statsLoading ? <Skeleton width={100} /> : isRevenue ? `RM ${value.toLocaleString()}` : value.toLocaleString()}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <GrowthIcon 
@@ -974,14 +604,14 @@ export default function DashboardPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {loading ? (
+                  {usersLoading ? (
                     <TableRow>
                       <TableCell colSpan={5}>
                         <Skeleton />
                       </TableCell>
                     </TableRow>
                   ) : recentUsers.length > 0 ? (
-                    recentUsers.map((user) => (
+                    recentUsers.map((user: any) => (
                       <TableRow 
                         key={user.id}
                         sx={{ 
@@ -1000,10 +630,10 @@ export default function DashboardPage() {
                                 fontWeight: 600
                               }}
                             >
-                              {user.name?.[0] || user.email[0].toUpperCase()}
+                              {user.display_name?.[0] || user.name?.[0] || user.email[0].toUpperCase()}
                             </Avatar>
                             <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {user.name || 'N/A'}
+                              {user.display_name || user.name || 'N/A'}
                             </Typography>
                           </Box>
                         </TableCell>
@@ -1015,18 +645,18 @@ export default function DashboardPage() {
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Typography variant="body1" sx={{ fontSize: '1.2rem' }}>
-                              {getCountryFlag(user.country)}
+                              {getCountryFlag(user.registration_country)}
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                              {getCountryName(user.country)}
+                              {user.country_display}
                             </Typography>
                           </Box>
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={user.join_by_invitation ? 'Invited' : 'Direct'}
+                            label={user.registration_type}
                             size="small"
-                            color={user.join_by_invitation ? 'secondary' : 'primary'}
+                            color={user.registration_type === 'Invited' ? 'secondary' : 'primary'}
                             sx={{ 
                               fontSize: '0.7rem',
                               height: 20,

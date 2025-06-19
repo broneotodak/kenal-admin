@@ -469,7 +469,7 @@ export default function AnalyticsPage() {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
       const { data: recentUsers } = await supabase
         .from('kd_users')
-        .select('created_at, user_type, element_number, gender, country, join_by_invitation')
+        .select('created_at, user_type, element_number, gender, registration_country, join_by_invitation')
         .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: true })
 
@@ -502,7 +502,7 @@ export default function AnalyticsPage() {
       // Get ALL users for segmentation analysis (not just last 30 days)
       const { data: allUsers } = await supabase
         .from('kd_users')
-        .select('user_type, element_number, gender, country')
+        .select('user_type, element_number, gender, registration_country')
 
       // Process user segmentation from ALL users
       const usersByElement: { [key: number]: number } = {}
@@ -518,8 +518,8 @@ export default function AnalyticsPage() {
         }
         
         // Country analysis
-        if (user.country) {
-          usersByCountry[user.country] = (usersByCountry[user.country] || 0) + 1
+        if (user.registration_country) {
+          usersByCountry[user.registration_country] = (usersByCountry[user.registration_country] || 0) + 1
         }
         
         // Gender analysis

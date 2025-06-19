@@ -54,6 +54,22 @@ import {
 } from '@mui/icons-material'
 import { supabase } from '@/lib/supabase'
 import { UserMobileCard } from '@/components/UserMobileCard'
+import { 
+  useOptimizedUsers, 
+  useUserFilterOptions, 
+  useOptimizedUserDetails, 
+  useUserStatistics 
+} from '@/hooks/useOptimizedUsers'
+import {
+  useOptimizedUsersViews,
+  useUserFilterOptionsViews, 
+  useUserStatisticsViews
+} from '@/hooks/useOptimizedUsersViews'
+import {
+  useSmartOptimizedUsers,
+  useSmartUserFilterOptions,
+  useSmartUserStatistics
+} from '@/hooks/useSmartOptimizedUsers'
 
 interface User {
   id: string
@@ -66,7 +82,10 @@ interface User {
   active: boolean
   identity_count?: number
   birth_date?: string
-  country?: string
+  registration_country?: string
+  country_display?: string
+  registration_type?: string
+  display_name?: string
   kd_identity?: any[]
 }
 
@@ -284,11 +303,8 @@ const IdentityCard = ({ identity, theme }: { identity: any, theme: any }) => {
 export default function UsersPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
-  const [users, setUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
-  const [totalCount, setTotalCount] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [openModal, setOpenModal] = useState(false)
@@ -299,29 +315,22 @@ export default function UsersPage() {
     gender: '',
     country: ''
   })
-  const [availableCountries, setAvailableCountries] = useState<string[]>([])
   const [totalMutualCount, setTotalMutualCount] = useState<number>(0)
   const router = useRouter()
 
-  // Fetch available countries from database
-  const fetchAvailableCountries = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('kd_users')
-        .select('country')
-        .not('country', 'is', null)
-        .neq('country', '')
+  // Use smart optimized hooks (tries views first, falls back to direct queries)
+  const { users, totalCount, loading, error, refetch: refetchUsers, mode } = useSmartOptimizedUsers({
+    page,
+    rowsPerPage,
+    searchQuery,
+    filters
+  })
 
-      if (!error && data) {
-        const uniqueCountries = Array.from(new Set(data.map(item => item.country).filter(Boolean)))
-        setAvailableCountries(uniqueCountries.sort())
-      }
-    } catch (error) {
-      console.error('Error fetching countries:', error)
-    }
-  }
+  const { countries: availableCountries, mode: filterMode } = useSmartUserFilterOptions()
+  const { stats, mode: statsMode } = useSmartUserStatistics()
+  const { userDetails, userIdentities } = useOptimizedUserDetails(selectedUser?.id || null)
 
-  // Calculate total mutual count for all user identities
+  // Calculate total mutual count for all user identities (simplified version)
   const calculateTotalMutualCount = async (identities: any[]) => {
     try {
       let totalMutual = 0
@@ -347,181 +356,7 @@ export default function UsersPage() {
     }
   }
 
-  const fetchUsers = async () => {
-    setLoading(true)
-    try {
-      console.log('=== FETCHING USERS DEBUG START ===')
-      
-      // Test if Supabase client is working at all
-      console.log('Testing Supabase client...')
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        console.log('Auth user check:', user ? 'User authenticated' : 'No user')
-      } catch (authErr) {
-        console.error('Auth check failed:', authErr)
-      }
-      
-      // Test basic table access - try different approaches
-      console.log('Testing basic table access...')
-      
-      // Try 1: Most basic query possible
-      try {
-        console.log('Try 1: Basic count query...')
-        const { count, error: countError } = await Promise.race([
-          supabase.from('kd_users').select('*', { count: 'exact', head: true }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Count timeout')), 5000))
-        ]) as any
-        console.log('Count result:', { count, countError })
-      } catch (countErr) {
-        console.error('Count query failed:', countErr)
-      }
-      
-      // Try 2: Check if table exists with a different method
-      try {
-        console.log('Try 2: Simple select query...')
-        const { data: testUsers, error: testError } = await Promise.race([
-          supabase
-            .from('kd_users')
-            .select('id')
-            .limit(1),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Select timeout')), 5000))
-        ]) as any
-        console.log('Simple select result:', { testUsers, testError })
-        
-        if (testError) {
-          console.error('Simple query failed with error:', testError)
-          
-          // Check if it's an RLS issue
-          if (testError.message?.includes('RLS') || testError.message?.includes('policy')) {
-            console.log('🚨 RLS Policy Issue Detected!')
-            console.log('Even though docs say RLS is disabled, there might be policies blocking access')
-          }
-          
-          // Check if it's a table access issue
-          if (testError.message?.includes('relation') || testError.message?.includes('does not exist')) {
-            console.log('🚨 Table Access Issue - kd_users table may not exist or be accessible')
-          }
-          
-          setUsers([])
-          setTotalCount(0)
-          return
-        }
-        
-        if (testUsers && testUsers.length >= 0) {
-          console.log('✅ Basic query successful! Table is accessible.')
-        }
-        
-      } catch (selectErr) {
-        console.error('Select query timed out:', selectErr)
-        setUsers([])
-        setTotalCount(0)
-        return
-      }
-      
-      console.log('Basic query successful, fetching full data...')
-      
-              // Build simpler query first (without the complex join)
-        let query = supabase
-          .from('kd_users')
-          .select(`
-            id,
-            name,
-            email,
-            created_at,
-            gender,
-            element_number,
-            active,
-            birth_date
-          `, { count: 'exact' })
 
-      // Apply search filter
-      if (searchQuery) {
-        query = query.or(`name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
-      }
-
-      // Apply filters
-      if (filters.user_type) {
-        if (filters.user_type === 'Admin') {
-          query = query.eq('user_type', 5)
-        } else if (filters.user_type === 'Public') {
-          query = query.not('user_type', 'eq', 5)
-        }
-      }
-      if (filters.gender) {
-        query = query.eq('gender', filters.gender)
-      }
-      if (filters.country) {
-        query = query.eq('country', filters.country)
-      }
-
-      // Add pagination
-      query = query
-        .order('created_at', { ascending: false })
-        .range(page * rowsPerPage, (page + 1) * rowsPerPage - 1)
-
-      console.log('Executing main query...')
-      const { data, error, count } = await Promise.race([
-        query,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Main query timeout')), 10000))
-      ]) as any
-
-      console.log('Main query result:', { data: data?.length, error, count })
-
-      if (error) {
-        console.error('Error fetching users:', error)
-        setUsers([])
-        setTotalCount(0)
-        return
-      }
-
-      // Get real identity counts for these users
-      const userIds = data?.map((user: any) => user.id) || []
-      let identityCounts: { [key: string]: number } = {}
-      
-      if (userIds.length > 0) {
-        try {
-          const { data: identityData, error: identityError } = await supabase
-            .from('kd_identity')
-            .select('user_id')
-            .in('user_id', userIds)
-          
-          if (!identityError && identityData) {
-            // Count identities per user
-            identityData.forEach(identity => {
-              identityCounts[identity.user_id] = (identityCounts[identity.user_id] || 0) + 1
-            })
-          }
-        } catch (error) {
-          console.error('Error fetching identity counts:', error)
-        }
-      }
-
-      const transformedUsers = data?.map((user: any) => ({
-        ...user,
-        identity_count: identityCounts[user.id] || 0,
-      })) || []
-
-      console.log('Transformed users:', transformedUsers.length)
-      setUsers(transformedUsers)
-      setTotalCount(count || 0)
-      
-      console.log('=== FETCHING USERS DEBUG END ===')
-    } catch (error) {
-      console.error('Fetch users error:', error)
-      setUsers([])
-      setTotalCount(0)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchUsers()
-  }, [page, rowsPerPage, searchQuery, filters])
-
-  useEffect(() => {
-    fetchAvailableCountries()
-  }, [])
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage)
@@ -595,7 +430,7 @@ export default function UsersPage() {
         alert('Error updating user. Please try again.')
       } else {
         alert('User updated successfully!')
-        fetchUsers() // Refresh the user list
+        refetchUsers() // Refresh the user list
         handleCloseModal()
       }
     } catch (error) {
@@ -642,7 +477,7 @@ export default function UsersPage() {
           alert('Error deleting user. Please try again.')
         } else {
           alert('User deleted successfully!')
-          fetchUsers() // Refresh the user list
+          refetchUsers() // Refresh the user list
         }
       } catch (error) {
         console.error('Delete user error:', error)
@@ -658,13 +493,114 @@ export default function UsersPage() {
 
   return (
     <Box>
+      {/* User Statistics Cards */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48 }}>
+                  <Person />
+                </Avatar>
+                <Box>
+                  <Typography variant="h5" fontWeight="bold">
+                    {stats.totalUsers.toLocaleString()}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Users
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ bgcolor: 'success.main', width: 48, height: 48 }}>
+                  <Psychology />
+                </Avatar>
+                <Box>
+                  <Typography variant="h5" fontWeight="bold">
+                    {stats.usersWithIdentities.toLocaleString()}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    With Identities
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ bgcolor: 'warning.main', width: 48, height: 48 }}>
+                  <Category />
+                </Avatar>
+                <Box>
+                  <Typography variant="h5" fontWeight="bold">
+                    {stats.avgIdentitiesPerUser}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Avg Identities/User
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ bgcolor: 'error.main', width: 48, height: 48 }}>
+                  <Person />
+                </Avatar>
+                <Box>
+                  <Typography variant="h5" fontWeight="bold">
+                    {stats.adminUsers.toLocaleString()}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Admin Users
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
       {/* Header */}
       <Box sx={{ 
         display: 'flex', 
-        justifyContent: 'flex-end', 
+        justifyContent: 'space-between', 
         alignItems: 'center', 
         mb: 3,
       }}>
+        <Box>
+          <Typography variant="h5" fontWeight="bold">
+            All Users ({totalCount.toLocaleString()})
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+            <Chip 
+              label={mode === 'views' ? '🚀 Database Views' : '📋 Direct Queries'}
+              size="small"
+              color={mode === 'views' ? 'success' : 'default'}
+              variant="outlined"
+            />
+            {mode === 'direct' && (
+              <Chip 
+                label="Run SQL views for faster loading"
+                size="small"
+                color="warning"
+                variant="outlined"
+              />
+            )}
+          </Box>
+        </Box>
         <Button
           variant="contained"
           startIcon={<Download />}
@@ -909,10 +845,10 @@ export default function UsersPage() {
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography variant="h6" sx={{ fontSize: '1.5rem' }}>
-                          {getCountryFlag(user.country)}
+                          {getCountryFlag(user.registration_country)}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {user.country || 'N/A'}
+                          {user.country_display || 'N/A'}
                         </Typography>
                       </Box>
                     </TableCell>
