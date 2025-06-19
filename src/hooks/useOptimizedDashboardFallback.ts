@@ -104,8 +104,18 @@ export const useFallbackDashboardStats = (timeRange: '24hours' | '7days' | '12mo
         supabase.from('kd_users').select('*', { count: 'exact', head: true })
           .gte('created_at', currentPeriodStart.toISOString()),
         supabase.from('kd_users').select('*', { count: 'exact', head: true })
-          .gte('created_at', new Date(malaysiaTime.toDateString()).toISOString())
-          .lt('created_at', new Date(malaysiaTime.getTime() + 24 * 60 * 60 * 1000).toISOString())
+          .gte('created_at', (() => {
+            // Get today's start in Malaysia timezone (00:00 Malaysia time)
+            const todayStartMalaysia = new Date(malaysiaTime.getFullYear(), malaysiaTime.getMonth(), malaysiaTime.getDate(), 0, 0, 0, 0)
+            // Convert to UTC for database query (Malaysia is UTC+8)
+            return new Date(todayStartMalaysia.getTime() - 8 * 60 * 60 * 1000).toISOString()
+          })())
+          .lt('created_at', (() => {
+            // Get tomorrow's start in Malaysia timezone (00:00 tomorrow Malaysia time)
+            const tomorrowStartMalaysia = new Date(malaysiaTime.getFullYear(), malaysiaTime.getMonth(), malaysiaTime.getDate() + 1, 0, 0, 0, 0)
+            // Convert to UTC for database query
+            return new Date(tomorrowStartMalaysia.getTime() - 8 * 60 * 60 * 1000).toISOString()
+          })())
       ])
 
       // Get previous period stats for comparison
@@ -146,12 +156,22 @@ export const useFallbackDashboardStats = (timeRange: '24hours' | '7days' | '12mo
         : 0
 
       // For today growth, compare with yesterday for all timeRanges
-      const yesterday = new Date(malaysiaTime.getTime() - 24 * 60 * 60 * 1000)
+      const yesterdayMalaysia = new Date(malaysiaTime.getTime() - 24 * 60 * 60 * 1000)
       const { count: yesterdayRegistrations } = await supabase
         .from('kd_users')
         .select('*', { count: 'exact', head: true })
-        .gte('created_at', new Date(yesterday.toDateString()).toISOString())
-        .lt('created_at', new Date(yesterday.getTime() + 24 * 60 * 60 * 1000).toISOString())
+        .gte('created_at', (() => {
+          // Get yesterday's start in Malaysia timezone (00:00 yesterday Malaysia time)
+          const yesterdayStartMalaysia = new Date(yesterdayMalaysia.getFullYear(), yesterdayMalaysia.getMonth(), yesterdayMalaysia.getDate(), 0, 0, 0, 0)
+          // Convert to UTC for database query
+          return new Date(yesterdayStartMalaysia.getTime() - 8 * 60 * 60 * 1000).toISOString()
+        })())
+        .lt('created_at', (() => {
+          // Get today's start in Malaysia timezone (00:00 today Malaysia time)
+          const todayStartMalaysia = new Date(malaysiaTime.getFullYear(), malaysiaTime.getMonth(), malaysiaTime.getDate(), 0, 0, 0, 0)
+          // Convert to UTC for database query
+          return new Date(todayStartMalaysia.getTime() - 8 * 60 * 60 * 1000).toISOString()
+        })())
 
       const todayGrowth = yesterdayRegistrations && yesterdayRegistrations > 0
         ? Math.round(((todayRegistrations || 0) - yesterdayRegistrations) / yesterdayRegistrations * 100 * 10) / 10
@@ -177,7 +197,15 @@ export const useFallbackDashboardStats = (timeRange: '24hours' | '7days' | '12mo
       // Cache for 1 minute (shorter because it's dynamic)
       queryCache.set(cacheKey, dashboardStats, 60000)
       
-      console.log(`✅ Dashboard stats loaded for ${timeRange}: ${totalUsers} total users, comparing vs ${comparisonText}`)
+      console.log(`✅ Dashboard stats loaded for ${timeRange}: ${totalUsers} total users, ${todayRegistrations} today, comparing vs ${comparisonText}`)
+      
+      // Debug timezone calculations
+      const todayStartMalaysia = new Date(malaysiaTime.getFullYear(), malaysiaTime.getMonth(), malaysiaTime.getDate(), 0, 0, 0, 0)
+      const todayStartUTC = new Date(todayStartMalaysia.getTime() - 8 * 60 * 60 * 1000)
+      const tomorrowStartUTC = new Date(todayStartMalaysia.getTime() - 8 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000)
+      console.log(`📅 Today in Malaysia: ${todayStartMalaysia.toISOString()} (Malaysia midnight)`)
+      console.log(`📅 Today query range: ${todayStartUTC.toISOString()} to ${tomorrowStartUTC.toISOString()} (UTC)`)
+      console.log(`👥 Today registrations: ${todayRegistrations}`)
     } catch (error: any) {
       console.error('❌ Error loading dashboard stats:', error)
     } finally {
