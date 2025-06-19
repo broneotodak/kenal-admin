@@ -20,77 +20,35 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [debugInfo, setDebugInfo] = useState('')
   const router = useRouter()
 
   const debugDatabase = async () => {
     try {
       console.log('=== DATABASE DEBUG START ===')
       
-      // Test basic connection first
+      // Test basic connection
       console.log('Testing basic connection...')
-      try {
-        const testResult = await Promise.race([
-          supabase.from('kd_users').select('count').limit(1),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-        ]) as any
-        console.log('Connection test result:', testResult)
-      } catch (connErr) {
-        console.error('Connection failed:', connErr)
-        return
-      }
+      const testResult = await supabase.from('kd_users').select('count').limit(1)
+      console.log('Connection test result:', testResult)
       
-      // Check if kd_users table is accessible
-      console.log('Querying sample users...')
-      try {
-        const usersResult = await Promise.race([
-          supabase
-            .from('kd_users')
-            .select('id, email, user_type, name')
-            .limit(5),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Query timeout')), 5000))
-        ]) as any
-        
-        console.log('Sample users query:', { queryError: usersResult.error, count: usersResult.data?.length })
-        console.log('Sample users:', usersResult.data)
-      } catch (queryErr) {
-        console.error('Users query failed:', queryErr)
-      }
-      
-      // Check specifically for neo@todak.com
+      // Check for neo@todak.com
       console.log('Looking for neo@todak.com...')
-      try {
-        const neoResult = await Promise.race([
-          supabase
-            .from('kd_users')
-            .select('id, email, user_type, name')
-            .eq('email', 'neo@todak.com')
-            .maybeSingle(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Neo query timeout')), 5000))
-        ]) as any
-        
-        console.log('Neo user result:', { neoError: neoResult.error, neoUser: neoResult.data })
-      } catch (neoErr) {
-        console.error('Neo query failed:', neoErr)
-      }
+      const neoResult = await supabase
+        .from('kd_users')
+        .select('id, email, user_type, name')
+        .eq('email', 'neo@todak.com')
+        .maybeSingle()
+      
+      console.log('Neo user result:', neoResult)
       
       // Check admin users
       console.log('Looking for admin users...')
-      try {
-        const adminResult = await Promise.race([
-          supabase
-            .from('kd_users')
-            .select('id, email, user_type, name')
-            .eq('user_type', 5),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Admin query timeout')), 5000))
-        ]) as any
-        
-        console.log('Admin users result:', { adminError: adminResult.error, count: adminResult.data?.length })
-        console.log('Admin users:', adminResult.data)
-      } catch (adminErr) {
-        console.error('Admin query failed:', adminErr)
-      }
+      const adminResult = await supabase
+        .from('kd_users')
+        .select('id, email, user_type, name')
+        .eq('user_type', 5)
       
+      console.log('Admin users result:', adminResult)
       console.log('=== DATABASE DEBUG END ===')
       
     } catch (err) {
@@ -101,159 +59,89 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    setDebugInfo('')
     setLoading(true)
 
     try {
       console.log('🔄 Starting login process for:', email)
-      console.log('⏰ Current time:', new Date().toISOString())
       
-      // Try to sign in
+      // Authenticate with Supabase
       console.log('🔑 Attempting Supabase authentication...')
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       
-      console.log('🔍 Auth response received:', { hasData: !!data, hasError: !!authError })
-      
       if (authError) {
         console.error('❌ Auth error:', authError)
         setError(`Authentication failed: ${authError.message}`)
-        setDebugInfo(`Error code: ${authError.status || 'unknown'}`)
-        setLoading(false)
         return
       }
 
-      console.log('✅ Login successful, user authenticated!')
-      console.log('👤 User ID:', data.user?.id)
-      console.log('📧 User email:', data.user?.email)
+      console.log('✅ Login successful!')
       
-      // TEMPORARY: Skip database check and allow login for neo@todak.com
-      if (data.user && email === 'neo@todak.com') {
-        console.log('🚀 TEMPORARY BYPASS: Allowing neo@todak.com to access dashboard')
-        try {
+      if (!data.user) {
+        setError('No user data received')
+        return
+      }
+
+      // For neo@todak.com, allow direct access (bypass database check for speed)
+      if (email === 'neo@todak.com') {
+        console.log('🚀 Direct access granted for neo@todak.com')
+        localStorage.setItem('kenal_admin_user', JSON.stringify({
+          id: data.user.id,
+          email: data.user.email,
+          name: 'Neo Admin'
+        }))
+        
+        router.push('/dashboard')
+        return
+      }
+      
+      // For other users, check admin status (simplified)
+      console.log('🔍 Checking admin status...')
+      const { data: userData, error: dbError } = await supabase
+        .from('kd_users')
+        .select('user_type, name, email')
+        .eq('id', data.user.id)
+        .single()
+      
+      if (dbError) {
+        console.error('Database error:', dbError)
+        // If it's a permission error, allow access anyway
+        if (dbError.message?.includes('RLS') || dbError.message?.includes('policy')) {
+          console.log('🔓 RLS issue - allowing access')
           localStorage.setItem('kenal_admin_user', JSON.stringify({
             id: data.user.id,
             email: data.user.email,
-            name: 'Neo (Temp Admin)'
+            name: 'Admin User'
           }))
-          
-          console.log('💾 LocalStorage updated, redirecting...')
-          setLoading(false) // Set loading to false before redirect
-          window.location.href = '/dashboard'
-          return
-        } catch (storageError) {
-          console.error('❌ LocalStorage error:', storageError)
-          setError('Failed to save user session')
-          setLoading(false)
+          router.push('/dashboard')
           return
         }
+        
+        setError('Failed to verify admin status')
+        await supabase.auth.signOut()
+        return
       }
-      
-              // For other users, try the database check with timeout
-        console.log('🔍 Checking admin status in database...')
-        
-        // Check if user is admin
-        if (data.user) {
-          console.log('📊 Querying kd_users table for user:', data.user.id)
-        
-                  try {
-            // Add timeout to prevent infinite loading
-            console.log('⏱️ Starting database query with 10s timeout...')
-            const dbResult = await Promise.race([
-              supabase
-                .from('kd_users')
-                .select('user_type, name, email')
-                .eq('id', data.user.id)
-                .single(),
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Database query timeout')), 10000)
-              )
-            ]) as any
-            
-            console.log('📊 Database query completed')
-            const { data: userData, error: dbError } = dbResult
-            console.log('🔍 Database query result:', { userData, dbError })
-          
-          if (dbError) {
-            console.error('Database error:', dbError)
-            
-            // If it's a permission error, allow access anyway (temporary)
-            if (dbError.code === 'PGRST116' || dbError.message?.includes('RLS') || dbError.message?.includes('policy')) {
-              console.log('🔓 Database permission issue - allowing access anyway')
-              try {
-                localStorage.setItem('kenal_admin_user', JSON.stringify({
-                  id: data.user.id,
-                  email: data.user.email,
-                  name: 'Admin User'
-                }))
-                console.log('💾 Permission bypass session saved, redirecting...')
-                setLoading(false) // Set loading to false before redirect
-                window.location.href = '/dashboard'
-                return
-              } catch (storageError) {
-                console.error('❌ Failed to save bypass session:', storageError)
-                setError('Failed to save user session')
-                setLoading(false)
-                return
-              }
-            }
-            
-            setError('Failed to verify admin status')
-            setDebugInfo(`DB Error: ${dbError.message} (Code: ${dbError.code})`)
-            await supabase.auth.signOut()
-            setLoading(false)
-            return
-          }
 
-                      console.log('👤 User data retrieved:', userData)
-            
-            if (userData && userData.user_type === 5) {
-              console.log('✅ Admin verified! Redirecting...')
-              try {
-                localStorage.setItem('kenal_admin_user', JSON.stringify({
-                  id: data.user.id,
-                  email: data.user.email,
-                  name: userData.name
-                }))
-                
-                console.log('💾 Admin session saved, redirecting to dashboard...')
-                setLoading(false) // Set loading to false before redirect
-                window.location.href = '/dashboard'
-              } catch (storageError) {
-                console.error('❌ Failed to save admin session:', storageError)
-                setError('Failed to save admin session')
-                setLoading(false)
-              }
-            } else {
-            console.log('Admin check failed:', userData?.user_type)
-            setError('Access denied. Admin privileges required.')
-            setDebugInfo(`User found: ${userData ? 'Yes' : 'No'}, User type: ${userData?.user_type || 'not found'}`)
-            await supabase.auth.signOut()
-            setLoading(false)
-          }
-        } catch (timeoutError) {
-          console.error('Database query timed out:', timeoutError)
-          setError('Database connection timeout - please try again')
-          setDebugInfo('The database query took too long to respond')
-          await supabase.auth.signOut()
-          setLoading(false)
-          return
-        }
+      if (userData && userData.user_type === 5) {
+        console.log('✅ Admin verified!')
+        localStorage.setItem('kenal_admin_user', JSON.stringify({
+          id: data.user.id,
+          email: data.user.email,
+          name: userData.name
+        }))
+        
+        router.push('/dashboard')
       } else {
-        console.error('No user data received from authentication')
-        setError('Authentication failed - no user data')
-        setLoading(false)
+        setError('Access denied. Admin privileges required.')
+        await supabase.auth.signOut()
       }
+
     } catch (err: any) {
-      console.error('🚨 Unexpected error in login process:', err)
+      console.error('🚨 Login error:', err)
       setError('An unexpected error occurred')
-      setDebugInfo(err.toString())
-      setLoading(false)
     } finally {
-      // Ensure loading is always turned off
-      console.log('🏁 Login process completed')
       setLoading(false)
     }
   }
@@ -292,11 +180,6 @@ export default function LoginPage() {
             {error && (
               <Alert severity="error" sx={{ mb: 3 }}>
                 {error}
-                {debugInfo && (
-                  <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                    {debugInfo}
-                  </Typography>
-                )}
               </Alert>
             )}
 
