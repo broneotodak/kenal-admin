@@ -21,6 +21,7 @@ import {
   MenuItem,
   Collapse,
   Chip,
+  Tooltip,
   useTheme as useMUITheme,
 } from '@mui/material'
 import {
@@ -40,6 +41,8 @@ import {
   CreditCard,
   LightMode,
   DarkMode,
+  ChevronLeft,
+  ChevronRight,
 } from '@mui/icons-material'
 import { KenalLogo } from './KenalLogo'
 import { useAuth } from '@/contexts/AuthContext'
@@ -54,6 +57,7 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const muiTheme = useMUITheme()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [desktopOpen, setDesktopOpen] = useState(true)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [openUsers, setOpenUsers] = useState(true)
   const [openAnalytics, setOpenAnalytics] = useState(true)
@@ -62,8 +66,23 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, signOut } = useAuth()
   const { isDarkMode, toggleTheme } = useTheme()
 
-  const handleDrawerToggle = () => {
+  const handleMobileDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
+  }
+
+  const handleDesktopDrawerToggle = () => {
+    setDesktopOpen(!desktopOpen)
+  }
+
+  // Universal toggle that handles both mobile and desktop
+  const handleDrawerToggle = () => {
+    // On mobile, toggle mobile drawer
+    if (window.innerWidth < muiTheme.breakpoints.values.sm) {
+      setMobileOpen(!mobileOpen)
+    } else {
+      // On desktop, toggle desktop drawer
+      setDesktopOpen(!desktopOpen)
+    }
   }
 
   const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -292,20 +311,43 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         }}
       >
         <Toolbar sx={{ px: { xs: 2, sm: 3 } }}>
-          {/* Mobile menu button */}
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ 
-              mr: 2, 
-              display: { sm: 'none' },
-              color: 'text.primary'
-            }}
+          {/* Sidebar toggle button - always visible */}
+          <Tooltip 
+            title="Toggle Sidebar"
+            arrow
           >
-            <MenuIcon />
-          </IconButton>
+            <IconButton
+              color="inherit"
+              aria-label="toggle sidebar"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ 
+                mr: 2,
+                color: 'text.primary',
+                transition: 'transform 0.2s ease',
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                  transform: 'scale(1.1)',
+                }
+              }}
+            >
+              {/* Show different icons based on screen size and drawer state */}
+              <Box
+                sx={{
+                  display: { xs: 'none', sm: 'block' }
+                }}
+              >
+                {desktopOpen ? <ChevronLeft /> : <ChevronRight />}
+              </Box>
+              <Box
+                sx={{
+                  display: { xs: 'block', sm: 'none' }
+                }}
+              >
+                <MenuIcon />
+              </Box>
+            </IconButton>
+          </Tooltip>
           
           {/* Logo on the left */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -375,33 +417,46 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Drawer */}
       <Box
         component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+        sx={{ 
+          width: { sm: desktopOpen ? drawerWidth : 0 }, 
+          flexShrink: { sm: 0 },
+          transition: muiTheme.transitions.create('width', {
+            easing: muiTheme.transitions.easing.sharp,
+            duration: muiTheme.transitions.duration.enteringScreen,
+          }),
+        }}
       >
         <Drawer
           variant="temporary"
           open={mobileOpen}
-          onClose={handleDrawerToggle}
+          onClose={handleMobileDrawerToggle}
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: 'block', sm: 'none' },
             '& .MuiDrawer-paper': { 
               boxSizing: 'border-box', 
               width: drawerWidth,
+              borderRight: `1px solid ${muiTheme.palette.divider}`,
             },
           }}
         >
           {drawer}
         </Drawer>
         <Drawer
-          variant="permanent"
+          variant="persistent"
+          open={desktopOpen}
           sx={{
             display: { xs: 'none', sm: 'block' },
             '& .MuiDrawer-paper': { 
               boxSizing: 'border-box', 
               width: drawerWidth,
+              borderRight: `1px solid ${muiTheme.palette.divider}`,
+              transition: muiTheme.transitions.create('width', {
+                easing: muiTheme.transitions.easing.sharp,
+                duration: muiTheme.transitions.duration.enteringScreen,
+              }),
             },
           }}
-          open
         >
           {drawer}
         </Drawer>
@@ -413,10 +468,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         sx={{
           flexGrow: 1,
           p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          width: { 
+            xs: '100%',
+            sm: desktopOpen ? `calc(100% - ${drawerWidth}px)` : '100%'
+          },
+          ml: { 
+            xs: 0,
+            sm: desktopOpen ? 0 : 0
+          },
           mt: '64px',
           minHeight: 'calc(100vh - 64px)',
           bgcolor: 'background.default',
+          transition: muiTheme.transitions.create(['width', 'margin'], {
+            easing: muiTheme.transitions.easing.sharp,
+            duration: muiTheme.transitions.duration.enteringScreen,
+          }),
         }}
       >
         {children}
