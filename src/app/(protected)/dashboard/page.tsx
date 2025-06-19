@@ -41,11 +41,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
 import { Chart } from '@/components/Chart'
-import { 
-  useFallbackDashboardStats, 
-  useFallbackRecentUsers, 
-  useFallbackChartData 
-} from '@/hooks/useOptimizedDashboardFallback'
+import { useSmartDashboard } from '@/hooks/useSmartDashboard'
 
 // Helper function to get country flag emoji
 const getCountryFlag = (countryCode?: string): string => {
@@ -123,10 +119,20 @@ export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<'24hours' | '7days' | '12months'>('24hours')
   const [currentTime, setCurrentTime] = useState<string>('')
 
-  // Use fallback hooks for immediate data loading (no database views required)
-  const { stats, loading: statsLoading } = useFallbackDashboardStats(timeRange, 30000) // Dynamic comparison with 30s refresh
-  const { recentUsers, loading: usersLoading } = useFallbackRecentUsers(5)
-  const { chartData, chartDataPoints, loading: chartLoading } = useFallbackChartData(timeRange)
+  // Use smart dashboard hook for coordinated loading and tab suspension handling
+  const {
+    stats,
+    recentUsers,
+    chartData,
+    chartDataPoints,
+    loading: globalLoading,
+    statsLoading,
+    usersLoading,
+    chartLoading,
+    isTabVisible,
+    refreshDashboard,
+    lastRefresh
+  } = useSmartDashboard(timeRange)
 
   const handleExportChart = () => {
     setAnchorEl(null)
@@ -342,7 +348,7 @@ export default function DashboardPage() {
                   lineHeight: 1.2
                 }}
               >
-                {statsLoading ? <Skeleton width={100} /> : isRevenue ? `RM ${value.toLocaleString()}` : value.toLocaleString()}
+                {globalLoading ? <Skeleton width={100} /> : isRevenue ? `RM ${value.toLocaleString()}` : value.toLocaleString()}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <GrowthIcon 
@@ -396,6 +402,43 @@ export default function DashboardPage() {
             variant="outlined"
             sx={{ fontSize: '0.7rem', height: 24 }}
           />
+          {!isTabVisible && (
+            <Chip
+              label="Tab Hidden - Auto-refresh paused"
+              size="small"
+              color="warning"
+              variant="outlined"
+              sx={{ fontSize: '0.7rem', height: 24 }}
+            />
+          )}
+          {globalLoading && (
+            <Chip
+              icon={<CircularProgress size={12} />}
+              label="Refreshing..."
+              size="small"
+              color="info"
+              variant="outlined"
+              sx={{ fontSize: '0.7rem', height: 24 }}
+            />
+          )}
+          <Tooltip title="Manually refresh dashboard">
+            <IconButton
+              size="small"
+              onClick={refreshDashboard}
+              disabled={globalLoading}
+              sx={{ 
+                ml: 1,
+                color: 'text.secondary',
+                '&:hover': {
+                  color: 'primary.main',
+                  transform: 'rotate(180deg)',
+                  transition: 'transform 0.3s ease'
+                }
+              }}
+            >
+              <RestartAlt fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Box>
       </Box>
 
