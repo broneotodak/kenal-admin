@@ -41,6 +41,62 @@ import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
 import { Chart } from '@/components/Chart'
 
+// Helper function to get country flag emoji
+const getCountryFlag = (countryCode?: string): string => {
+  if (!countryCode) return '🌍'
+  
+  const flagMap: { [key: string]: string } = {
+    'US': '🇺🇸', 'USA': '🇺🇸', 'United States': '🇺🇸',
+    'MY': '🇲🇾', 'Malaysia': '🇲🇾',
+    'SG': '🇸🇬', 'Singapore': '🇸🇬',
+    'ID': '🇮🇩', 'Indonesia': '🇮🇩',
+    'TH': '🇹🇭', 'Thailand': '🇹🇭',
+    'VN': '🇻🇳', 'Vietnam': '🇻🇳',
+    'PH': '🇵🇭', 'Philippines': '🇵🇭',
+    'CN': '🇨🇳', 'China': '🇨🇳',
+    'JP': '🇯🇵', 'Japan': '🇯🇵',
+    'KR': '🇰🇷', 'Korea': '🇰🇷', 'South Korea': '🇰🇷',
+    'IN': '🇮🇳', 'India': '🇮🇳',
+    'AU': '🇦🇺', 'Australia': '🇦🇺',
+    'UK': '🇬🇧', 'GB': '🇬🇧', 'United Kingdom': '🇬🇧',
+    'CA': '🇨🇦', 'Canada': '🇨🇦',
+    'DE': '🇩🇪', 'Germany': '🇩🇪',
+    'FR': '🇫🇷', 'France': '🇫🇷',
+    'BR': '🇧🇷', 'Brazil': '🇧🇷',
+    'MX': '🇲🇽', 'Mexico': '🇲🇽',
+  }
+  
+  return flagMap[countryCode] || flagMap[countryCode.toUpperCase()] || '🌍'
+}
+
+// Helper function to get country display name
+const getCountryName = (countryCode?: string): string => {
+  if (!countryCode) return 'Unknown'
+  
+  const countryMap: { [key: string]: string } = {
+    'US': 'United States', 'USA': 'United States',
+    'MY': 'Malaysia',
+    'SG': 'Singapore', 
+    'ID': 'Indonesia',
+    'TH': 'Thailand',
+    'VN': 'Vietnam',
+    'PH': 'Philippines',
+    'CN': 'China',
+    'JP': 'Japan',
+    'KR': 'South Korea', 'Korea': 'South Korea',
+    'IN': 'India',
+    'AU': 'Australia',
+    'UK': 'United Kingdom', 'GB': 'United Kingdom',
+    'CA': 'Canada',
+    'DE': 'Germany',
+    'FR': 'France',
+    'BR': 'Brazil',
+    'MX': 'Mexico',
+  }
+  
+  return countryMap[countryCode] || countryMap[countryCode.toUpperCase()] || countryCode
+}
+
 // Use any for chart options due to dynamic import
 type ChartOptions = any
 
@@ -164,7 +220,7 @@ export default function DashboardPage() {
         // Get all users created in last 24 hours
         const { data: users } = await supabase
           .from('kd_users')
-          .select('id, name, email, created_at')
+          .select('id, name, email, created_at, country, join_by_invitation')
           .gte('created_at', startDate.toISOString())
           .order('created_at', { ascending: true })
 
@@ -201,6 +257,8 @@ export default function DashboardPage() {
               type: 'user',
               name: user.name,
               email: user.email,
+              country: user.country,
+              registrationType: user.join_by_invitation ? 'Invited' : 'Direct',
               time: new Date(user.created_at).toLocaleTimeString()
             })
           }
@@ -225,7 +283,7 @@ export default function DashboardPage() {
         
         const { data: users } = await supabase
           .from('kd_users')
-          .select('id, name, email, created_at')
+          .select('id, name, email, created_at, country, join_by_invitation')
           .gte('created_at', startDate.toISOString())
           .order('created_at', { ascending: true })
 
@@ -260,6 +318,8 @@ export default function DashboardPage() {
               type: 'user',
               name: user.name,
               email: user.email,
+              country: user.country,
+              registrationType: user.join_by_invitation ? 'Invited' : 'Direct',
               time: new Date(user.created_at).toLocaleDateString()
             })
           }
@@ -289,7 +349,7 @@ export default function DashboardPage() {
         
         const { data: users } = await supabase
           .from('kd_users')
-          .select('id, name, email, created_at')
+          .select('id, name, email, created_at, country, join_by_invitation')
           .gte('created_at', startDate.toISOString())
           .order('created_at', { ascending: true })
 
@@ -326,6 +386,8 @@ export default function DashboardPage() {
               type: 'user',
               name: user.name,
               email: user.email,
+              country: user.country,
+              registrationType: user.join_by_invitation ? 'Invited' : 'Direct',
               time: userDate.toLocaleDateString()
             })
           }
@@ -433,10 +495,10 @@ export default function DashboardPage() {
         ? ((totalUsers! - lastMonthUsers) / lastMonthUsers * 100).toFixed(1)
         : '0'
 
-      // Get recent users
+      // Get recent users with country and registration type
       const { data: recent } = await supabase
         .from('kd_users')
-        .select('id, name, email, created_at')
+        .select('id, name, email, created_at, country, join_by_invitation')
         .order('created_at', { ascending: false })
         .limit(5)
 
@@ -868,8 +930,18 @@ export default function DashboardPage() {
               <Box sx={{ mt: 1, maxHeight: 200, overflow: 'auto' }}>
                 {selectedDataPoint.details.slice(0, 10).map((detail, index) => (
                   <Box key={index} sx={{ py: 0.5 }}>
-                    <Typography variant="caption">
-                      {detail.name || 'N/A'} ({detail.email}) - {detail.time}
+                    <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                      <span><strong>{detail.name || 'N/A'}</strong> ({detail.email})</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        {getCountryFlag(detail.country)} {getCountryName(detail.country)}
+                      </span>
+                      <Chip 
+                        label={detail.registrationType} 
+                        size="small" 
+                        color={detail.registrationType === 'Invited' ? 'secondary' : 'primary'}
+                        sx={{ height: 16, fontSize: '0.6rem', '& .MuiChip-label': { px: 0.5 } }}
+                      />
+                      <span>• {detail.time}</span>
                     </Typography>
                   </Box>
                 ))}
@@ -896,13 +968,15 @@ export default function DashboardPage() {
                   <TableRow>
                     <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Name</TableCell>
                     <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Email</TableCell>
+                    <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Country</TableCell>
+                    <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Registration</TableCell>
                     <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Joined</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={3}>
+                      <TableCell colSpan={5}>
                         <Skeleton />
                       </TableCell>
                     </TableRow>
@@ -939,6 +1013,31 @@ export default function DashboardPage() {
                           </Typography>
                         </TableCell>
                         <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="body1" sx={{ fontSize: '1.2rem' }}>
+                              {getCountryFlag(user.country)}
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                              {getCountryName(user.country)}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={user.join_by_invitation ? 'Invited' : 'Direct'}
+                            size="small"
+                            color={user.join_by_invitation ? 'secondary' : 'primary'}
+                            sx={{ 
+                              fontSize: '0.7rem',
+                              height: 20,
+                              fontWeight: 500,
+                              '& .MuiChip-label': {
+                                px: 1
+                              }
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
                           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                             {new Date(user.created_at).toLocaleDateString()}
                           </Typography>
@@ -947,7 +1046,7 @@ export default function DashboardPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={3} align="center">
+                      <TableCell colSpan={5} align="center">
                         No recent users
                       </TableCell>
                     </TableRow>
