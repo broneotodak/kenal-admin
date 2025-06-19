@@ -284,10 +284,11 @@ export default function DashboardPage() {
     },
   }
 
-  const StatCard = ({ icon, title, value, growth, isRevenue = false }: any) => {
+  const StatCard = ({ icon, title, value, growth, isRevenue = false, comparisonPeriod }: any) => {
     const isPositive = growth >= 0;
     const GrowthIcon = isPositive ? TrendingUp : TrendingDown;
     const formattedGrowth = growth >= 0 ? `+${growth}` : `${growth}`;
+    const displayComparisonPeriod = comparisonPeriod || stats.comparisonPeriod;
     
     return (
       <Card sx={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
@@ -357,7 +358,7 @@ export default function DashboardPage() {
                     fontSize: '0.875rem'
                   }}
                 >
-                  {formattedGrowth}% vs {stats.comparisonPeriod}
+                  {formattedGrowth}% vs {displayComparisonPeriod}
                 </Typography>
               </Box>
             </Box>
@@ -429,6 +430,7 @@ export default function DashboardPage() {
             title="USERS REGISTERED TODAY"
             value={stats.todayRegistrations}
             growth={stats.todayGrowth}
+            comparisonPeriod={stats.todayComparisonPeriod}
           />
         </Grid>
       </Grid>

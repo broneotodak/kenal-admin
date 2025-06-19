@@ -36,7 +36,8 @@ export const useFallbackDashboardStats = (timeRange: '24hours' | '7days' | '12mo
     activeGrowth: 0,
     todayGrowth: 0,
     revenueGrowth: 15.2,
-    comparisonPeriod: 'last month' // Dynamic based on timeRange
+    comparisonPeriod: 'last month', // Dynamic based on timeRange
+    todayComparisonPeriod: 'yesterday' // Always compare today with yesterday
   })
   const [loading, setLoading] = useState(true)
 
@@ -157,7 +158,8 @@ export const useFallbackDashboardStats = (timeRange: '24hours' | '7days' | '12mo
         activeGrowth,
         todayGrowth,
         revenueGrowth: 15.2,
-        comparisonPeriod: comparisonText
+        comparisonPeriod: comparisonText,
+        todayComparisonPeriod: 'yesterday' // Always compare today with yesterday
       }
 
       setStats(dashboardStats)
