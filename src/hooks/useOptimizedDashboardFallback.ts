@@ -354,6 +354,8 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
           labelFormat = 'HH:mm'
       }
 
+      console.log(`📊 Chart query range: ${startTime.toISOString()} to ${queryEndTime.toISOString()}`)
+
       // Get user registrations with proper time range
       const { data: userData, error: userError } = await supabase
         .from('kd_users')
@@ -363,8 +365,8 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
         .order('created_at')
 
       if (userError) {
-        console.error('Error fetching user data:', userError)
-        return
+        console.error('❌ Error fetching user data for chart:', userError)
+        throw new Error(`User data fetch failed: ${userError.message}`)
       }
 
       // Get identity data for the same period
@@ -375,7 +377,8 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
         .lte('created_at', queryEndTime.toISOString())
 
       if (identityError) {
-        console.error('Error fetching identity data:', identityError)
+        console.error('⚠️ Error fetching identity data for chart:', identityError)
+        // Don't throw, just log warning and continue with empty identity data
       }
 
       console.log(`📊 Data fetched: ${userData?.length || 0} users, ${identityData?.length || 0} identities from ${startTime.toISOString()} to ${queryEndTime.toISOString()}`)
@@ -432,8 +435,10 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
         }
       }
 
+      console.log(`📊 Created ${buckets.size} time buckets for ${timeRange}`)
+
       // Fill buckets with user data
-      (userData || []).forEach(user => {
+      (userData || []).forEach((user: any) => {
         const userTime = new Date(user.created_at)
         const malaysiaUserTime = toMalaysiaTime(userTime)
         
@@ -509,6 +514,8 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
       const newUsersData = dataPoints.map(point => point.newUsers)
       const identityUsersData = dataPoints.map(point => point.usersWithIdentity)
 
+      console.log(`📊 Chart data processed: ${dataPoints.length} points, ${newUsersData.reduce((a: number, b: number) => a + b, 0)} total users, ${identityUsersData.reduce((a: number, b: number) => a + b, 0)} total identities`)
+
       const chart = {
         labels,
         datasets: [
@@ -540,6 +547,32 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
       console.log(`✅ Chart data loaded for ${timeRange} with Malaysia timezone: ${labels.length} data points`)
     } catch (error: any) {
       console.error('❌ Error loading chart data:', error)
+      
+      // Set empty chart data on error to prevent infinite loading
+      const emptyChart = {
+        labels: ['No Data'],
+        datasets: [
+          {
+            label: 'New Users',
+            data: [0],
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            fill: false,
+            tension: 0.3,
+          },
+          {
+            label: 'Users with Identity',
+            data: [0],
+            borderColor: '#f97316',
+            backgroundColor: 'rgba(249, 115, 22, 0.1)',
+            fill: false,
+            tension: 0.3,
+          }
+        ]
+      }
+      
+      setChartData(emptyChart)
+      setChartDataPoints([])
     } finally {
       setLoading(false)
     }
