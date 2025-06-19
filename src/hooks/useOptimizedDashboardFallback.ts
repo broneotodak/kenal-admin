@@ -30,8 +30,10 @@ export const useFallbackDashboardStats = (timeRange: '24hours' | '7days' | '12mo
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeUsers: 0,
+    lifetimeActiveUsers: 0,
     todayRegistrations: 0,
     totalRevenue: 452808,
+    invitedUsers: 0,
     userGrowth: 0,
     activeGrowth: 0,
     todayGrowth: 0,
@@ -113,20 +115,26 @@ export const useFallbackDashboardStats = (timeRange: '24hours' | '7days' | '12mo
         .gte('created_at', previousPeriodStart.toISOString())
         .lt('created_at', previousPeriodEnd.toISOString())
 
-      // Get active users (users with identities)
+      // Get active users (users with identities) and invited users
       const [
         { data: currentActiveUsers },
-        { data: previousActiveUsers }
+        { data: previousActiveUsers },
+        { count: invitedUsersCount },
+        { data: lifetimeActiveUsers }
       ] = await Promise.all([
         supabase.from('kd_identity').select('user_id')
           .gte('created_at', currentPeriodStart.toISOString()),
         supabase.from('kd_identity').select('user_id')
           .gte('created_at', previousPeriodStart.toISOString())
-          .lt('created_at', previousPeriodEnd.toISOString())
+          .lt('created_at', previousPeriodEnd.toISOString()),
+        supabase.from('kd_users').select('*', { count: 'exact', head: true })
+          .eq('join_by_invitation', true),
+        supabase.from('kd_identity').select('user_id')
       ])
 
       const currentActiveCount = new Set(currentActiveUsers?.map(u => u.user_id) || []).size
       const previousActiveCount = new Set(previousActiveUsers?.map(u => u.user_id) || []).size
+      const lifetimeActiveCount = new Set(lifetimeActiveUsers?.map(u => u.user_id) || []).size
 
       // Calculate growth percentages
       const userGrowth = previousPeriodUsers && previousPeriodUsers > 0
@@ -152,8 +160,10 @@ export const useFallbackDashboardStats = (timeRange: '24hours' | '7days' | '12mo
       const dashboardStats = {
         totalUsers: totalUsers || 0,
         activeUsers: currentActiveCount,
+        lifetimeActiveUsers: lifetimeActiveCount,
         todayRegistrations: todayRegistrations || 0,
         totalRevenue: 452808,
+        invitedUsers: invitedUsersCount || 0,
         userGrowth,
         activeGrowth,
         todayGrowth,

@@ -36,6 +36,7 @@ import {
   ZoomIn,
   ZoomOut,
   RestartAlt,
+  Mail,
 } from '@mui/icons-material'
 import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
@@ -601,110 +602,110 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" fontWeight="600" gutterBottom>
-                Recent Users
-              </Typography>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Name</TableCell>
-                    <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Email</TableCell>
-                    <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Country</TableCell>
-                    <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Registration</TableCell>
-                    <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Joined</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {usersLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={5}>
-                        <Skeleton />
-                      </TableCell>
-                    </TableRow>
-                  ) : recentUsers.length > 0 ? (
-                    recentUsers.map((user: any) => (
-                      <TableRow 
-                        key={user.id}
+      {/* Recent Users - Full Width */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" fontWeight="600" gutterBottom>
+            Recent Users
+          </Typography>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Name</TableCell>
+                <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Email</TableCell>
+                <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Country</TableCell>
+                <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Registration</TableCell>
+                <TableCell sx={{ borderBottom: (theme) => `2px solid ${theme.palette.divider}`, pb: 2 }}>Joined</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {usersLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5}>
+                    <Skeleton />
+                  </TableCell>
+                </TableRow>
+              ) : recentUsers.length > 0 ? (
+                recentUsers.map((user: any) => (
+                  <TableRow 
+                    key={user.id}
+                    sx={{ 
+                      '&:hover': { bgcolor: (theme) => theme.palette.action.hover },
+                      '& td': { borderBottom: (theme) => `1px solid ${theme.palette.divider}` }
+                    }}
+                  >
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar 
+                          sx={{ 
+                            width: 36, 
+                            height: 36,
+                            bgcolor: 'primary.main',
+                            fontSize: '0.875rem',
+                            fontWeight: 600
+                          }}
+                        >
+                          {user.display_name?.[0] || user.name?.[0] || user.email[0].toUpperCase()}
+                        </Avatar>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {user.display_name || user.name || 'N/A'}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        {user.email}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body1" sx={{ fontSize: '1.2rem' }}>
+                          {getCountryFlag(user.registration_country)}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                          {user.country_display}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={user.registration_type}
+                        size="small"
+                        color={user.registration_type === 'Invited' ? 'secondary' : 'primary'}
                         sx={{ 
-                          '&:hover': { bgcolor: (theme) => theme.palette.action.hover },
-                          '& td': { borderBottom: (theme) => `1px solid ${theme.palette.divider}` }
+                          fontSize: '0.7rem',
+                          height: 20,
+                          fontWeight: 500,
+                          '& .MuiChip-label': {
+                            px: 1
+                          }
                         }}
-                      >
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                            <Avatar 
-                              sx={{ 
-                                width: 36, 
-                                height: 36,
-                                bgcolor: 'primary.main',
-                                fontSize: '0.875rem',
-                                fontWeight: 600
-                              }}
-                            >
-                              {user.display_name?.[0] || user.name?.[0] || user.email[0].toUpperCase()}
-                            </Avatar>
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {user.display_name || user.name || 'N/A'}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                            {user.email}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body1" sx={{ fontSize: '1.2rem' }}>
-                              {getCountryFlag(user.registration_country)}
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                              {user.country_display}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={user.registration_type}
-                            size="small"
-                            color={user.registration_type === 'Invited' ? 'secondary' : 'primary'}
-                            sx={{ 
-                              fontSize: '0.7rem',
-                              height: 20,
-                              fontWeight: 500,
-                              '& .MuiChip-label': {
-                                px: 1
-                              }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                            {user.created_at_malaysia ? user.created_at_malaysia.split(' ')[0] : new Date(user.created_at).toLocaleDateString()}
-                          </Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.7rem' }}>
-                            🇲🇾 {user.created_at_malaysia ? user.created_at_malaysia.split(' ')[1] : ''}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={5} align="center">
-                        No recent users
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </Grid>
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        {user.created_at_malaysia ? user.created_at_malaysia.split(' ')[0] : new Date(user.created_at).toLocaleDateString()}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.7rem' }}>
+                        🇲🇾 {user.created_at_malaysia ? user.created_at_malaysia.split(' ')[1] : ''}
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} align="center">
+                    No recent users
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
+      {/* Identity and Invitation Stats Grid */}
+      <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
@@ -730,7 +731,7 @@ export default function DashboardPage() {
                       }
                     }}>
                       <Typography variant="h3" sx={{ color: '#3b82f6', fontWeight: 700, mb: 1 }}>
-                        {stats.activeUsers}
+                        {stats.lifetimeActiveUsers}
                       </Typography>
                       <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                         With Identity
@@ -754,7 +755,7 @@ export default function DashboardPage() {
                       }
                     }}>
                       <Typography variant="h3" sx={{ color: '#6b7280', fontWeight: 700, mb: 1 }}>
-                        {stats.totalUsers - stats.activeUsers}
+                        {stats.totalUsers - stats.lifetimeActiveUsers}
                       </Typography>
                       <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                         Without Identity
@@ -768,6 +769,7 @@ export default function DashboardPage() {
                       bgcolor: (theme) => theme.palette.action.hover, 
                       borderRadius: 2,
                       border: (theme) => `1px solid ${theme.palette.divider}`,
+                      minHeight: '72px', // Match invitation card height
                     }}>
                       <Typography 
                         variant="body1" 
@@ -789,7 +791,7 @@ export default function DashboardPage() {
                         }}>
                           <Box 
                             sx={{ 
-                              width: `${stats.totalUsers > 0 ? (stats.activeUsers / stats.totalUsers * 100).toFixed(1) : 0}%`, 
+                              width: `${stats.totalUsers > 0 ? (stats.lifetimeActiveUsers / stats.totalUsers * 100).toFixed(1) : 0}%`, 
                               height: '100%', 
                               bgcolor: 'primary.main',
                               background: 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)',
@@ -806,7 +808,120 @@ export default function DashboardPage() {
                             textAlign: 'right'
                           }}
                         >
-                          {stats.totalUsers > 0 ? (stats.activeUsers / stats.totalUsers * 100).toFixed(1) : 0}%
+                          {stats.totalUsers > 0 ? (stats.lifetimeActiveUsers / stats.totalUsers * 100).toFixed(1) : 0}%
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" fontWeight="600" gutterBottom>
+                User Identity Registered via Invitation
+              </Typography>
+              <Box sx={{ mt: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Box sx={{ 
+                      textAlign: 'center', 
+                      p: 3, 
+                      bgcolor: 'rgba(139, 69, 19, 0.05)', 
+                      borderRadius: 2,
+                      border: '1px solid rgba(139, 69, 19, 0.1)',
+                      transition: 'all 0.3s ease',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: 'rgba(139, 69, 19, 0.08)',
+                        borderColor: 'rgba(139, 69, 19, 0.2)',
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(139, 69, 19, 0.15)',
+                      }
+                    }}>
+                      <Typography variant="h3" sx={{ color: '#8b4513', fontWeight: 700, mb: 1 }}>
+                        {statsLoading ? <Skeleton width={60} /> : stats.invitedUsers.toLocaleString()}
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                        Invited Users
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Box sx={{ 
+                      textAlign: 'center', 
+                      p: 3, 
+                      bgcolor: 'rgba(101, 163, 13, 0.05)', 
+                      borderRadius: 2,
+                      border: '1px solid rgba(101, 163, 13, 0.1)',
+                      transition: 'all 0.3s ease',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: 'rgba(101, 163, 13, 0.08)',
+                        borderColor: 'rgba(101, 163, 13, 0.2)',
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(101, 163, 13, 0.15)',
+                      }
+                    }}>
+                      <Typography variant="h3" sx={{ color: '#65a30d', fontWeight: 700, mb: 1 }}>
+                        {statsLoading ? <Skeleton width={60} /> : (stats.totalUsers - stats.invitedUsers).toLocaleString()}
+                      </Typography>
+                      <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                        Direct Users
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Box sx={{ 
+                      mt: 3, 
+                      p: 3, 
+                      bgcolor: (theme) => theme.palette.action.hover, 
+                      borderRadius: 2,
+                      border: (theme) => `1px solid ${theme.palette.divider}`,
+                      minHeight: '72px', // Match identity card height
+                    }}>
+                      <Typography 
+                        variant="body1" 
+                        sx={{ 
+                          color: 'text.secondary', 
+                          fontWeight: 500,
+                          mb: 2 
+                        }}
+                      >
+                        Invitation Conversion Rate
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ 
+                          flex: 1, 
+                          bgcolor: (theme) => theme.palette.action.selected, 
+                          borderRadius: 1, 
+                          overflow: 'hidden',
+                          height: 12,
+                        }}>
+                          <Box 
+                            sx={{ 
+                              width: `${stats.totalUsers > 0 ? (stats.invitedUsers / stats.totalUsers * 100).toFixed(1) : 0}%`, 
+                              height: '100%', 
+                              bgcolor: '#8b4513',
+                              background: 'linear-gradient(90deg, #8b4513 0%, #cd853f 100%)',
+                              transition: 'width 0.3s ease',
+                            }} 
+                          />
+                        </Box>
+                        <Typography 
+                          variant="h6" 
+                          sx={{ 
+                            fontWeight: 700,
+                            color: '#8b4513',
+                            minWidth: '60px',
+                            textAlign: 'right'
+                          }}
+                        >
+                          {stats.totalUsers > 0 ? (stats.invitedUsers / stats.totalUsers * 100).toFixed(1) : 0}%
                         </Typography>
                       </Box>
                     </Box>
