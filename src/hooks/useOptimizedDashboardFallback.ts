@@ -281,36 +281,45 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
       const now = new Date()
       const malaysiaTime = toMalaysiaTime(now)
       let startTime: Date
+      let queryEndTime: Date
       let bucketSize: string
       let labelFormat: string
 
       switch (timeRange) {
         case '24hours':
-          startTime = new Date(malaysiaTime.getTime() - 24 * 60 * 60 * 1000)
+          // Start at 00:00 today in Malaysia timezone, end at current time
+          const todayStart = new Date(malaysiaTime.getFullYear(), malaysiaTime.getMonth(), malaysiaTime.getDate(), 0, 0, 0, 0)
+          startTime = new Date(todayStart.getTime() - 8 * 60 * 60 * 1000) // Convert to UTC for query
+          queryEndTime = malaysiaTime
           bucketSize = '1 hour'
           labelFormat = 'HH:mm'
           break
         case '7days':
           startTime = new Date(malaysiaTime.getTime() - 7 * 24 * 60 * 60 * 1000)
+          queryEndTime = malaysiaTime
           bucketSize = '1 day'
           labelFormat = 'MMM DD'
           break
         case '12months':
           startTime = new Date(malaysiaTime.getTime() - 365 * 24 * 60 * 60 * 1000)
+          queryEndTime = malaysiaTime
           bucketSize = '1 month'
           labelFormat = 'MMM YY'
           break
         default:
-          startTime = new Date(malaysiaTime.getTime() - 24 * 60 * 60 * 1000)
+          const defaultTodayStart = new Date(malaysiaTime.getFullYear(), malaysiaTime.getMonth(), malaysiaTime.getDate(), 0, 0, 0, 0)
+          startTime = new Date(defaultTodayStart.getTime() - 8 * 60 * 60 * 1000)
+          queryEndTime = malaysiaTime
           bucketSize = '1 hour'
           labelFormat = 'HH:mm'
       }
 
-      // Get user registrations with Malaysia timezone consideration
+      // Get user registrations with proper time range
       const { data: userData, error: userError } = await supabase
         .from('kd_users')
         .select('id, name, email, created_at, registration_country, join_by_invitation, first_name, last_name')
         .gte('created_at', startTime.toISOString())
+        .lte('created_at', queryEndTime.toISOString())
         .order('created_at')
 
       if (userError) {
@@ -323,43 +332,63 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
         .from('kd_identity')
         .select('user_id, created_at')
         .gte('created_at', startTime.toISOString())
+        .lte('created_at', queryEndTime.toISOString())
 
       if (identityError) {
         console.error('Error fetching identity data:', identityError)
       }
 
+      console.log(`📊 Data fetched: ${userData?.length || 0} users, ${identityData?.length || 0} identities from ${startTime.toISOString()} to ${queryEndTime.toISOString()}`)
+
       // Process data into time buckets with Malaysia timezone
       const buckets = new Map()
       const labels = []
 
-      // Create time buckets
-      let currentTime = new Date(startTime)
-      const endTime = malaysiaTime
-      
-      while (currentTime <= endTime) {
-        const malaysiaCurrentTime = toMalaysiaTime(currentTime)
-        const label = malaysiaCurrentTime.toLocaleString('en-MY', {
-          timeZone: 'Asia/Kuala_Lumpur',
-          ...(timeRange === '24hours' ? { hour: '2-digit', minute: '2-digit' } :
-             timeRange === '7days' ? { month: 'short', day: '2-digit' } :
-             { month: 'short', year: '2-digit' })
-        })
+      // Create time buckets based on Malaysia timezone
+      if (timeRange === '24hours') {
+        // Create 24 hourly buckets (00:00 to 23:00) + current hour if needed
+        const today = new Date(malaysiaTime.getFullYear(), malaysiaTime.getMonth(), malaysiaTime.getDate())
+        const currentHour = malaysiaTime.getHours()
         
-        labels.push(label)
-        buckets.set(currentTime.getTime(), {
-          newUsers: 0,
-          usersWithIdentity: 0,
-          details: [],
-          time: currentTime
-        })
+        for (let hour = 0; hour <= Math.max(23, currentHour); hour++) {
+          const bucketTime = new Date(today.getTime() + hour * 60 * 60 * 1000)
+          const label = hour.toString().padStart(2, '0') + ':00'
+          
+          labels.push(label)
+          buckets.set(hour, {
+            newUsers: 0,
+            usersWithIdentity: 0,
+            details: [],
+            hour
+          })
+        }
+      } else {
+        // Original logic for 7days and 12months
+        let currentTime = new Date(startTime)
+        const endTime = queryEndTime
+        
+        while (currentTime <= endTime) {
+          const malaysiaCurrentTime = toMalaysiaTime(currentTime)
+          const label = malaysiaCurrentTime.toLocaleString('en-MY', {
+            timeZone: 'Asia/Kuala_Lumpur',
+            ...(timeRange === '7days' ? { month: 'short', day: '2-digit' } :
+               { month: 'short', year: '2-digit' })
+          })
+          
+          labels.push(label)
+          buckets.set(currentTime.getTime(), {
+            newUsers: 0,
+            usersWithIdentity: 0,
+            details: [],
+            time: currentTime
+          })
 
-        // Increment based on bucket size
-        if (timeRange === '24hours') {
-          currentTime = new Date(currentTime.getTime() + 60 * 60 * 1000) // 1 hour
-        } else if (timeRange === '7days') {
-          currentTime = new Date(currentTime.getTime() + 24 * 60 * 60 * 1000) // 1 day
-        } else {
-          currentTime = new Date(currentTime.getFullYear(), currentTime.getMonth() + 1, 1) // 1 month
+          // Increment based on bucket size
+          if (timeRange === '7days') {
+            currentTime = new Date(currentTime.getTime() + 24 * 60 * 60 * 1000) // 1 day
+          } else {
+            currentTime = new Date(currentTime.getFullYear(), currentTime.getMonth() + 1, 1) // 1 month
+          }
         }
       }
 
@@ -368,19 +397,22 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
         const userTime = new Date(user.created_at)
         const malaysiaUserTime = toMalaysiaTime(userTime)
         
-        // Find the appropriate bucket
-        let bucketTime: Date
+        let bucket
         if (timeRange === '24hours') {
-          bucketTime = new Date(malaysiaUserTime.getFullYear(), malaysiaUserTime.getMonth(), malaysiaUserTime.getDate(), malaysiaUserTime.getHours())
-        } else if (timeRange === '7days') {
-          bucketTime = new Date(malaysiaUserTime.getFullYear(), malaysiaUserTime.getMonth(), malaysiaUserTime.getDate())
+          // Simple hour-based bucketing for 24-hour view
+          const hour = malaysiaUserTime.getHours()
+          bucket = buckets.get(hour)
         } else {
-          bucketTime = new Date(malaysiaUserTime.getFullYear(), malaysiaUserTime.getMonth(), 1)
+          // Original logic for other time ranges
+          let bucketTime: Date
+          if (timeRange === '7days') {
+            bucketTime = new Date(malaysiaUserTime.getFullYear(), malaysiaUserTime.getMonth(), malaysiaUserTime.getDate())
+          } else {
+            bucketTime = new Date(malaysiaUserTime.getFullYear(), malaysiaUserTime.getMonth(), 1)
+          }
+          const utcBucketTime = new Date(bucketTime.getTime() - 8 * 60 * 60 * 1000)
+          bucket = buckets.get(utcBucketTime.getTime())
         }
-
-        // Convert back to find bucket
-        const utcBucketTime = new Date(bucketTime.getTime() - 8 * 60 * 60 * 1000) // Convert Malaysia time back to UTC for bucket lookup
-        const bucket = buckets.get(utcBucketTime.getTime())
         
         if (bucket) {
           bucket.newUsers++
@@ -398,6 +430,8 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
               minute: '2-digit' 
             })
           })
+        } else {
+          console.log(`⚠️ No bucket found for user at ${malaysiaUserTime.toISOString()} (hour: ${malaysiaUserTime.getHours()})`)
         }
       })
 
@@ -407,18 +441,22 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
         const identityTime = new Date(identity.created_at)
         const malaysiaIdentityTime = toMalaysiaTime(identityTime)
         
-        // Find the appropriate bucket (same logic as users)
-        let bucketTime: Date
+        let bucket
         if (timeRange === '24hours') {
-          bucketTime = new Date(malaysiaIdentityTime.getFullYear(), malaysiaIdentityTime.getMonth(), malaysiaIdentityTime.getDate(), malaysiaIdentityTime.getHours())
-        } else if (timeRange === '7days') {
-          bucketTime = new Date(malaysiaIdentityTime.getFullYear(), malaysiaIdentityTime.getMonth(), malaysiaIdentityTime.getDate())
+          // Simple hour-based bucketing for 24-hour view
+          const hour = malaysiaIdentityTime.getHours()
+          bucket = buckets.get(hour)
         } else {
-          bucketTime = new Date(malaysiaIdentityTime.getFullYear(), malaysiaIdentityTime.getMonth(), 1)
+          // Original logic for other time ranges
+          let bucketTime: Date
+          if (timeRange === '7days') {
+            bucketTime = new Date(malaysiaIdentityTime.getFullYear(), malaysiaIdentityTime.getMonth(), malaysiaIdentityTime.getDate())
+          } else {
+            bucketTime = new Date(malaysiaIdentityTime.getFullYear(), malaysiaIdentityTime.getMonth(), 1)
+          }
+          const utcBucketTime = new Date(bucketTime.getTime() - 8 * 60 * 60 * 1000)
+          bucket = buckets.get(utcBucketTime.getTime())
         }
-
-        const utcBucketTime = new Date(bucketTime.getTime() - 8 * 60 * 60 * 1000)
-        const bucket = buckets.get(utcBucketTime.getTime())
         
         if (bucket && !identityUserIds.has(identity.user_id)) {
           bucket.usersWithIdentity++
