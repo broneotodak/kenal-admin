@@ -360,6 +360,7 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
       console.log(`📊 Chart query range: ${startTime.toISOString()} to ${queryEndTime.toISOString()}`)
 
       // Get user registrations with proper time range
+      console.log(`🔍 Querying kd_users table...`)
       const { data: userData, error: userError } = await supabase
         .from('kd_users')
         .select('id, name, email, created_at, registration_country, join_by_invitation, first_name, last_name')
@@ -367,17 +368,22 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
         .lte('created_at', queryEndTime.toISOString())
         .order('created_at')
 
+      console.log(`🔍 User query result:`, { userData: userData?.length, userError })
+
       if (userError) {
         console.error('❌ Error fetching user data for chart:', userError)
         throw new Error(`User data fetch failed: ${userError.message}`)
       }
 
       // Get identity data for the same period
+      console.log(`🔍 Querying kd_identity table...`)
       const { data: identityData, error: identityError } = await supabase
         .from('kd_identity')
         .select('user_id, created_at')
         .gte('created_at', startTime.toISOString())
         .lte('created_at', queryEndTime.toISOString())
+
+      console.log(`🔍 Identity query result:`, { identityData: identityData?.length, identityError })
 
       if (identityError) {
         console.error('⚠️ Error fetching identity data for chart:', identityError)
