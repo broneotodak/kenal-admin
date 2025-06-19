@@ -123,7 +123,7 @@ export default function DashboardPage() {
   const [currentTime, setCurrentTime] = useState<string>('')
 
   // Use fallback hooks for immediate data loading (no database views required)
-  const { stats, loading: statsLoading } = useFallbackDashboardStats(30000) // 30s refresh
+  const { stats, loading: statsLoading } = useFallbackDashboardStats(timeRange, 30000) // Dynamic comparison with 30s refresh
   const { recentUsers, loading: usersLoading } = useFallbackRecentUsers(5)
   const { chartData, chartDataPoints, loading: chartLoading } = useFallbackChartData(timeRange)
 
@@ -161,12 +161,15 @@ export default function DashboardPage() {
     }
   }
 
-  // Update time only on client side to avoid hydration issues
+  // Update time only on client side to avoid hydration issues (Malaysia timezone)
   useEffect(() => {
     if (typeof window === 'undefined') return
     
     const updateTime = () => {
-      setCurrentTime(new Date().toLocaleTimeString('en-US', { hour12: false }))
+      setCurrentTime(new Date().toLocaleTimeString('en-MY', { 
+        timeZone: 'Asia/Kuala_Lumpur',
+        hour12: false 
+      }))
     }
     updateTime()
     const timeInterval = setInterval(updateTime, 1000)
@@ -282,8 +285,9 @@ export default function DashboardPage() {
   }
 
   const StatCard = ({ icon, title, value, growth, isRevenue = false }: any) => {
-    const isPositive = growth.startsWith('+');
+    const isPositive = growth >= 0;
     const GrowthIcon = isPositive ? TrendingUp : TrendingDown;
+    const formattedGrowth = growth >= 0 ? `+${growth}` : `${growth}`;
     
     return (
       <Card sx={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
@@ -353,7 +357,7 @@ export default function DashboardPage() {
                     fontSize: '0.875rem'
                   }}
                 >
-                  {growth}% vs last month
+                  {formattedGrowth}% vs {stats.comparisonPeriod}
                 </Typography>
               </Box>
             </Box>
@@ -380,8 +384,17 @@ export default function DashboardPage() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="body2" color="text.secondary">
-          Dashboard auto-refreshes every 30 seconds • Last updated: {currentTime || '...'}
+          Dashboard auto-refreshes every 30 seconds • Last updated: {currentTime || '...'} 🇲🇾 MY Time
         </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Chip
+            label={`Comparing vs ${stats.comparisonPeriod}`}
+            size="small"
+            color="primary"
+            variant="outlined"
+            sx={{ fontSize: '0.7rem', height: 24 }}
+          />
+        </Box>
       </Box>
 
       <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -431,7 +444,7 @@ export default function DashboardPage() {
                 Users & Identity Registration Trends
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Last updated: {currentTime || '...'} • Click on data points for details
+                Last updated: {currentTime || '...'} 🇲🇾 MY Time • Click on data points for details
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -669,7 +682,10 @@ export default function DashboardPage() {
                         </TableCell>
                         <TableCell>
                           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                            {new Date(user.created_at).toLocaleDateString()}
+                            {user.created_at_malaysia ? user.created_at_malaysia.split(' ')[0] : new Date(user.created_at).toLocaleDateString()}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', fontSize: '0.7rem' }}>
+                            🇲🇾 {user.created_at_malaysia ? user.created_at_malaysia.split(' ')[1] : ''}
                           </Typography>
                         </TableCell>
                       </TableRow>
