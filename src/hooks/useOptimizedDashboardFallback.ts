@@ -523,11 +523,9 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
       const newUsersData = dataPoints.map(point => point.newUsers || 0)
       const identityUsersData = dataPoints.map(point => point.usersWithIdentity || 0)
 
-      // Safe calculation of totals
+      // Safe calculation of totals  
       const totalNewUsers = newUsersData.length > 0 ? newUsersData.reduce((a, b) => a + b, 0) : 0
       const totalIdentityUsers = identityUsersData.length > 0 ? identityUsersData.reduce((a, b) => a + b, 0) : 0
-      
-      console.log(`📊 Chart data processed: ${dataPoints.length} points, ${totalNewUsers} total users, ${totalIdentityUsers} total identities`)
 
       const chart = {
         labels,
