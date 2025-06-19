@@ -288,6 +288,8 @@ export const useFallbackRecentUsers = (limit: number = 5) => {
 
 // Enhanced chart data hook with Malaysia timezone
 export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months') => {
+  console.log(`🚀 useFallbackChartData hook initialized for timeRange: ${timeRange}`)
+  
   const [chartData, setChartData] = useState<{
     labels: string[]
     datasets: {
@@ -303,6 +305,7 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
   const [loading, setLoading] = useState(true)
 
   const loadChartData = useCallback(async () => {
+    console.log(`🔄 loadChartData called for ${timeRange}`)
     try {
       console.log(`🔄 Loading chart data for ${timeRange} with Malaysia timezone...`)
       setLoading(true)
