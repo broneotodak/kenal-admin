@@ -105,75 +105,99 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      console.log('Attempting login with:', email)
+      console.log('🔄 Starting login process for:', email)
+      console.log('⏰ Current time:', new Date().toISOString())
       
       // Try to sign in
+      console.log('🔑 Attempting Supabase authentication...')
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       
+      console.log('🔍 Auth response received:', { hasData: !!data, hasError: !!authError })
+      
       if (authError) {
-        console.error('Auth error:', authError)
+        console.error('❌ Auth error:', authError)
         setError(`Authentication failed: ${authError.message}`)
         setDebugInfo(`Error code: ${authError.status || 'unknown'}`)
         setLoading(false)
         return
       }
 
-      console.log('Login successful, user authenticated!')
-      console.log('User ID:', data.user?.id)
-      console.log('User email:', data.user?.email)
+      console.log('✅ Login successful, user authenticated!')
+      console.log('👤 User ID:', data.user?.id)
+      console.log('📧 User email:', data.user?.email)
       
       // TEMPORARY: Skip database check and allow login for neo@todak.com
       if (data.user && email === 'neo@todak.com') {
-        console.log('TEMPORARY BYPASS: Allowing neo@todak.com to access dashboard')
-        localStorage.setItem('kenal_admin_user', JSON.stringify({
-          id: data.user.id,
-          email: data.user.email,
-          name: 'Neo (Temp Admin)'
-        }))
-        
-        window.location.href = '/dashboard'
-        return
+        console.log('🚀 TEMPORARY BYPASS: Allowing neo@todak.com to access dashboard')
+        try {
+          localStorage.setItem('kenal_admin_user', JSON.stringify({
+            id: data.user.id,
+            email: data.user.email,
+            name: 'Neo (Temp Admin)'
+          }))
+          
+          console.log('💾 LocalStorage updated, redirecting...')
+          setLoading(false) // Set loading to false before redirect
+          window.location.href = '/dashboard'
+          return
+        } catch (storageError) {
+          console.error('❌ LocalStorage error:', storageError)
+          setError('Failed to save user session')
+          setLoading(false)
+          return
+        }
       }
       
-      // For other users, try the database check with timeout
-      console.log('Checking admin status in database...')
-      
-      // Check if user is admin
-      if (data.user) {
-        console.log('Querying kd_users table for user:', data.user.id)
+              // For other users, try the database check with timeout
+        console.log('🔍 Checking admin status in database...')
         
-        try {
-          // Add timeout to prevent infinite loading
-          const dbResult = await Promise.race([
-            supabase
-              .from('kd_users')
-              .select('user_type, name, email')
-              .eq('id', data.user.id)
-              .single(),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Database query timeout')), 10000)
-            )
-          ]) as any
-          
-          const { data: userData, error: dbError } = dbResult
-          console.log('Database query result:', { userData, dbError })
+        // Check if user is admin
+        if (data.user) {
+          console.log('📊 Querying kd_users table for user:', data.user.id)
+        
+                  try {
+            // Add timeout to prevent infinite loading
+            console.log('⏱️ Starting database query with 10s timeout...')
+            const dbResult = await Promise.race([
+              supabase
+                .from('kd_users')
+                .select('user_type, name, email')
+                .eq('id', data.user.id)
+                .single(),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Database query timeout')), 10000)
+              )
+            ]) as any
+            
+            console.log('📊 Database query completed')
+            const { data: userData, error: dbError } = dbResult
+            console.log('🔍 Database query result:', { userData, dbError })
           
           if (dbError) {
             console.error('Database error:', dbError)
             
             // If it's a permission error, allow access anyway (temporary)
             if (dbError.code === 'PGRST116' || dbError.message?.includes('RLS') || dbError.message?.includes('policy')) {
-              console.log('Database permission issue - allowing access anyway')
-              localStorage.setItem('kenal_admin_user', JSON.stringify({
-                id: data.user.id,
-                email: data.user.email,
-                name: 'Admin User'
-              }))
-              window.location.href = '/dashboard'
-              return
+              console.log('🔓 Database permission issue - allowing access anyway')
+              try {
+                localStorage.setItem('kenal_admin_user', JSON.stringify({
+                  id: data.user.id,
+                  email: data.user.email,
+                  name: 'Admin User'
+                }))
+                console.log('💾 Permission bypass session saved, redirecting...')
+                setLoading(false) // Set loading to false before redirect
+                window.location.href = '/dashboard'
+                return
+              } catch (storageError) {
+                console.error('❌ Failed to save bypass session:', storageError)
+                setError('Failed to save user session')
+                setLoading(false)
+                return
+              }
             }
             
             setError('Failed to verify admin status')
@@ -183,18 +207,26 @@ export default function LoginPage() {
             return
           }
 
-          console.log('User data retrieved:', userData)
-          
-          if (userData && userData.user_type === 5) {
-            console.log('Admin verified! Redirecting...')
-            localStorage.setItem('kenal_admin_user', JSON.stringify({
-              id: data.user.id,
-              email: data.user.email,
-              name: userData.name
-            }))
+                      console.log('👤 User data retrieved:', userData)
             
-            window.location.href = '/dashboard'
-          } else {
+            if (userData && userData.user_type === 5) {
+              console.log('✅ Admin verified! Redirecting...')
+              try {
+                localStorage.setItem('kenal_admin_user', JSON.stringify({
+                  id: data.user.id,
+                  email: data.user.email,
+                  name: userData.name
+                }))
+                
+                console.log('💾 Admin session saved, redirecting to dashboard...')
+                setLoading(false) // Set loading to false before redirect
+                window.location.href = '/dashboard'
+              } catch (storageError) {
+                console.error('❌ Failed to save admin session:', storageError)
+                setError('Failed to save admin session')
+                setLoading(false)
+              }
+            } else {
             console.log('Admin check failed:', userData?.user_type)
             setError('Access denied. Admin privileges required.')
             setDebugInfo(`User found: ${userData ? 'Yes' : 'No'}, User type: ${userData?.user_type || 'not found'}`)
@@ -215,10 +247,13 @@ export default function LoginPage() {
         setLoading(false)
       }
     } catch (err: any) {
-      console.error('Unexpected error:', err)
+      console.error('🚨 Unexpected error in login process:', err)
       setError('An unexpected error occurred')
       setDebugInfo(err.toString())
+      setLoading(false)
     } finally {
+      // Ensure loading is always turned off
+      console.log('🏁 Login process completed')
       setLoading(false)
     }
   }
