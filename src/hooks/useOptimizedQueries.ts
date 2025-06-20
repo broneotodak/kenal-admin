@@ -47,7 +47,7 @@ export const useOptimizedUsers = (
             name,
             email,
             created_at,
-            gender,
+            join_by_invitation,
             element_number,
             user_type,
             active,
@@ -68,8 +68,12 @@ export const useOptimizedUsers = (
             query = query.not('user_type', 'eq', 5)
           }
         }
-        if (filters.gender) {
-          query = query.eq('gender', filters.gender)
+        if (filters.invitation_status) {
+          if (filters.invitation_status === 'Invited') {
+            query = query.eq('join_by_invitation', true)
+          } else if (filters.invitation_status === 'Direct') {
+            query = query.eq('join_by_invitation', false)
+          }
         }
         if (filters.country) {
           query = query.eq('country', filters.country)
@@ -161,7 +165,7 @@ export const useOptimizedAnalytics = (timeRange: string = 'Last 30 Days') => {
     totalIdentities: 0,
     usersByElement: {},
     usersByCountry: {},
-    usersByGender: {},
+    usersByInvitation: {},
     usersByType: { admin: 0, public: 0 },
     totalDirectRegistrations: 0,
     totalInvitedRegistrations: 0
@@ -204,7 +208,7 @@ export const useOptimizedAnalytics = (timeRange: string = 'Last 30 Days') => {
         
         allUsers: () => supabase
           .from('kd_users')
-          .select('user_type, element_number, gender, country, created_at, join_by_invitation'),
+          .select('user_type, element_number, country, created_at, join_by_invitation'),
         
         currentMonthUsers: () => {
           const currentMonth = new Date()
@@ -250,7 +254,7 @@ export const useOptimizedAnalytics = (timeRange: string = 'Last 30 Days') => {
       // Process user segmentation efficiently
       const usersByElement: { [key: number]: number } = {}
       const usersByCountry: { [key: string]: number } = {}
-      const usersByGender: { [key: string]: number } = {}
+      const usersByInvitation: { [key: string]: number } = {}
       let adminCount = 0
       let publicCount = 0
       let directRegistrations = 0
@@ -267,10 +271,9 @@ export const useOptimizedAnalytics = (timeRange: string = 'Last 30 Days') => {
           usersByCountry[user.country] = (usersByCountry[user.country] || 0) + 1
         }
         
-        // Gender analysis
-        if (user.gender) {
-          usersByGender[user.gender] = (usersByGender[user.gender] || 0) + 1
-        }
+        // Invitation analysis
+        const invitationType = user.join_by_invitation ? 'Invited' : 'Direct'
+        usersByInvitation[invitationType] = (usersByInvitation[invitationType] || 0) + 1
         
         // User type analysis
         if (user.user_type === 5) {
@@ -295,7 +298,7 @@ export const useOptimizedAnalytics = (timeRange: string = 'Last 30 Days') => {
         totalIdentities: 0,
         usersByElement,
         usersByCountry,
-        usersByGender,
+        usersByInvitation,
         usersByType: { admin: adminCount, public: publicCount },
         totalDirectRegistrations: directRegistrations,
         totalInvitedRegistrations: invitedRegistrations

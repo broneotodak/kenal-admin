@@ -51,6 +51,7 @@ import {
   Psychology,
   Category,
   Delete,
+  Edit,
 } from '@mui/icons-material'
 import { supabase } from '@/lib/supabase'
 import { UserMobileCard } from '@/components/UserMobileCard'
@@ -76,7 +77,7 @@ interface User {
   name: string
   email: string
   created_at: string
-  gender?: string
+  join_by_invitation?: boolean
   element_number?: number
   user_type?: number
   active: boolean
@@ -91,7 +92,7 @@ interface User {
 
 interface UserFilters {
   user_type: string
-  gender: string
+  invitation_status: string
   country: string
 }
 
@@ -312,7 +313,7 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [filters, setFilters] = useState<UserFilters>({
     user_type: '',
-    gender: '',
+    invitation_status: '',
     country: ''
   })
   const [totalMutualCount, setTotalMutualCount] = useState<number>(0)
@@ -371,7 +372,7 @@ export default function UsersPage() {
     setSelectedUser(user)
     setEditingUser({ ...user })
     setOpenModal(true)
-    setIsEditing(true)
+    setIsEditing(false) // Start in read-only mode
     setTotalMutualCount(0) // Reset mutual count
     
     // Fetch real identity count and details for this user
@@ -409,6 +410,18 @@ export default function UsersPage() {
     setTotalMutualCount(0) // Reset mutual count
   }
 
+  const handleEnableEdit = () => {
+    setIsEditing(true)
+  }
+
+  const handleCancelEdit = () => {
+    // Reset editing user to original selected user data
+    if (selectedUser) {
+      setEditingUser({ ...selectedUser })
+    }
+    setIsEditing(false)
+  }
+
   const handleSaveUser = async () => {
     if (!editingUser) return
 
@@ -418,7 +431,6 @@ export default function UsersPage() {
         .update({
           name: editingUser.name,
           email: editingUser.email,
-          gender: editingUser.gender,
           element_number: editingUser.element_number,
           active: editingUser.active,
           birth_date: editingUser.birth_date
@@ -465,24 +477,45 @@ export default function UsersPage() {
   }
 
   const handleDeleteUser = async (userId: string, userName: string) => {
-    if (window.confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
+    if (window.confirm(`⚠️ WARNING: Delete user "${userName}"?\n\nThis will permanently delete:\n• User account\n• All identity data\n• All associated records\n\nThis action CANNOT be undone!`)) {
       try {
-        const { error } = await supabase
+        console.log('🗑️ Deleting user:', userId, userName)
+        
+        // First try to delete from kd_identity (cascade delete)
+        const { error: identityError } = await supabase
+          .from('kd_identity')
+          .delete()
+          .eq('user_id', userId)
+        
+        if (identityError) {
+          console.warn('Warning deleting identities:', identityError)
+          // Continue with user deletion even if identity deletion fails
+        }
+        
+        // Delete the user (this should cascade delete other related data)
+        const { error: userError } = await supabase
           .from('kd_users')
           .delete()
           .eq('id', userId)
         
-        if (error) {
-          console.error('Error deleting user:', error)
-          alert('Error deleting user. Please try again.')
+        if (userError) {
+          console.error('Error deleting user:', userError)
+          alert(`Error deleting user: ${userError.message}`)
         } else {
-          alert('User deleted successfully!')
+          alert('✅ User and all associated data deleted successfully!')
           refetchUsers() // Refresh the user list
+          handleCloseModal() // Close modal if it's open
         }
       } catch (error) {
         console.error('Delete user error:', error)
-        alert('Error deleting user. Please try again.')
+        alert('❌ Error deleting user. Please try again.')
       }
+    }
+  }
+
+  const handleDeleteUserFromModal = () => {
+    if (selectedUser) {
+      handleDeleteUser(selectedUser.id, selectedUser.name)
     }
   }
 
@@ -662,16 +695,15 @@ export default function UsersPage() {
             </Grid>
             <Grid item xs={12} sm={6} md={2}>
               <FormControl fullWidth size="medium">
-                <InputLabel>Gender</InputLabel>
+                <InputLabel>Registration Type</InputLabel>
                 <Select
-                  value={filters.gender}
-                  onChange={(e) => handleFilterChange('gender', e.target.value)}
-                  label="Gender"
+                  value={filters.invitation_status}
+                  onChange={(e) => handleFilterChange('invitation_status', e.target.value)}
+                  label="Registration Type"
                 >
                   <MenuItem value="">All</MenuItem>
-                  <MenuItem value="male">Male</MenuItem>
-                  <MenuItem value="female">Female</MenuItem>
-                  <MenuItem value="other">Other</MenuItem>
+                  <MenuItem value="Direct">Direct</MenuItem>
+                  <MenuItem value="Invited">Invited</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -760,7 +792,7 @@ export default function UsersPage() {
               <TableRow>
                 <TableCell sx={{ fontWeight: 600 }}>User</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>User Type</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Gender</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Registration Type</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Identities</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Country</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Joined</TableCell>
@@ -829,9 +861,13 @@ export default function UsersPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" textTransform="capitalize">
-                        {user.gender || '-'}
-                      </Typography>
+                      <Chip
+                        label={user.registration_type || 'Direct'}
+                        size="small"
+                        color={user.registration_type === 'Invited' ? 'secondary' : 'primary'}
+                        variant="outlined"
+                        sx={{ fontWeight: 500 }}
+                      />
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -919,7 +955,7 @@ export default function UsersPage() {
             <DialogTitle>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="h5" fontWeight={600}>
-                  {isEditing ? 'Edit User' : 'User Details'}
+                  {isEditing ? 'Edit User' : 'User Profile'}
                 </Typography>
                 <IconButton 
                   onClick={handleCloseModal}
@@ -934,7 +970,29 @@ export default function UsersPage() {
                 </IconButton>
               </Box>
             </DialogTitle>
-            <DialogContent dividers>
+            <DialogContent 
+              dividers
+              sx={{
+                bgcolor: !isEditing 
+                  ? theme.palette.mode === 'dark' 
+                    ? 'rgba(255, 255, 255, 0.02)' 
+                    : 'rgba(0, 0, 0, 0.02)'
+                  : 'inherit'
+              }}
+            >
+              {!isEditing && (
+                <Box sx={{ 
+                  mb: 2, 
+                  p: 1.5, 
+                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(33, 150, 243, 0.1)' : 'rgba(33, 150, 243, 0.08)',
+                  borderRadius: 1,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`
+                }}>
+                  <Typography variant="body2" color="primary" sx={{ fontWeight: 500 }}>
+                    📖 Read-Only Mode - Click "Edit User" to make changes
+                  </Typography>
+                </Box>
+              )}
               <Grid container spacing={3}>
                 {/* User Info Section */}
                 <Grid item xs={12} md={6}>
@@ -994,25 +1052,21 @@ export default function UsersPage() {
                       }}
                     />
 
-                    <FormControl fullWidth>
-                      <InputLabel>Gender</InputLabel>
-                      <Select
-                        value={editingUser?.gender || ''}
-                        onChange={(e) => handleEditingUserChange('gender', e.target.value)}
-                        disabled={!isEditing}
-                        label="Gender"
-                        startAdornment={
-                          <InputAdornment position="start">
-                            <Person sx={{ color: theme.palette.text.secondary }} />
-                          </InputAdornment>
-                        }
-                      >
-                        <MenuItem value="">Not specified</MenuItem>
-                        <MenuItem value="male">Male</MenuItem>
-                        <MenuItem value="female">Female</MenuItem>
-                        <MenuItem value="other">Other</MenuItem>
-                      </Select>
-                    </FormControl>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Person sx={{ color: theme.palette.text.secondary }} />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">Registration Type</Typography>
+                        <Typography variant="body1">
+                          <Chip
+                            label={editingUser?.registration_type || 'Direct'}
+                            size="small"
+                            color={editingUser?.registration_type === 'Invited' ? 'secondary' : 'primary'}
+                            variant="outlined"
+                            sx={{ fontWeight: 500 }}
+                          />
+                        </Typography>
+                      </Box>
+                    </Box>
 
                     <FormControl fullWidth>
                       <InputLabel>Element</InputLabel>
@@ -1112,33 +1166,81 @@ export default function UsersPage() {
               </Grid>
             </DialogContent>
             <DialogActions sx={{ p: 3, gap: 2 }}>
-              <Button 
-                onClick={handleCloseModal}
-                variant="outlined"
-                sx={{
-                  borderColor: theme.palette.primary.main,
-                  color: theme.palette.primary.main,
-                  '&:hover': {
-                    borderColor: theme.palette.primary.dark,
-                    bgcolor: alpha(theme.palette.primary.main, 0.1)
-                  }
-                }}
-              >
-                Cancel
-              </Button>
-              {isEditing && (
-                <Button 
-                  onClick={handleSaveUser}
-                  variant="contained"
-                  sx={{
-                    bgcolor: theme.palette.primary.main,
-                    '&:hover': {
-                      bgcolor: theme.palette.primary.dark,
-                    }
-                  }}
-                >
-                  Save Changes
-                </Button>
+              {!isEditing ? (
+                // Read-only mode buttons
+                <>
+                  <Button 
+                    onClick={handleCloseModal}
+                    variant="outlined"
+                    sx={{
+                      borderColor: theme.palette.text.secondary,
+                      color: theme.palette.text.secondary,
+                      '&:hover': {
+                        borderColor: theme.palette.text.primary,
+                        bgcolor: alpha(theme.palette.text.secondary, 0.1)
+                      }
+                    }}
+                  >
+                    Close
+                  </Button>
+                  <Button 
+                    onClick={handleDeleteUserFromModal}
+                    variant="outlined"
+                    sx={{
+                      borderColor: theme.palette.error.main,
+                      color: theme.palette.error.main,
+                      '&:hover': {
+                        borderColor: theme.palette.error.dark,
+                        bgcolor: alpha(theme.palette.error.main, 0.1)
+                      }
+                    }}
+                  >
+                    Delete User
+                  </Button>
+                  <Button 
+                    onClick={handleEnableEdit}
+                    variant="contained"
+                    startIcon={<Edit />}
+                    sx={{
+                      bgcolor: theme.palette.primary.main,
+                      '&:hover': {
+                        bgcolor: theme.palette.primary.dark,
+                      }
+                    }}
+                  >
+                    Edit User
+                  </Button>
+                </>
+              ) : (
+                // Editing mode buttons
+                <>
+                  <Button 
+                    onClick={handleCancelEdit}
+                    variant="outlined"
+                    sx={{
+                      borderColor: theme.palette.text.secondary,
+                      color: theme.palette.text.secondary,
+                      '&:hover': {
+                        borderColor: theme.palette.text.primary,
+                        bgcolor: alpha(theme.palette.text.secondary, 0.1)
+                      }
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleSaveUser}
+                    variant="contained"
+                    sx={{
+                      bgcolor: theme.palette.success.main,
+                      '&:hover': {
+                        bgcolor: theme.palette.success.dark,
+                      }
+                    }}
+                  >
+                    Save Changes
+                  </Button>
+                </>
               )}
             </DialogActions>
           </>

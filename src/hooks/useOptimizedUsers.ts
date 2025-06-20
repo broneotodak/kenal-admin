@@ -22,7 +22,7 @@ interface User {
 
 interface UserFilters {
   user_type: string
-  gender: string
+  invitation_status: string
   country: string
 }
 
@@ -98,8 +98,12 @@ export const useOptimizedUsers = ({
           query = query.not('user_type', 'eq', 5)
         }
       }
-      if (filters.gender) {
-        query = query.eq('gender', filters.gender)
+      if (filters.invitation_status) {
+        if (filters.invitation_status === 'Invited') {
+          query = query.eq('join_by_invitation', true)
+        } else if (filters.invitation_status === 'Direct') {
+          query = query.eq('join_by_invitation', false)
+        }
       }
       if (filters.country) {
         query = query.eq('registration_country', filters.country)

@@ -24,7 +24,7 @@ interface User {
 
 interface UserFilters {
   user_type: string
-  gender: string
+  invitation_status: string
   country: string
 }
 
@@ -82,8 +82,8 @@ export const useOptimizedUsersViews = ({
       if (filters.user_type) {
         query = query.eq('user_type_display', filters.user_type)
       }
-      if (filters.gender) {
-        query = query.eq('gender', filters.gender)
+      if (filters.invitation_status) {
+        query = query.eq('registration_type', filters.invitation_status)
       }
       if (filters.country) {
         query = query.eq('registration_country', filters.country)

@@ -15,7 +15,7 @@ import {
 
 interface UserFilters {
   user_type: string
-  gender: string
+  invitation_status: string
   country: string
 }
 
