@@ -23,6 +23,7 @@ import {
   Chip,
   Tooltip,
   useTheme as useMUITheme,
+  Fab,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -43,12 +44,14 @@ import {
   DarkMode,
   ChevronLeft,
   ChevronRight,
+  Code,
 } from '@mui/icons-material'
 import { KenalLogo } from './KenalLogo'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useAutoLogout } from '@/hooks/useAutoLogout'
 import AutoLogoutWarning from './AutoLogoutWarning'
+import ContactDeveloperDialog from './ContactDeveloperDialog'
 
 const drawerWidth = 280
 
@@ -64,6 +67,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [openUsers, setOpenUsers] = useState(true)
   const [openAnalytics, setOpenAnalytics] = useState(true)
   const [showLogoutWarning, setShowLogoutWarning] = useState(false)
+  const [showContactDeveloper, setShowContactDeveloper] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const { user, signOut } = useAuth()
@@ -449,6 +453,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 Extend Session
               </MenuItem>
+              <MenuItem 
+                onClick={() => {
+                  setShowContactDeveloper(true)
+                  handleClose()
+                }}
+                sx={{
+                  color: 'primary.main',
+                  '&:hover': {
+                    bgcolor: 'primary.light',
+                    color: 'primary.contrastText'
+                  }
+                }}
+              >
+                Contact Developer
+              </MenuItem>
               <MenuItem onClick={handleLogout}>Logout</MenuItem>
             </Menu>
           </Box>
@@ -524,9 +543,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             easing: muiTheme.transitions.easing.sharp,
             duration: muiTheme.transitions.duration.enteringScreen,
           }),
+          position: 'relative',
         }}
       >
         {children}
+
+        {/* Floating Contact Developer Button */}
+        <Tooltip title="Contact Developer" placement="left">
+          <Fab
+            color="primary"
+            onClick={() => setShowContactDeveloper(true)}
+            sx={{
+              position: 'fixed',
+              bottom: 24,
+              right: 24,
+              zIndex: 1000,
+              boxShadow: 3,
+              '&:hover': {
+                transform: 'scale(1.1)',
+                boxShadow: 6,
+              },
+              transition: 'all 0.3s ease',
+            }}
+          >
+            <Code />
+          </Fab>
+        </Tooltip>
       </Box>
 
       {/* Auto-logout warning modal */}
@@ -535,6 +577,13 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         onExtend={handleExtendSession}
         onLogout={handleLogout}
         warningTime={5}
+      />
+
+      {/* Contact Developer dialog */}
+      <ContactDeveloperDialog
+        open={showContactDeveloper}
+        onClose={() => setShowContactDeveloper(false)}
+        adminEmail={user?.email || ''}
       />
     </Box>
   )

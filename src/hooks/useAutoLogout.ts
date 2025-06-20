@@ -134,6 +134,12 @@ export const useAutoLogout = ({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
+    // Don't run auto-logout on login page or other auth pages
+    if (window.location.pathname.includes('/login') || 
+        window.location.pathname.includes('/auth')) {
+      return
+    }
+
     // Set up activity listeners
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
     
