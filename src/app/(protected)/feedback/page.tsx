@@ -249,10 +249,10 @@ export default function FeedbackPage() {
                       <Typography variant="body2">
                         by {problem.admin_email}
                       </Typography>
-                      {problem.comments_count > 0 && (
+                      {(problem.comments_count || 0) > 0 && (
                         <Typography variant="body2">
                           <Comment sx={{ fontSize: 16, mr: 0.5 }} />
-                          {problem.comments_count} comment{problem.comments_count !== 1 ? 's' : ''}
+                          {problem.comments_count || 0} comment{(problem.comments_count || 0) !== 1 ? 's' : ''}
                         </Typography>
                       )}
                     </Box>

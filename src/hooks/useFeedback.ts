@@ -13,7 +13,7 @@ export interface FeedbackProblem {
   updated_at: string
   created_by: string
   admin_email: string
-  comments_count?: number
+  comments_count?: number | null
 }
 
 export interface FeedbackComment {
