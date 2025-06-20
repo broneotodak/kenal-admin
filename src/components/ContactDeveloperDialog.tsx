@@ -40,6 +40,7 @@ interface ContactDeveloperDialogProps {
   open: boolean
   onClose: () => void
   adminEmail?: string
+  initialMessageType?: MessageType
 }
 
 type MessageType = 'bug' | 'feature' | 'general' | 'urgent'
@@ -86,9 +87,10 @@ const messageTypes: Record<MessageType, MessageTypeConfig> = {
 export default function ContactDeveloperDialog({ 
   open, 
   onClose, 
-  adminEmail = '' 
+  adminEmail = '',
+  initialMessageType = 'general'
 }: ContactDeveloperDialogProps) {
-  const [messageType, setMessageType] = useState<MessageType>('general')
+  const [messageType, setMessageType] = useState<MessageType>(initialMessageType)
   const [email, setEmail] = useState(adminEmail)
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')

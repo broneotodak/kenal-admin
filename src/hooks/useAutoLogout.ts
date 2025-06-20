@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -16,6 +16,7 @@ export const useAutoLogout = ({
   onLogout
 }: UseAutoLogoutOptions = {}) => {
   const router = useRouter()
+  const [isMounted, setIsMounted] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const warningTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastActivityRef = useRef<number>(Date.now())
@@ -131,12 +132,17 @@ export const useAutoLogout = ({
     }
   }, [logout])
 
+  // Set mounted state after hydration
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    setIsMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isMounted || typeof window === 'undefined') return
 
     // Don't run auto-logout on login page or other auth pages
-    if (window.location.pathname.includes('/login') || 
-        window.location.pathname.includes('/auth')) {
+    const currentPath = window.location.pathname
+    if (currentPath.includes('/login') || currentPath.includes('/auth')) {
       return
     }
 
@@ -170,7 +176,7 @@ export const useAutoLogout = ({
       if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current)
       if (sessionCheckInterval) clearInterval(sessionCheckInterval)
     }
-  }, [handleActivity, handleVisibilityChange, checkSession, resetTimeout])
+  }, [isMounted, handleActivity, handleVisibilityChange, checkSession, resetTimeout])
 
   // Manual reset function (can be called to extend session)
   const extendSession = useCallback(() => {

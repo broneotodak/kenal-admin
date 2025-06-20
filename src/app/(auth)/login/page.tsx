@@ -1,7 +1,6 @@
 'use client'
 
-// Force dynamic rendering to fix Next.js 14 searchParams issue
-export const dynamic = 'force-dynamic'
+
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -146,12 +145,7 @@ export default function LoginPage() {
               <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                 (Admin users only - user_type = 5)
               </Typography>
-              {/* Show current port info if not on default port */}
-              {typeof window !== 'undefined' && window.location.port && window.location.port !== '3000' && (
-                <Typography variant="caption" display="block" sx={{ mt: 1, color: 'warning.main' }}>
-                  Running on port {window.location.port}
-                </Typography>
-              )}
+
             </Box>
 
             {error && (
