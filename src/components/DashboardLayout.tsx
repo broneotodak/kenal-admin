@@ -47,6 +47,8 @@ import {
 import { KenalLogo } from './KenalLogo'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useAutoLogout } from '@/hooks/useAutoLogout'
+import AutoLogoutWarning from './AutoLogoutWarning'
 
 const drawerWidth = 280
 
@@ -61,10 +63,27 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [openUsers, setOpenUsers] = useState(true)
   const [openAnalytics, setOpenAnalytics] = useState(true)
+  const [showLogoutWarning, setShowLogoutWarning] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const { user, signOut } = useAuth()
   const { isDarkMode, toggleTheme } = useTheme()
+
+  const handleLogout = async () => {
+    setShowLogoutWarning(false)
+    await signOut()
+    router.push('/login')
+  }
+
+  // Auto-logout functionality
+  const { extendSession } = useAutoLogout({
+    inactivityTimeout: 30, // 30 minutes
+    warningTime: 5, // 5 minute warning
+    onWarning: () => {
+      setShowLogoutWarning(true)
+    },
+    onLogout: handleLogout
+  })
 
   const handleMobileDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
@@ -93,9 +112,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     setAnchorEl(null)
   }
 
-  const handleLogout = async () => {
-    await signOut()
-    router.push('/login')
+  const handleExtendSession = () => {
+    setShowLogoutWarning(false)
+    extendSession()
   }
 
   const drawer = (
@@ -381,15 +400,29 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             >
               {isDarkMode ? <LightMode /> : <DarkMode />}
             </IconButton>
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                display: { xs: 'none', md: 'block' },
-                color: 'text.secondary'
-              }}
-            >
-              {user?.email}
-            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  display: { xs: 'none', md: 'block' },
+                  color: 'text.secondary'
+                }}
+              >
+                {user?.email}
+              </Typography>
+              <Chip
+                label="Auto-logout: 30min"
+                size="small"
+                variant="outlined"
+                color="success"
+                sx={{
+                  display: { xs: 'none', lg: 'flex' },
+                  height: 20,
+                  fontSize: '0.65rem',
+                  '& .MuiChip-label': { px: 1 }
+                }}
+              />
+            </Box>
             <IconButton
               size="large"
               onClick={handleMenu}
@@ -408,6 +441,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               }}
             >
               <MenuItem onClick={handleClose}>Profile</MenuItem>
+              <MenuItem 
+                onClick={() => {
+                  handleExtendSession()
+                  handleClose()
+                }}
+              >
+                Extend Session
+              </MenuItem>
               <MenuItem onClick={handleLogout}>Logout</MenuItem>
             </Menu>
           </Box>
@@ -487,6 +528,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       >
         {children}
       </Box>
+
+      {/* Auto-logout warning modal */}
+      <AutoLogoutWarning
+        open={showLogoutWarning}
+        onExtend={handleExtendSession}
+        onLogout={handleLogout}
+        warningTime={5}
+      />
     </Box>
   )
 }
