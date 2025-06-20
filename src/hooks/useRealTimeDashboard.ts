@@ -164,10 +164,14 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
             usersWithIdentity: 0
           })
         }
-      } else {
-        chartStartTime = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
+              } else {
+        // 12 months - start from 12 months ago, beginning of that month
+        const now = new Date()
+        const startMonth = new Date(now.getFullYear(), now.getMonth() - 11, 1) // 11 months back + current month = 12 months
+        chartStartTime = startMonth
+        
         for (let i = 0; i < 12; i++) {
-          const date = new Date(chartStartTime.getFullYear(), chartStartTime.getMonth() + i, 1)
+          const date = new Date(startMonth.getFullYear(), startMonth.getMonth() + i, 1)
           labels.push(date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }))
           chartPoints.push({
             label: labels[i],
@@ -192,6 +196,7 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
       ])
 
       // Fill chart data
+      
       chartUsers?.forEach(user => {
         const userTime = new Date(user.created_at)
         let bucketIndex = 0
@@ -201,6 +206,7 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
         } else if (timeRange === '7days') {
           bucketIndex = Math.floor((userTime.getTime() - chartStartTime.getTime()) / (24 * 60 * 60 * 1000))
         } else {
+          // 12 months - calculate which month bucket this user belongs to
           const monthsDiff = (userTime.getFullYear() - chartStartTime.getFullYear()) * 12 + 
                             userTime.getMonth() - chartStartTime.getMonth()
           bucketIndex = monthsDiff
@@ -229,6 +235,7 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
           } else if (timeRange === '7days') {
             bucketIndex = Math.floor((identityTime.getTime() - chartStartTime.getTime()) / (24 * 60 * 60 * 1000))
           } else {
+            // 12 months - calculate which month bucket this identity belongs to
             const monthsDiff = (identityTime.getFullYear() - chartStartTime.getFullYear()) * 12 + 
                               identityTime.getMonth() - chartStartTime.getMonth()
             bucketIndex = monthsDiff
@@ -294,7 +301,12 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
         console.log('✅ Real-time dashboard data loaded successfully:', {
           totalUsers: totalUsers || 0,
           chartDataPoints: chartPoints.length,
-          recentUsers: transformedRecentUsers.length
+          recentUsers: transformedRecentUsers.length,
+          invitedUsersTotal: invitedUsers || 0,
+          ...(timeRange === '12months' && {
+            monthlyInvited: chartPoints.map(p => p.invitedRegistrations).reduce((a, b) => a + b, 0),
+            monthlyDirect: chartPoints.map(p => p.directRegistrations).reduce((a, b) => a + b, 0)
+          })
         })
       }
 
@@ -312,8 +324,6 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
 
   // Set up real-time subscriptions
   const setupRealtimeSubscriptions = useCallback(() => {
-    console.log('🔴 Setting up real-time subscriptions...')
-
     // Clean up existing subscriptions
     channelsRef.current.forEach(channel => {
       supabase.removeChannel(channel)
@@ -327,8 +337,7 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
         event: '*',
         schema: 'public',
         table: 'kd_users'
-      }, (payload) => {
-        console.log('🔄 User table changed:', payload)
+      }, () => {
         // Refresh data when users change
         fetchDashboardData()
       })
@@ -341,8 +350,7 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
         event: '*',
         schema: 'public',
         table: 'kd_identity'
-      }, (payload) => {
-        console.log('🔄 Identity table changed:', payload)
+      }, () => {
         // Refresh data when identities change
         fetchDashboardData()
       })
