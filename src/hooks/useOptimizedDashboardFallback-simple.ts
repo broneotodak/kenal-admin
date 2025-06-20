@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase, queryCache } from '@/lib/supabase'
 
 // Simple server time utilities (UTC-based)
@@ -297,23 +297,43 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
   }>({ labels: [], datasets: [] })
   const [chartDataPoints, setChartDataPoints] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // Add a ref to track mount status
+  const isMountedRef = useRef(true)
+  
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   // Memoize timeRange to prevent infinite re-renders
   const stableTimeRange = useMemo(() => timeRange, [timeRange])
+  
+  // Add debug logging for timeRange changes
+  useEffect(() => {
+    console.log('📊 Chart timeRange changed to:', stableTimeRange);
+  }, [stableTimeRange])
 
   const loadChartData = useCallback(async () => {
     try {
       console.log('🔄 Loading chart data for', stableTimeRange, 'with server time...');
       setLoading(true)
+      
+      // Add debug logging for loading state
+      console.log('📊 Chart loading state set to true for', stableTimeRange);
 
       // Check cache first (5-minute cache for chart data)
       const cacheKey = 'chart_data_enhanced_' + stableTimeRange + '_server_time'
       const cached = queryCache.get(cacheKey)
       if (cached) {
-        console.log('⚡ Chart data loaded from cache');
-        setChartData(cached.chartData)
-        setChartDataPoints(cached.chartDataPoints)
-        setLoading(false)
+        console.log('⚡ Chart data loaded from cache, setting loading to false');
+        if (isMountedRef.current) {
+          setChartData(cached.chartData)
+          setChartDataPoints(cached.chartDataPoints)
+          setLoading(false)
+          console.log('📊 Chart cache loading state set to false for', stableTimeRange);
+        }
         return
       }
 
@@ -559,8 +579,10 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
         ]
       }
 
-      setChartData(chart)
-      setChartDataPoints(dataPoints)
+      if (isMountedRef.current) {
+        setChartData(chart)
+        setChartDataPoints(dataPoints)
+      }
 
       // Cache for 5 minutes
       queryCache.set(cacheKey, { chartData: chart, chartDataPoints: dataPoints }, 300000)
@@ -614,14 +636,20 @@ export const useFallbackChartData = (timeRange: '24hours' | '7days' | '12months'
         ]
       }
       
-      setChartData(emptyChart)
-      setChartDataPoints([])
+      if (isMountedRef.current) {
+        setChartData(emptyChart)
+        setChartDataPoints([])
+      }
     } finally {
-      setLoading(false)
+      console.log('📊 Chart loading completed, setting loading to false for', stableTimeRange);
+      if (isMountedRef.current) {
+        setLoading(false)
+      }
     }
   }, [stableTimeRange])
 
   useEffect(() => {
+    console.log('📊 Chart useEffect triggered, calling loadChartData for', stableTimeRange);
     loadChartData()
   }, [loadChartData])
 
