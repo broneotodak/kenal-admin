@@ -39,8 +39,8 @@ export function KenalLogo({
     if (color === 'white') {
       filter = 'brightness(0) invert(1)'
     } else if (color === 'theme' && theme.palette.mode === 'light') {
-      // In light mode, we want dark logo (no filter needed)
-      filter = 'none'
+      // In light mode, we want dark logo (invert the white logo to make it dark)
+      filter = 'brightness(0) invert(1) brightness(0.2)'
     } else if (color === 'theme' && theme.palette.mode === 'dark') {
       // In dark mode, we want white logo
       filter = 'brightness(0) invert(1)'
