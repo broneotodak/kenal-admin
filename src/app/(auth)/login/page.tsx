@@ -25,39 +25,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  const debugDatabase = async () => {
-    try {
-      console.log('=== DATABASE DEBUG START ===')
-      
-      // Test basic connection
-      console.log('Testing basic connection...')
-      const testResult = await supabase.from('kd_users').select('count').limit(1)
-      console.log('Connection test result:', testResult)
-      
-      // Check for neo@todak.com
-      console.log('Looking for neo@todak.com...')
-      const neoResult = await supabase
-        .from('kd_users')
-        .select('id, email, user_type, name')
-        .eq('email', 'neo@todak.com')
-        .maybeSingle()
-      
-      console.log('Neo user result:', neoResult)
-      
-      // Check admin users
-      console.log('Looking for admin users...')
-      const adminResult = await supabase
-        .from('kd_users')
-        .select('id, email, user_type, name')
-        .eq('user_type', 5)
-      
-      console.log('Admin users result:', adminResult)
-      console.log('=== DATABASE DEBUG END ===')
-      
-    } catch (err) {
-      console.error('Debug error:', err)
-    }
-  }
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -196,7 +164,7 @@ export default function LoginPage() {
                 margin="normal"
                 required
                 autoFocus
-                placeholder="neo@todak.com"
+                placeholder="Enter your email"
               />
               <TextField
                 fullWidth
@@ -231,19 +199,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={debugDatabase}
-                sx={{ mb: 2 }}
-              >
-                Debug Database
-              </Button>
-              <Typography variant="caption" color="text.secondary" display="block">
-                Check browser console for debug information
-              </Typography>
-            </Box>
+
           </CardContent>
         </Card>
       </Container>
