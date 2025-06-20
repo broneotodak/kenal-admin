@@ -12,11 +12,31 @@ export const useSmartDashboard = (timeRange: '24hours' | '7days' | '12months' = 
   const [globalLoading, setGlobalLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const refreshTimeoutRef = useRef<NodeJS.Timeout>()
+  const loadingTimeoutRef = useRef<NodeJS.Timeout>()
+  const [forceStopLoading, setForceStopLoading] = useState(false)
 
   // Use individual hooks with longer refresh intervals to reduce background activity
   const stats = useFallbackDashboardStats(timeRange, 60000) // 1 minute instead of 30 seconds
   const recentUsers = useFallbackRecentUsers(5)
   const chartData = useFallbackChartData(timeRange)
+
+  // Failsafe: Force stop loading after 10 seconds to prevent infinite loading
+  useEffect(() => {
+    if (globalLoading && !forceStopLoading) {
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.log('⚠️ Loading timeout reached - forcing loading to stop to prevent infinite loading')
+        setForceStopLoading(true)
+      }, 10000) // 10 seconds
+    } else if (!globalLoading && loadingTimeoutRef.current) {
+      clearTimeout(loadingTimeoutRef.current)
+    }
+
+    return () => {
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current)
+      }
+    }
+  }, [globalLoading, forceStopLoading])
 
   // Debounced refresh function to prevent multiple simultaneous requests
   const debouncedRefresh = useCallback(() => {
@@ -71,8 +91,24 @@ export const useSmartDashboard = (timeRange: '24hours' | '7days' | '12months' = 
     const timeSinceInit = Date.now() - lastRefresh.getTime()
     const isInitialLoad = timeSinceInit < 5000 // Within 5 seconds of initialization
 
-    setGlobalLoading(allLoading || (anyLoading && isInitialLoad))
-  }, [stats.loading, recentUsers.loading, chartData.loading, lastRefresh])
+    const shouldShowLoading = !forceStopLoading && (allLoading || (anyLoading && isInitialLoad))
+
+    // Debug logging for loading state calculation
+    console.log('🔄 Global loading calculation:', {
+      statsLoading: stats.loading,
+      usersLoading: recentUsers.loading,
+      chartLoading: chartData.loading,
+      anyLoading,
+      allLoading,
+      timeSinceInit,
+      isInitialLoad,
+      forceStopLoading,
+      shouldShowLoading,
+      currentGlobalLoading: globalLoading
+    })
+
+    setGlobalLoading(shouldShowLoading)
+  }, [stats.loading, recentUsers.loading, chartData.loading, lastRefresh, globalLoading, forceStopLoading])
 
   // Manual refresh function
   const refreshDashboard = useCallback(() => {
@@ -80,11 +116,14 @@ export const useSmartDashboard = (timeRange: '24hours' | '7days' | '12months' = 
     debouncedRefresh()
   }, [debouncedRefresh])
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current)
+      }
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current)
       }
     }
   }, [])
