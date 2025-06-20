@@ -41,7 +41,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
 import Chart from '@/components/Chart'
-import { useSmartDashboard } from '@/hooks/useSmartDashboard'
+import { useSimpleDashboard } from '@/hooks/useSimpleDashboard'
 
 // Helper function to get country flag emoji
 const getCountryFlag = (countryCode?: string): string => {
@@ -103,12 +103,10 @@ const getCountryName = (countryCode?: string): string => {
 type ChartOptions = any
 
 interface ChartDataPoint {
-  date: string
-  hour?: string
+  label: string
   directRegistrations: number
   invitedRegistrations: number
   usersWithIdentity: number
-  details?: any[]
 }
 
 export default function DashboardPage() {
@@ -120,20 +118,16 @@ export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<'24hours' | '7days' | '12months'>('24hours')
   const [currentTime, setCurrentTime] = useState<string>('')
 
-  // Use smart dashboard hook for coordinated loading and tab suspension handling
+  // Use simplified dashboard hook - no complex state management
   const {
     stats,
     recentUsers,
     chartData,
     chartDataPoints,
-    loading: globalLoading,
-    statsLoading,
-    usersLoading,
-    chartLoading,
-    isTabVisible,
-    refreshDashboard,
-    lastRefresh
-  } = useSmartDashboard(timeRange)
+    loading,
+    error,
+    refetch: refreshDashboard
+  } = useSimpleDashboard(timeRange)
 
   const handleExportChart = () => {
     setAnchorEl(null)
@@ -231,13 +225,6 @@ export default function DashboardPage() {
               label += context.parsed.y + ' users';
             }
             return label;
-          },
-          afterLabel: function(context: any) {
-            const dataPoint = chartDataPoints[context.dataIndex]
-            if (dataPoint && dataPoint.details && dataPoint.details.length > 0) {
-              return `Click to see ${dataPoint.details.length} user details`;
-            }
-            return '';
           }
         }
       },
@@ -298,7 +285,7 @@ export default function DashboardPage() {
     const isPositive = growth >= 0;
     const GrowthIcon = isPositive ? TrendingUp : TrendingDown;
     const formattedGrowth = growth >= 0 ? `+${growth}` : `${growth}`;
-    const displayComparisonPeriod = comparisonPeriod || stats.comparisonPeriod;
+    const displayComparisonPeriod = comparisonPeriod || 'last period';
     
     return (
       <Card sx={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
@@ -351,7 +338,7 @@ export default function DashboardPage() {
                   lineHeight: 1.2
                 }}
               >
-                {globalLoading ? <Skeleton width={100} /> : isRevenue ? `RM ${value.toLocaleString()}` : value.toLocaleString()}
+                {loading ? <Skeleton width={100} /> : isRevenue ? `RM ${value.toLocaleString()}` : value.toLocaleString()}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <GrowthIcon 
@@ -405,16 +392,7 @@ export default function DashboardPage() {
             variant="outlined"
             sx={{ fontSize: '0.7rem', height: 24 }}
           />
-          {!isTabVisible && (
-            <Chip
-              label="Tab Hidden - Auto-refresh paused"
-              size="small"
-              color="warning"
-              variant="outlined"
-              sx={{ fontSize: '0.7rem', height: 24 }}
-            />
-          )}
-          {globalLoading && (
+          {loading && (
             <Chip
               icon={<CircularProgress size={12} />}
               label="Refreshing..."
@@ -428,7 +406,7 @@ export default function DashboardPage() {
             <IconButton
               size="small"
               onClick={refreshDashboard}
-              disabled={globalLoading}
+              disabled={loading}
               sx={{ 
                 ml: 1,
                 color: 'text.secondary',
@@ -576,7 +554,7 @@ export default function DashboardPage() {
               cursor: 'crosshair'
             }
           }}>
-            {chartLoading ? (
+            {loading ? (
               <Box sx={{ 
                 height: '100%', 
                 display: 'flex', 
@@ -606,7 +584,7 @@ export default function DashboardPage() {
                   <IconButton 
                     size="small" 
                     onClick={handleResetZoom}
-                    disabled={chartLoading}
+                    disabled={loading}
                     sx={{ color: 'text.secondary' }}
                   >
                     <RestartAlt fontSize="small" />
@@ -618,7 +596,7 @@ export default function DashboardPage() {
                   <IconButton 
                     size="small"
                     onClick={(e) => setAnchorEl(e.currentTarget)}
-                    disabled={chartLoading}
+                    disabled={loading}
                     sx={{ color: 'text.secondary' }}
                   >
                     <MoreVert fontSize="small" />
@@ -628,8 +606,8 @@ export default function DashboardPage() {
             </Box>
           </Box>
 
-          {/* Selected Data Point Details */}
-          {selectedDataPoint && selectedDataPoint.details && selectedDataPoint.details.length > 0 && (
+          {/* Simplified Chart Info */}
+          {selectedDataPoint && (
             <Box sx={{ 
               mt: 4, 
               p: 2, 
@@ -638,35 +616,11 @@ export default function DashboardPage() {
               border: (theme) => `1px solid ${theme.palette.divider}`
             }}>
               <Typography variant="subtitle2" fontWeight="600" gutterBottom>
-                Details for {selectedDataPoint.hour || chartData.labels[chartDataPoints.indexOf(selectedDataPoint)]}
+                Data for {selectedDataPoint.label}
               </Typography>
-                              <Typography variant="body2" color="text.secondary" gutterBottom>
-                  {selectedDataPoint.directRegistrations || 0} direct registrations, {selectedDataPoint.invitedRegistrations || 0} invited registrations, {selectedDataPoint.usersWithIdentity || 0} with identity
-                </Typography>
-              <Box sx={{ mt: 1, maxHeight: 200, overflow: 'auto' }}>
-                {selectedDataPoint.details.slice(0, 10).map((detail, index) => (
-                  <Box key={index} sx={{ py: 0.5 }}>
-                    <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                      <span><strong>{detail.name || 'N/A'}</strong> ({detail.email})</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        {getCountryFlag(detail.country)} {getCountryName(detail.country)}
-                      </span>
-                      <Chip 
-                        label={detail.registrationType} 
-                        size="small" 
-                        color={detail.registrationType === 'Invited' ? 'secondary' : 'primary'}
-                        sx={{ height: 16, fontSize: '0.6rem', '& .MuiChip-label': { px: 0.5 } }}
-                      />
-                      <span>• {detail.time}</span>
-                    </Typography>
-                  </Box>
-                ))}
-                {selectedDataPoint.details.length > 10 && (
-                  <Typography variant="caption" color="text.secondary">
-                    ... and {selectedDataPoint.details.length - 10} more
-                  </Typography>
-                )}
-              </Box>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                {selectedDataPoint.directRegistrations || 0} direct registrations, {selectedDataPoint.invitedRegistrations || 0} invited registrations, {selectedDataPoint.usersWithIdentity || 0} with identity
+              </Typography>
             </Box>
           )}
         </CardContent>
@@ -689,7 +643,7 @@ export default function DashboardPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {usersLoading ? (
+              {loading ? (
                 <TableRow>
                   <TableCell colSpan={5}>
                     <Skeleton />
@@ -914,7 +868,7 @@ export default function DashboardPage() {
                       }
                     }}>
                       <Typography variant="h3" sx={{ color: '#8b4513', fontWeight: 700, mb: 1 }}>
-                        {statsLoading ? <Skeleton width={60} /> : stats.invitedUsers.toLocaleString()}
+                        {loading ? <Skeleton width={60} /> : stats.invitedUsers.toLocaleString()}
                       </Typography>
                       <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                         Invited Users
@@ -938,7 +892,7 @@ export default function DashboardPage() {
                       }
                     }}>
                       <Typography variant="h3" sx={{ color: '#65a30d', fontWeight: 700, mb: 1 }}>
-                        {statsLoading ? <Skeleton width={60} /> : (stats.totalUsers - stats.invitedUsers).toLocaleString()}
+                        {loading ? <Skeleton width={60} /> : (stats.totalUsers - stats.invitedUsers).toLocaleString()}
                       </Typography>
                       <Typography variant="body1" sx={{ color: 'text.secondary', fontWeight: 500 }}>
                         Direct Users
