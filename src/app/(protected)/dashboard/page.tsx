@@ -105,7 +105,8 @@ type ChartOptions = any
 interface ChartDataPoint {
   date: string
   hour?: string
-  newUsers: number
+  directRegistrations: number
+  invitedRegistrations: number
   usersWithIdentity: number
   details?: any[]
 }
@@ -142,8 +143,10 @@ export default function DashboardPage() {
     
     const csvData = chartDataPoints.map((point: any, index: number) => ({
       'Date/Time': chartData.labels[index],
-      'New Users': point.newUsers,
-      'Users with Identity': point.usersWithIdentity,
+      'Direct Registrations': point.directRegistrations || 0,
+      'Invited Registrations': point.invitedRegistrations || 0,
+      'Total New Users': (point.directRegistrations || 0) + (point.invitedRegistrations || 0),
+      'Users with Identity': point.usersWithIdentity || 0,
     }))
     
     if (csvData.length === 0) return
@@ -566,39 +569,63 @@ export default function DashboardPage() {
             </MenuItem>
           </Menu>
 
-          <Box sx={{ height: 300, position: 'relative' }}>
+          <Box sx={{ 
+            height: 400, 
+            position: 'relative',
+            '& canvas': {
+              cursor: 'crosshair'
+            }
+          }}>
             {chartLoading ? (
               <Box sx={{ 
+                height: '100%', 
                 display: 'flex', 
                 alignItems: 'center', 
-                justifyContent: 'center', 
-                height: '100%',
-                bgcolor: theme.palette.action.hover,
-                borderRadius: 1,
+                justifyContent: 'center',
+                flexDirection: 'column',
+                gap: 2
               }}>
                 <CircularProgress size={40} />
+                <Typography variant="body2" color="text.secondary">
+                  Loading chart data...
+                </Typography>
               </Box>
             ) : (
-              <>
-                                        <Chart ref={chartRef} data={chartData} options={chartOptions} />
-                <Box sx={{ 
-                  position: 'absolute', 
-                  bottom: -40, 
-                  right: 0,
-                  display: 'flex',
-                  gap: 1,
-                  fontSize: '0.75rem',
-                  color: 'text.secondary'
-                }}>
-                  <Typography variant="caption">
-                    <ZoomIn sx={{ fontSize: 14, verticalAlign: 'middle' }} /> Scroll to zoom
-                  </Typography>
-                  <Typography variant="caption">
-                    • Click data points for details
-                  </Typography>
-                </Box>
-              </>
+              <Chart 
+                data={chartData} 
+                options={chartOptions}
+                onResetZoom={handleResetZoom}
+              />
             )}
+          </Box>
+
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Tooltip title="Reset zoom level">
+                <span>
+                  <IconButton 
+                    size="small" 
+                    onClick={handleResetZoom}
+                    disabled={chartLoading}
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    <RestartAlt fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title="More options">
+                <span>
+                  <IconButton 
+                    size="small"
+                    onClick={(e) => setAnchorEl(e.currentTarget)}
+                    disabled={chartLoading}
+                    sx={{ color: 'text.secondary' }}
+                  >
+                    <MoreVert fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
           </Box>
 
           {/* Selected Data Point Details */}
@@ -613,9 +640,9 @@ export default function DashboardPage() {
               <Typography variant="subtitle2" fontWeight="600" gutterBottom>
                 Details for {selectedDataPoint.hour || chartData.labels[chartDataPoints.indexOf(selectedDataPoint)]}
               </Typography>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                {selectedDataPoint.newUsers} new users, {selectedDataPoint.usersWithIdentity} with identity
-              </Typography>
+                              <Typography variant="body2" color="text.secondary" gutterBottom>
+                  {selectedDataPoint.directRegistrations || 0} direct registrations, {selectedDataPoint.invitedRegistrations || 0} invited registrations, {selectedDataPoint.usersWithIdentity || 0} with identity
+                </Typography>
               <Box sx={{ mt: 1, maxHeight: 200, overflow: 'auto' }}>
                 {selectedDataPoint.details.slice(0, 10).map((detail, index) => (
                   <Box key={index} sx={{ py: 0.5 }}>

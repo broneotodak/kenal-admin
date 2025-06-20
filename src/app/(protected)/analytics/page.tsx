@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { 
   Box, 
   Typography, 
@@ -69,7 +69,7 @@ import {
 } from '@mui/icons-material'
 import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
-import { Chart } from '@/components/Chart'
+import Chart from '@/components/Chart'
 
 // Types
 interface TabPanelProps {
@@ -141,7 +141,6 @@ function TabPanel(props: TabPanelProps) {
 export default function AnalyticsPage() {
   const theme = useThemeMode()
   const isDarkMode = theme.palette.mode === 'dark'
-  const chartRef = useRef<any>(null)
   
   const [activeTab, setActiveTab] = useState(0)
   const [timeRange, setTimeRange] = useState('Last 30 Days')
@@ -896,7 +895,7 @@ export default function AnalyticsPage() {
                   </Typography>
                 </Box>
                 <Box sx={{ height: 400 }}>
-                  <Chart data={userGrowthData} options={chartOptions} ref={chartRef} />
+                  <Chart data={userGrowthData} options={chartOptions} />
                 </Box>
               </CardContent>
             </Card>

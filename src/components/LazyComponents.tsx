@@ -64,7 +64,7 @@ export const LazyDashboardPage = lazy(() =>
 
 export const LazyChart = lazy(() => 
   import('./Chart').then(module => ({
-    default: module.Chart
+    default: module.default
   }))
 )
 

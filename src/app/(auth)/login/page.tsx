@@ -1,5 +1,8 @@
 'use client'
 
+// Force dynamic rendering to fix Next.js 14 searchParams issue
+export const dynamic = 'force-dynamic'
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {

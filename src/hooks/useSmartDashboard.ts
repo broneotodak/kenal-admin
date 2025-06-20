@@ -4,7 +4,7 @@ import {
   useFallbackDashboardStats, 
   useFallbackRecentUsers, 
   useFallbackChartData 
-} from './useOptimizedDashboardFallback'
+} from './useOptimizedDashboardFallback-simple'
 
 // Smart dashboard hook that handles tab suspension gracefully
 export const useSmartDashboard = (timeRange: '24hours' | '7days' | '12months' = '24hours') => {
