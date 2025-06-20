@@ -41,7 +41,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
 import Chart from '@/components/Chart'
-import { useSimpleDashboard } from '@/hooks/useSimpleDashboard'
+import { useRealTimeDashboard } from '@/hooks/useRealTimeDashboard'
 
 // Helper function to get country flag emoji
 const getCountryFlag = (countryCode?: string): string => {
@@ -118,7 +118,7 @@ export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<'24hours' | '7days' | '12months'>('24hours')
   const [currentTime, setCurrentTime] = useState<string>('')
 
-  // Use simplified dashboard hook - no complex state management
+  // Use real-time dashboard hook with Supabase subscriptions
   const {
     stats,
     recentUsers,
@@ -127,7 +127,7 @@ export default function DashboardPage() {
     loading,
     error,
     refetch: refreshDashboard
-  } = useSimpleDashboard(timeRange)
+  } = useRealTimeDashboard(timeRange)
 
   const handleExportChart = () => {
     setAnchorEl(null)
@@ -382,7 +382,7 @@ export default function DashboardPage() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="body2" color="text.secondary">
-          Dashboard auto-refreshes every 30 seconds • Last updated: {currentTime || '...'} 🇲🇾 MY Time
+          Real-time dashboard with live updates • Last updated: {currentTime || '...'} 🇲🇾 MY Time
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Chip
