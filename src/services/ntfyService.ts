@@ -22,15 +22,20 @@ export const sendDeveloperNotification = async ({
       ? `From: ${adminEmail}\n\n${message}`
       : message
 
+    // Ensure headers contain only ISO-8859-1 characters
+    const sanitizeHeader = (str: string) => {
+      return str.replace(/[^\x00-\xFF]/g, '?') // Replace non-ISO-8859-1 characters with ?
+    }
+
     const response = await fetch(`${NTFY_BASE_URL}/${DEVELOPER_CHANNEL}`, {
       method: 'POST',
       headers: {
-        'Title': title,
+        'Title': sanitizeHeader(title),
         'Priority': priority.toString(),
-        'Tags': tags.join(','),
+        'Tags': sanitizeHeader(tags.join(',')),
         'Content-Type': 'text/plain; charset=utf-8',
       },
-      body: fullMessage
+      body: fullMessage // Body can contain UTF-8, headers cannot
     })
 
     if (!response.ok) {

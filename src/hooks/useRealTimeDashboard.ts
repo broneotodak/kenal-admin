@@ -326,37 +326,61 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
   const setupRealtimeSubscriptions = useCallback(() => {
     // Clean up existing subscriptions
     channelsRef.current.forEach(channel => {
-      supabase.removeChannel(channel)
+      try {
+        supabase.removeChannel(channel)
+      } catch (error) {
+        console.warn('Error removing channel:', error)
+      }
     })
     channelsRef.current = []
 
-    // Subscribe to user changes
-    const usersChannel = supabase
-      .channel('dashboard-users')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'kd_users'
-      }, () => {
-        // Refresh data when users change
-        fetchDashboardData()
-      })
-      .subscribe()
+    try {
+      // Subscribe to user changes with error handling
+      const usersChannel = supabase
+        .channel('dashboard-users')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'kd_users'
+        }, () => {
+          // Refresh data when users change
+          fetchDashboardData()
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ Users real-time subscription active')
+          } else if (status === 'CHANNEL_ERROR') {
+            console.warn('⚠️ Users real-time subscription error')
+          } else if (status === 'TIMED_OUT') {
+            console.warn('⚠️ Users real-time subscription timed out')
+          }
+        })
 
-    // Subscribe to identity changes
-    const identityChannel = supabase
-      .channel('dashboard-identity')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'kd_identity'
-      }, () => {
-        // Refresh data when identities change
-        fetchDashboardData()
-      })
-      .subscribe()
+      // Subscribe to identity changes with error handling
+      const identityChannel = supabase
+        .channel('dashboard-identity')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'kd_identity'
+        }, () => {
+          // Refresh data when identities change
+          fetchDashboardData()
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ Identity real-time subscription active')
+          } else if (status === 'CHANNEL_ERROR') {
+            console.warn('⚠️ Identity real-time subscription error')
+          } else if (status === 'TIMED_OUT') {
+            console.warn('⚠️ Identity real-time subscription timed out')
+          }
+        })
 
-    channelsRef.current = [usersChannel, identityChannel]
+      channelsRef.current = [usersChannel, identityChannel]
+    } catch (error) {
+      console.warn('Failed to set up real-time subscriptions:', error)
+    }
   }, [fetchDashboardData])
 
   // Load data and set up subscriptions on mount

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, forwardRef, useImperativeHandle } from 'react'
 import dynamic from 'next/dynamic'
 
 const LineChart = dynamic(() => import('react-chartjs-2').then((mod) => ({ default: mod.Line })), {
@@ -17,9 +17,18 @@ interface ChartHandle {
   resetZoom: () => void
 }
 
-const Chart = ({ data, options, onResetZoom }: ChartProps) => {
+const Chart = forwardRef<ChartHandle, ChartProps>(({ data, options, onResetZoom }, ref) => {
   const chartRef = useRef<any>(null)
   const [isChartReady, setIsChartReady] = useState(false)
+
+  // Expose resetZoom method through ref
+  useImperativeHandle(ref, () => ({
+    resetZoom: () => {
+      if (chartRef.current) {
+        chartRef.current.resetZoom()
+      }
+    }
+  }))
 
   // Expose resetZoom method through callback
   const handleResetZoom = () => {
@@ -87,7 +96,7 @@ const Chart = ({ data, options, onResetZoom }: ChartProps) => {
   }
 
   return <LineChart ref={chartRef} data={data} options={options} />
-}
+})
 
 Chart.displayName = 'Chart'
 

@@ -403,22 +403,24 @@ export default function DashboardPage() {
             />
           )}
           <Tooltip title="Manually refresh dashboard">
-            <IconButton
-              size="small"
-              onClick={refreshDashboard}
-              disabled={loading}
-              sx={{ 
-                ml: 1,
-                color: 'text.secondary',
-                '&:hover': {
-                  color: 'primary.main',
-                  transform: 'rotate(180deg)',
-                  transition: 'transform 0.3s ease'
-                }
-              }}
-            >
-              <RestartAlt fontSize="small" />
-            </IconButton>
+            <span>
+              <IconButton
+                size="small"
+                onClick={refreshDashboard}
+                disabled={loading}
+                sx={{ 
+                  ml: 1,
+                  color: 'text.secondary',
+                  '&:hover': {
+                    color: 'primary.main',
+                    transform: 'rotate(180deg)',
+                    transition: 'transform 0.3s ease'
+                  }
+                }}
+              >
+                <RestartAlt fontSize="small" />
+              </IconButton>
+            </span>
           </Tooltip>
         </Box>
       </Box>
