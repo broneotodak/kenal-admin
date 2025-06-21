@@ -78,7 +78,7 @@ interface User {
   email: string
   created_at: string
   join_by_invitation?: boolean
-  element_number?: number
+  element_type?: number
   user_type?: number
   active: boolean
   identity_count?: number
@@ -100,15 +100,11 @@ interface UserFilters {
 const ElementVisualization = ({ element }: { element: number }) => {
   const theme = useTheme()
   const elementInfo = {
-    1: { name: 'Fire', color: '#FF6B35', symbol: '🔥' },
-    2: { name: 'Earth', color: '#8B6914', symbol: '🌍' },
-    3: { name: 'Air', color: '#87CEEB', symbol: '💨' },
-    4: { name: 'Water', color: '#4682B4', symbol: '💧' },
-    5: { name: 'Wood', color: '#228B22', symbol: '🌳' },
-    6: { name: 'Metal', color: '#C0C0C0', symbol: '⚡' },
-    7: { name: 'Light', color: '#FFD700', symbol: '☀️' },
-    8: { name: 'Dark', color: '#4B0082', symbol: '🌙' },
-    9: { name: 'Spirit', color: '#9370DB', symbol: '✨' },
+    1: { name: 'Wood', color: '#059669', symbol: '🌳' },    // emerald-600
+    2: { name: 'Metal', color: '#4B5563', symbol: '⚡' },   // gray-600  
+    3: { name: 'Earth', color: '#D97706', symbol: '🏔️' },   // amber-600
+    4: { name: 'Fire', color: '#DC2626', symbol: '🔥' },    // red-600
+    5: { name: 'Water', color: '#2563EB', symbol: '🌊' },   // blue-600
   }
 
   const info = elementInfo[element as keyof typeof elementInfo] || { 
@@ -357,8 +353,6 @@ export default function UsersPage() {
     }
   }
 
-
-
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage)
   }
@@ -431,7 +425,7 @@ export default function UsersPage() {
         .update({
           name: editingUser.name,
           email: editingUser.email,
-          element_number: editingUser.element_number,
+          element_type: editingUser.element_type,
           active: editingUser.active,
           birth_date: editingUser.birth_date
         })
@@ -459,9 +453,11 @@ export default function UsersPage() {
 
   const getElementColor = (element?: number) => {
     const colors = {
-      1: '#FF6B35', 2: '#8B6914', 3: '#87CEEB',
-      4: '#4682B4', 5: '#228B22', 6: '#C0C0C0',
-      7: '#FFD700', 8: '#4B0082', 9: '#9370DB',
+      1: '#059669',  // Wood - emerald-600
+      2: '#4B5563',  // Metal - gray-600
+      3: '#D97706',  // Earth - amber-600
+      4: '#DC2626',  // Fire - red-600
+      5: '#2563EB',  // Water - blue-600
     }
     return colors[element as keyof typeof colors] || '#9E9E9E'
   }
@@ -834,9 +830,9 @@ export default function UsersPage() {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Avatar 
                           sx={{ 
-                            bgcolor: alpha(getElementColor(user.element_number), 0.2),
-                            color: getElementColor(user.element_number),
-                            border: `2px solid ${alpha(getElementColor(user.element_number), 0.3)}`
+                            bgcolor: alpha(getElementColor(user.element_type), 0.2),
+                            color: getElementColor(user.element_type),
+                            border: `2px solid ${alpha(getElementColor(user.element_type), 0.3)}`
                           }}
                         >
                           {user.name?.charAt(0).toUpperCase()}
@@ -1002,9 +998,9 @@ export default function UsersPage() {
                         sx={{ 
                           width: 80, 
                           height: 80, 
-                          bgcolor: alpha(getElementColor(editingUser?.element_number), 0.2),
-                          color: getElementColor(editingUser?.element_number),
-                          border: `3px solid ${alpha(getElementColor(editingUser?.element_number), 0.3)}`,
+                          bgcolor: alpha(getElementColor(editingUser?.element_type), 0.2),
+                          color: getElementColor(editingUser?.element_type),
+                          border: `3px solid ${alpha(getElementColor(editingUser?.element_type), 0.3)}`,
                           fontSize: '2rem',
                           fontWeight: 'bold'
                         }}
@@ -1071,13 +1067,13 @@ export default function UsersPage() {
                     <FormControl fullWidth>
                       <InputLabel>Element</InputLabel>
                       <Select
-                        value={editingUser?.element_number?.toString() || ''}
-                        onChange={(e) => handleEditingUserChange('element_number', e.target.value ? parseInt(e.target.value) : null)}
+                        value={editingUser?.element_type?.toString() || ''}
+                        onChange={(e) => handleEditingUserChange('element_type', e.target.value ? parseInt(e.target.value) : null)}
                         disabled={!isEditing}
                         label="Element"
                       >
                         <MenuItem value="">None</MenuItem>
-                        {[1,2,3,4,5,6,7,8,9].map(num => (
+                        {[1,2,3,4,5].map(num => (
                           <MenuItem key={num} value={num}>Element {num}</MenuItem>
                         ))}
                       </Select>
@@ -1122,8 +1118,8 @@ export default function UsersPage() {
 
                 {/* Element Visualization */}
                 <Grid item xs={12} md={6}>
-                  {editingUser?.element_number && (
-                    <ElementVisualization element={editingUser.element_number} />
+                  {editingUser?.element_type && (
+                    <ElementVisualization element={editingUser.element_type} />
                   )}
                 </Grid>
 

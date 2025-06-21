@@ -70,9 +70,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { isDarkMode, toggleTheme } = useTheme()
 
   const handleLogout = async () => {
-    setShowLogoutWarning(false)
-    await signOut()
-    router.push('/login')
+    try {
+      console.log('🔄 Dashboard logout initiated...')
+      setShowLogoutWarning(false)
+      
+      // Let AuthContext handle the complete logout process including navigation
+      await signOut()
+      
+      console.log('✅ Dashboard logout completed')
+    } catch (error) {
+      console.error('❌ Dashboard logout error:', error)
+      // Force navigation as fallback
+      router.push('/login')
+    }
   }
 
   // Auto-logout functionality

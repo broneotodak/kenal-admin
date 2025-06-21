@@ -201,17 +201,13 @@ export default function AnalyticsPage() {
     }]
   })
 
-  // Element information
+  // Element information - Updated to match KENAL JSON structure
   const elementInfo = {
-    1: { name: 'Fire', color: '#FF6B35', symbol: '🔥' },
-    2: { name: 'Earth', color: '#8B6914', symbol: '🌍' },
-    3: { name: 'Air', color: '#87CEEB', symbol: '💨' },
-    4: { name: 'Water', color: '#4682B4', symbol: '💧' },
-    5: { name: 'Wood', color: '#228B22', symbol: '🌳' },
-    6: { name: 'Metal', color: '#C0C0C0', symbol: '⚡' },
-    7: { name: 'Light', color: '#FFD700', symbol: '☀️' },
-    8: { name: 'Dark', color: '#4B0082', symbol: '🌙' },
-    9: { name: 'Spirit', color: '#9370DB', symbol: '✨' },
+    1: { name: 'Wood', color: '#059669', symbol: '🌳' },    // emerald-600
+    2: { name: 'Metal', color: '#4B5563', symbol: '⚡' },   // gray-600  
+    3: { name: 'Earth', color: '#D97706', symbol: '🏔️' },   // amber-600
+    4: { name: 'Fire', color: '#DC2626', symbol: '🔥' },    // red-600
+    5: { name: 'Water', color: '#2563EB', symbol: '🌊' },   // blue-600
   }
 
   const loadChartData = async (range: string) => {
@@ -468,7 +464,7 @@ export default function AnalyticsPage() {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
       const { data: recentUsers } = await supabase
         .from('kd_users')
-        .select('created_at, user_type, element_number, gender, registration_country, join_by_invitation')
+        .select('created_at, user_type, element_type, gender, registration_country, join_by_invitation')
         .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: true })
 
@@ -501,7 +497,7 @@ export default function AnalyticsPage() {
       // Get ALL users for segmentation analysis (not just last 30 days)
       const { data: allUsers } = await supabase
         .from('kd_users')
-        .select('user_type, element_number, gender, registration_country')
+        .select('user_type, element_type, gender, registration_country')
 
       // Process user segmentation from ALL users
       const usersByElement: { [key: number]: number } = {}
@@ -512,8 +508,8 @@ export default function AnalyticsPage() {
 
       allUsers?.forEach(user => {
         // Element analysis
-        if (user.element_number) {
-          usersByElement[user.element_number] = (usersByElement[user.element_number] || 0) + 1
+        if (user.element_type) {
+          usersByElement[user.element_type] = (usersByElement[user.element_type] || 0) + 1
         }
         
         // Country analysis
@@ -846,7 +842,7 @@ export default function AnalyticsPage() {
 
         {/* Registration Trends Chart */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} lg={8}>
+          <Grid item xs={12}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -900,8 +896,12 @@ export default function AnalyticsPage() {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={12} lg={4}>
-            <Card sx={{ height: '100%' }}>
+        </Grid>
+
+        {/* Growth Forecast - Now under Registration Trends */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12}>
+            <Card>
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                   Growth Forecast

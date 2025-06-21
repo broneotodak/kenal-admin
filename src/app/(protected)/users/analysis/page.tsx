@@ -53,8 +53,8 @@ export default function UserAnalysisPage() {
       // Get element distribution
       const { data: elementData } = await supabase
         .from('kd_users')
-        .select('element_number')
-        .not('element_number', 'is', null)
+        .select('element_type')
+        .not('element_type', 'is', null)
 
       // Get gender distribution
       const { data: genderData } = await supabase
@@ -71,7 +71,7 @@ export default function UserAnalysisPage() {
       // Process element distribution
       const elementCounts: { [key: number]: number } = {}
       elementData?.forEach(item => {
-        elementCounts[item.element_number] = (elementCounts[item.element_number] || 0) + 1
+        elementCounts[item.element_type] = (elementCounts[item.element_type] || 0) + 1
       })
 
       const totalElements = Object.values(elementCounts).reduce((sum, count) => sum + count, 0)
@@ -150,15 +150,11 @@ export default function UserAnalysisPage() {
 
   const getElementInfo = (element: number) => {
     const elementInfo: { [key: number]: { name: string, color: string, symbol: string } } = {
-      1: { name: 'Fire', color: '#FF6B35', symbol: '🔥' },
-      2: { name: 'Earth', color: '#8B6914', symbol: '🌍' },
-      3: { name: 'Air', color: '#87CEEB', symbol: '💨' },
-      4: { name: 'Water', color: '#4682B4', symbol: '💧' },
-      5: { name: 'Wood', color: '#228B22', symbol: '🌳' },
-      6: { name: 'Metal', color: '#C0C0C0', symbol: '⚡' },
-      7: { name: 'Light', color: '#FFD700', symbol: '☀️' },
-      8: { name: 'Dark', color: '#4B0082', symbol: '🌙' },
-      9: { name: 'Spirit', color: '#9370DB', symbol: '✨' },
+      1: { name: 'Wood', color: '#059669', symbol: '🌳' },    // emerald-600
+      2: { name: 'Metal', color: '#4B5563', symbol: '⚡' },   // gray-600  
+      3: { name: 'Earth', color: '#D97706', symbol: '🏔️' },   // amber-600
+      4: { name: 'Fire', color: '#DC2626', symbol: '🔥' },    // red-600
+      5: { name: 'Water', color: '#2563EB', symbol: '🌊' },   // blue-600
     }
     return elementInfo[element] || { name: 'Unknown', color: '#9E9E9E', symbol: '❓' }
   }

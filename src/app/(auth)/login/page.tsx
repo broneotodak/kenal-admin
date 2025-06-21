@@ -12,8 +12,10 @@ import {
   Alert,
   CircularProgress,
   Container,
+  Divider,
 } from '@mui/material'
 import { useAuth } from '@/contexts/AuthContext'
+import CacheClearButton from '@/components/CacheClearButton'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -158,6 +160,15 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
+            
+            <Divider sx={{ my: 2 }} />
+            
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Having trouble logging in? Try clearing your browser cache:
+              </Typography>
+              <CacheClearButton />
+            </Box>
           </CardContent>
         </Card>
       </Container>

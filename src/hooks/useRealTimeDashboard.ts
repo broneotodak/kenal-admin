@@ -123,6 +123,20 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
         .select('*', { count: 'exact', head: true })
         .gte('created_at', today.toISOString())
 
+      // Get yesterday's registrations for growth comparison
+      const yesterday = new Date(today)
+      yesterday.setDate(yesterday.getDate() - 1)
+      const { count: yesterdayRegistrations } = await supabase
+        .from('kd_users')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', yesterday.toISOString())
+        .lt('created_at', today.toISOString())
+
+      // Calculate growth percentage
+      const todayGrowth = yesterdayRegistrations && yesterdayRegistrations > 0 
+        ? Math.round(((todayRegistrations || 0) - yesterdayRegistrations) / yesterdayRegistrations * 100)
+        : (todayRegistrations || 0) > 0 ? 100 : 0
+
       const activeUsers = new Set(identityData?.map(i => i.user_id) || []).size
 
       // Transform recent users
@@ -256,7 +270,7 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
           invitedUsers: invitedUsers || 0,
           userGrowth: 0,
           activeGrowth: 0,
-          todayGrowth: 0,
+          todayGrowth: todayGrowth,
           totalRevenue: 452808,
           revenueGrowth: 15.2,
           comparisonPeriod: 'last period',

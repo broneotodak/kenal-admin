@@ -167,13 +167,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      console.log('🚪 Starting logout process...')
+      
       const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      if (error) {
+        console.error('❌ Supabase signOut error:', error)
+        throw error
+      }
+      
+      console.log('✅ Supabase signOut successful')
+      
+      // Clear local auth state
       setUser(null)
       setIsAdmin(false)
+      
+      console.log('✅ Local auth state cleared')
+      
+      // Clear any cached auth data from browser storage
+      try {
+        localStorage.removeItem('sb-etkuxatycjqwvfjjwxqm-auth-token')
+        sessionStorage.clear()
+        console.log('✅ Browser storage cleared')
+      } catch (storageError) {
+        console.warn('⚠️ Could not clear storage:', storageError)
+      }
+      
+      // Navigate to login
       router.push('/login')
+      console.log('✅ Redirected to login')
+      
     } catch (e) {
-      console.error('Sign out error:', e)
+      console.error('🚨 Complete logout process failed:', e)
+      // Even if signOut fails, clear local state and redirect
+      setUser(null)
+      setIsAdmin(false)
+      
+      // Clear storage as fallback
+      try {
+        localStorage.clear()
+        sessionStorage.clear()
+        console.log('✅ Fallback storage clear completed')
+      } catch (storageError) {
+        console.warn('⚠️ Fallback storage clear failed:', storageError)
+      }
+      
+      router.push('/login')
     }
   }
 

@@ -496,7 +496,7 @@ export default function DashboardPage() {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box>
               <Typography variant="h6" fontWeight="600">
-                Users & Identity Registration Trends
+                Registration Trends
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Last updated: {currentTime || '...'} 🇲🇾 MY Time • Click on data points for details

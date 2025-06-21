@@ -9,7 +9,7 @@ interface User {
   email: string
   created_at: string
   gender?: string
-  element_number?: number
+  element_type?: number
   user_type?: number
   active: boolean
   identity_count?: number
@@ -75,7 +75,7 @@ export const useOptimizedUsers = ({
           email,
           created_at,
           gender,
-          element_number,
+          element_type,
           user_type,
           active,
           birth_date,
