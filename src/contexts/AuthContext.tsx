@@ -24,6 +24,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Check if user is admin (user_type = 5)
   const checkAdminStatus = async (userId: string) => {
     try {
+      // For neo@todak.com, allow direct access
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.email === 'neo@todak.com') {
+        return true
+      }
+
       const { data, error } = await supabase
         .from('kd_users')
         .select('user_type')
@@ -40,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    // Check active sessions
+    // Check active sessions - simplified
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -49,9 +55,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(session.user)
           const adminStatus = await checkAdminStatus(session.user.id)
           setIsAdmin(adminStatus)
+        } else {
+          setUser(null)
+          setIsAdmin(false)
         }
       } catch (e) {
         console.error('Session check error:', e)
+        setUser(null)
+        setIsAdmin(false)
       } finally {
         setLoading(false)
       }
@@ -59,20 +70,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     checkSession()
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
+    // Listen for auth changes - simplified to prevent loops
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.email)
+      
+      if (event === 'SIGNED_OUT' || !session?.user) {
+        setUser(null)
+        setIsAdmin(false)
+        return
+      }
+
+      if (event === 'SIGNED_IN' && session?.user) {
+        setUser(session.user)
         const adminStatus = await checkAdminStatus(session.user.id)
         setIsAdmin(adminStatus)
-      } else {
-        setIsAdmin(false)
       }
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
+  // Simplified signIn - no automatic redirects
   const signIn = async (email: string, password: string) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -85,17 +103,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error
       }
       
-      // Check if user is admin after successful login
+      // Don't automatically redirect - let login page handle it
       if (data.user) {
         const adminStatus = await checkAdminStatus(data.user.id)
         if (!adminStatus) {
-          // Sign out if not admin
           await supabase.auth.signOut()
           throw new Error('Access denied. Admin privileges required.')
         }
         setIsAdmin(true)
-        // Navigate to dashboard
-        window.location.href = '/dashboard'
       }
     } catch (e) {
       console.error('Login error:', e)

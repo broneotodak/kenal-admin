@@ -1,8 +1,6 @@
 'use client'
 
-
-
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Box,
@@ -15,7 +13,7 @@ import {
   CircularProgress,
   Container,
 } from '@mui/material'
-import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -23,8 +21,15 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const { user, isAdmin, signIn, loading: authLoading } = useAuth()
 
-
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!authLoading && user && isAdmin) {
+      console.log('User already authenticated, redirecting to dashboard')
+      router.push('/dashboard')
+    }
+  }, [user, isAdmin, authLoading, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,86 +39,40 @@ export default function LoginPage() {
     try {
       console.log('🔄 Starting login process for:', email)
       
-      // Authenticate with Supabase
-      console.log('🔑 Attempting Supabase authentication...')
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+      // Use simplified signIn from AuthContext
+      await signIn(email, password)
       
-      if (authError) {
-        console.error('❌ Auth error:', authError)
-        setError(`Authentication failed: ${authError.message}`)
-        return
-      }
-
-      console.log('✅ Login successful!')
-      
-      if (!data.user) {
-        setError('No user data received')
-        return
-      }
-
-      // For neo@todak.com, allow direct access (bypass database check for speed)
-      if (email === 'neo@todak.com') {
-        console.log('🚀 Direct access granted for neo@todak.com')
-        localStorage.setItem('kenal_admin_user', JSON.stringify({
-          id: data.user.id,
-          email: data.user.email,
-          name: 'Neo Admin'
-        }))
-        
-        router.push('/dashboard')
-        return
-      }
-      
-      // For other users, check admin status (simplified)
-      console.log('🔍 Checking admin status...')
-      const { data: userData, error: dbError } = await supabase
-        .from('kd_users')
-        .select('user_type, name, email')
-        .eq('id', data.user.id)
-        .single()
-      
-      if (dbError) {
-        console.error('Database error:', dbError)
-        // If it's a permission error, allow access anyway
-        if (dbError.message?.includes('RLS') || dbError.message?.includes('policy')) {
-          console.log('🔓 RLS issue - allowing access')
-          localStorage.setItem('kenal_admin_user', JSON.stringify({
-            id: data.user.id,
-            email: data.user.email,
-            name: 'Admin User'
-          }))
-          router.push('/dashboard')
-          return
-        }
-        
-        setError('Failed to verify admin status')
-        await supabase.auth.signOut()
-        return
-      }
-
-      if (userData && userData.user_type === 5) {
-        console.log('✅ Admin verified!')
-        localStorage.setItem('kenal_admin_user', JSON.stringify({
-          id: data.user.id,
-          email: data.user.email,
-          name: userData.name
-        }))
-        
-        router.push('/dashboard')
-      } else {
-        setError('Access denied. Admin privileges required.')
-        await supabase.auth.signOut()
-      }
+      console.log('✅ Login successful! Redirecting to dashboard...')
+      router.push('/dashboard')
 
     } catch (err: any) {
       console.error('🚨 Login error:', err)
-      setError('An unexpected error occurred')
+      setError(err.message || 'An unexpected error occurred')
     } finally {
       setLoading(false)
     }
+  }
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: '#0a1929',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    )
+  }
+
+  // Don't show login form if already authenticated
+  if (user && isAdmin) {
+    return null
   }
 
   return (
@@ -145,7 +104,6 @@ export default function LoginPage() {
               <Typography variant="caption" display="block" sx={{ mt: 1 }}>
                 (Admin users only - user_type = 5)
               </Typography>
-
             </Box>
 
             {error && (
@@ -165,6 +123,7 @@ export default function LoginPage() {
                 required
                 autoFocus
                 placeholder="Enter your email"
+                disabled={loading}
               />
               <TextField
                 fullWidth
@@ -175,6 +134,7 @@ export default function LoginPage() {
                 margin="normal"
                 required
                 placeholder="Your Kenal password"
+                disabled={loading}
               />
               <Button
                 type="submit"
@@ -198,8 +158,6 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
-
-
           </CardContent>
         </Card>
       </Container>

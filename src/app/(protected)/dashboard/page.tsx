@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { 
   Box, 
   Typography, 
@@ -42,6 +43,7 @@ import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
 import Chart from '@/components/Chart'
 import { useRealTimeDashboard } from '@/hooks/useRealTimeDashboard'
+import { useAuth } from '@/contexts/AuthContext'
 
 // Helper function to get country flag emoji
 const getCountryFlag = (countryCode?: string): string => {
@@ -110,6 +112,8 @@ interface ChartDataPoint {
 }
 
 export default function DashboardPage() {
+  const { user, isAdmin, loading: authLoading } = useAuth()
+  const router = useRouter()
   const theme = useThemeMode()
   const isDarkMode = theme.palette.mode === 'dark'
   const chartRef = useRef<any>(null)
@@ -128,6 +132,43 @@ export default function DashboardPage() {
     error,
     refetch: refreshDashboard
   } = useRealTimeDashboard(timeRange)
+
+  // Update time only on client side to avoid hydration issues (Malaysia timezone)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    
+    const updateTime = () => {
+      setCurrentTime(new Date().toLocaleTimeString('en-MY', { 
+        timeZone: 'Asia/Kuala_Lumpur',
+        hour12: false 
+      }))
+    }
+    updateTime()
+    const timeInterval = setInterval(updateTime, 1000)
+    return () => clearInterval(timeInterval)
+  }, [])
+
+  // Authentication guard
+  useEffect(() => {
+    if (!authLoading && (!user || !isAdmin)) {
+      console.log('Unauthorized access to dashboard, redirecting to login')
+      router.push('/login')
+    }
+  }, [user, isAdmin, authLoading, router])
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+        <CircularProgress />
+      </Box>
+    )
+  }
+
+  // Don't render if not authenticated
+  if (!user || !isAdmin) {
+    return null
+  }
 
   const handleExportChart = () => {
     setAnchorEl(null)
@@ -164,21 +205,6 @@ export default function DashboardPage() {
       chartRef.current.resetZoom()
     }
   }
-
-  // Update time only on client side to avoid hydration issues (Malaysia timezone)
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    
-    const updateTime = () => {
-      setCurrentTime(new Date().toLocaleTimeString('en-MY', { 
-        timeZone: 'Asia/Kuala_Lumpur',
-        hour12: false 
-      }))
-    }
-    updateTime()
-    const timeInterval = setInterval(updateTime, 1000)
-    return () => clearInterval(timeInterval)
-  }, [])
 
   const chartOptions: ChartOptions = {
     responsive: true,

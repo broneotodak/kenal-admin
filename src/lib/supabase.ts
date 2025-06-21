@@ -1,7 +1,32 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Environment variable validation with helpful error messages
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl) {
+  throw new Error(`
+    Missing NEXT_PUBLIC_SUPABASE_URL environment variable.
+    
+    Please create a .env.local file in your project root with:
+    NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+    
+    Get these values from your Supabase dashboard → Settings → API
+  `)
+}
+
+if (!supabaseAnonKey) {
+  throw new Error(`
+    Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable.
+    
+    Please create a .env.local file in your project root with:
+    NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+    
+    Get these values from your Supabase dashboard → Settings → API
+  `)
+}
 
 // Create a single supabase client for interacting with your database
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
