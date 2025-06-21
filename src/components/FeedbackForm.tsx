@@ -53,7 +53,7 @@ export default function FeedbackForm({
       
       if (success) {
         // Send ntfy notification
-        const priorityMap = {
+        const priorityMap: Record<string, 1 | 2 | 3 | 4 | 5> = {
           urgent: 5,
           bug: 4,
           feature: 3,
