@@ -25,7 +25,7 @@ interface UserCardProps {
     email: string
     created_at: string
     gender?: string
-    element_number?: number
+    element_type?: number
     active: boolean
     identity_count?: number
   }
@@ -43,9 +43,9 @@ export const UserMobileCard: React.FC<UserCardProps> = ({ user, onView, getEleme
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <Avatar 
               sx={{ 
-                bgcolor: alpha(getElementColor(user.element_number), 0.2),
-                color: getElementColor(user.element_number),
-                border: `2px solid ${alpha(getElementColor(user.element_number), 0.3)}`
+                bgcolor: alpha(getElementColor(user.element_type), 0.2),
+                color: getElementColor(user.element_type),
+                border: `2px solid ${alpha(getElementColor(user.element_type), 0.3)}`
               }}
             >
               {user.name?.charAt(0).toUpperCase()}
@@ -95,14 +95,14 @@ export const UserMobileCard: React.FC<UserCardProps> = ({ user, onView, getEleme
             </Box>
             
             <Box sx={{ display: 'flex', gap: 1 }}>
-              {user.element_number && (
+              {user.element_type && (
                 <Chip
-                  label={`E${user.element_number}`}
+                  label={`E${user.element_type}`}
                   size="small"
                   sx={{ 
-                    bgcolor: alpha(getElementColor(user.element_number), 0.2),
-                    color: getElementColor(user.element_number),
-                    border: `1px solid ${alpha(getElementColor(user.element_number), 0.3)}`,
+                    bgcolor: alpha(getElementColor(user.element_type), 0.2),
+                    color: getElementColor(user.element_type),
+                    border: `1px solid ${alpha(getElementColor(user.element_type), 0.3)}`,
                     fontWeight: 500
                   }}
                 />

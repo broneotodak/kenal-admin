@@ -48,7 +48,7 @@ export const useOptimizedUsers = (
             email,
             created_at,
             join_by_invitation,
-            element_number,
+            element_type,
             user_type,
             active,
             birth_date,
@@ -208,7 +208,7 @@ export const useOptimizedAnalytics = (timeRange: string = 'Last 30 Days') => {
         
         allUsers: () => supabase
           .from('kd_users')
-          .select('user_type, element_number, country, created_at, join_by_invitation'),
+          .select('user_type, element_type, country, created_at, join_by_invitation'),
         
         currentMonthUsers: () => {
           const currentMonth = new Date()
@@ -262,8 +262,8 @@ export const useOptimizedAnalytics = (timeRange: string = 'Last 30 Days') => {
 
       allUsers.forEach((user: any) => {
         // Element analysis
-        if (user.element_number) {
-          usersByElement[user.element_number] = (usersByElement[user.element_number] || 0) + 1
+        if (user.element_type) {
+          usersByElement[user.element_type] = (usersByElement[user.element_type] || 0) + 1
         }
         
         // Country analysis
