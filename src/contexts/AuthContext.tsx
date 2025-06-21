@@ -123,6 +123,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       console.log('🔐 Attempting login for:', email)
+      console.log('🌍 Environment check:', {
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        isProduction: process.env.NODE_ENV === 'production',
+        hostname: typeof window !== 'undefined' ? window.location.hostname : 'server'
+      })
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -131,6 +137,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (error) {
         console.error('❌ Auth error:', error)
+        console.error('❌ Auth error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name
+        })
         throw error
       }
       
