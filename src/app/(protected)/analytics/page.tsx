@@ -71,6 +71,7 @@ import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
 import Chart from '@/components/Chart'
 import { ELEMENTS, ELEMENT_NUMBER_TO_TYPE, getElementTypeFromNumber } from '@/lib/constants'
+import { useBehavioralAnalytics } from '@/hooks/useBehavioralTracking'
 
 // Types
 interface TabPanelProps {
@@ -201,6 +202,9 @@ export default function AnalyticsPage() {
       backgroundColor: 'rgba(33, 150, 243, 0.8)',
     }]
   })
+
+  // Behavioral analytics hook
+  const { analytics: behavioralAnalytics, loading: behavioralLoading, refreshAnalytics } = useBehavioralAnalytics()
 
 
 
@@ -1102,40 +1106,304 @@ export default function AnalyticsPage() {
 
       {/* BEHAVIORAL Tab */}
       <TabPanel value={activeTab} index={2}>
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  User Behavioral Analytics
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Behavioral insights and user engagement metrics coming soon...
-                </Typography>
-                <Box sx={{ mt: 3, p: 4, textAlign: 'center', bgcolor: 'action.hover', borderRadius: 2 }}>
-                  <Psychology sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-                  <Typography variant="h6" color="text.secondary">
-                    Advanced behavioral analytics will include:
+        {behavioralLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Grid container spacing={3}>
+            {/* User Journey Funnel */}
+            <Grid item xs={12} md={8}>
+              <Card>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" fontWeight="bold">
+                      kenal.com User Journey Funnel
+                    </Typography>
+                    <IconButton onClick={refreshAnalytics} size="small">
+                      <RestartAlt />
+                    </IconButton>
+                  </Box>
+                  
+                  {behavioralAnalytics && (
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6} md={2.4}>
+                        <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'primary.main', color: 'white', borderRadius: 2 }}>
+                          <Typography variant="h5" fontWeight="bold">
+                            {behavioralAnalytics.completionFunnel.registered}
+                          </Typography>
+                          <Typography variant="body2">
+                            Registered
+                          </Typography>
+                          <Typography variant="caption">
+                            100%
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={2.4}>
+                        <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'secondary.main', color: 'white', borderRadius: 2 }}>
+                          <Typography variant="h5" fontWeight="bold">
+                            {behavioralAnalytics.completionFunnel.hasElement}
+                          </Typography>
+                          <Typography variant="body2">
+                            Has Element
+                          </Typography>
+                          <Typography variant="caption">
+                            {((behavioralAnalytics.completionFunnel.hasElement / behavioralAnalytics.completionFunnel.registered) * 100).toFixed(1)}%
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={2.4}>
+                        <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'success.main', color: 'white', borderRadius: 2 }}>
+                          <Typography variant="h5" fontWeight="bold">
+                            {behavioralAnalytics.completionFunnel.hasProfile}
+                          </Typography>
+                          <Typography variant="body2">
+                            Complete Profile
+                          </Typography>
+                          <Typography variant="caption">
+                            {((behavioralAnalytics.completionFunnel.hasProfile / behavioralAnalytics.completionFunnel.registered) * 100).toFixed(1)}%
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={2.4}>
+                        <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'warning.main', color: 'white', borderRadius: 2 }}>
+                          <Typography variant="h5" fontWeight="bold">
+                            {behavioralAnalytics.completionFunnel.hasIdentity}
+                          </Typography>
+                          <Typography variant="body2">
+                            Created Identity
+                          </Typography>
+                          <Typography variant="caption">
+                            {((behavioralAnalytics.completionFunnel.hasIdentity / behavioralAnalytics.completionFunnel.registered) * 100).toFixed(1)}%
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={2.4}>
+                        <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'info.main', color: 'white', borderRadius: 2 }}>
+                          <Typography variant="h5" fontWeight="bold">
+                            {behavioralAnalytics.completionFunnel.hasEngaged}
+                          </Typography>
+                          <Typography variant="body2">
+                            Gave Feedback
+                          </Typography>
+                          <Typography variant="caption">
+                            {((behavioralAnalytics.completionFunnel.hasEngaged / behavioralAnalytics.completionFunnel.registered) * 100).toFixed(1)}%
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Engagement Scoring */}
+            <Grid item xs={12} md={4}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    User Engagement Score
                   </Typography>
-                  <List sx={{ mt: 2 }}>
-                    <ListItem>
-                      <ListItemText primary="• Identity creation patterns" />
-                    </ListItem>
-                    <ListItem>
-                      <ListItemText primary="• User engagement metrics" />
-                    </ListItem>
-                    <ListItem>
-                      <ListItemText primary="• Session duration analysis" />
-                    </ListItem>
-                    <ListItem>
-                      <ListItemText primary="• Feature usage tracking" />
-                    </ListItem>
-                  </List>
-                </Box>
-              </CardContent>
-            </Card>
+                  
+                  {behavioralAnalytics && (
+                    <Stack spacing={2}>
+                      <Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2">🔥 Engaged (76-100)</Typography>
+                          <Typography variant="body2" fontWeight="bold">{behavioralAnalytics.engagementScores.engaged}</Typography>
+                        </Box>
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={(behavioralAnalytics.engagementScores.engaged / behavioralAnalytics.totalUsers) * 100}
+                          color="success"
+                          sx={{ height: 8, borderRadius: 4 }}
+                        />
+                      </Box>
+                      
+                      <Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2">⚡ Active (51-75)</Typography>
+                          <Typography variant="body2" fontWeight="bold">{behavioralAnalytics.engagementScores.active}</Typography>
+                        </Box>
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={(behavioralAnalytics.engagementScores.active / behavioralAnalytics.totalUsers) * 100}
+                          color="warning"
+                          sx={{ height: 8, borderRadius: 4 }}
+                        />
+                      </Box>
+                      
+                      <Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2">🌡️ Warm (26-50)</Typography>
+                          <Typography variant="body2" fontWeight="bold">{behavioralAnalytics.engagementScores.warm}</Typography>
+                        </Box>
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={(behavioralAnalytics.engagementScores.warm / behavioralAnalytics.totalUsers) * 100}
+                          color="info"
+                          sx={{ height: 8, borderRadius: 4 }}
+                        />
+                      </Box>
+                      
+                      <Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2">🧊 Cold (0-25)</Typography>
+                          <Typography variant="body2" fontWeight="bold">{behavioralAnalytics.engagementScores.cold}</Typography>
+                        </Box>
+                        <LinearProgress 
+                          variant="determinate" 
+                          value={(behavioralAnalytics.engagementScores.cold / behavioralAnalytics.totalUsers) * 100}
+                          color="error"
+                          sx={{ height: 8, borderRadius: 4 }}
+                        />
+                      </Box>
+                    </Stack>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Element-Based Behavior */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Element-Based Behavior Patterns
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    How different element types behave on kenal.com
+                  </Typography>
+                  
+                  {behavioralAnalytics && Object.keys(behavioralAnalytics.elementBehavior).length > 0 ? (
+                    <Stack spacing={2}>
+                      {Object.entries(behavioralAnalytics.elementBehavior).map(([elementName, data]) => {
+                        const elementData = Object.values(ELEMENTS).find(e => e.name === elementName)
+                        return (
+                          <Box key={elementName} sx={{ 
+                            p: 2, 
+                            bgcolor: alpha(elementData?.color || '#9E9E9E', 0.1),
+                            borderRadius: 2,
+                            border: `1px solid ${alpha(elementData?.color || '#9E9E9E', 0.3)}`
+                          }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                              <Typography sx={{ fontSize: '1.2rem' }}>{elementData?.symbol}</Typography>
+                              <Typography variant="subtitle1" fontWeight="bold">{elementName}</Typography>
+                              <Chip label={`${data.users} users`} size="small" />
+                            </Box>
+                            <Grid container spacing={1}>
+                              <Grid item xs={4}>
+                                <Typography variant="caption" color="text.secondary">Avg Identities</Typography>
+                                <Typography variant="body2" fontWeight="bold">{data.avgIdentities}</Typography>
+                              </Grid>
+                              <Grid item xs={4}>
+                                <Typography variant="caption" color="text.secondary">Time to Identity</Typography>
+                                <Typography variant="body2" fontWeight="bold">{data.avgTimeToIdentity}d</Typography>
+                              </Grid>
+                              <Grid item xs={4}>
+                                <Typography variant="caption" color="text.secondary">Engagement Rate</Typography>
+                                <Typography variant="body2" fontWeight="bold">{data.engagementRate}%</Typography>
+                              </Grid>
+                            </Grid>
+                          </Box>
+                        )
+                      })}
+                    </Stack>
+                  ) : (
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                      <Category sx={{ fontSize: 40, color: 'text.secondary', mb: 2 }} />
+                      <Typography variant="body2" color="text.secondary">
+                        No element behavior data available
+                      </Typography>
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Time Patterns */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    User Journey Time Patterns
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Average time users take to complete key actions
+                  </Typography>
+                  
+                  {behavioralAnalytics && (
+                    <Stack spacing={3}>
+                      <Box sx={{ textAlign: 'center', p: 3, bgcolor: 'action.hover', borderRadius: 2 }}>
+                        <Typography variant="h4" fontWeight="bold" color="primary.main">
+                          {behavioralAnalytics.timePatterns.avgTimeToIdentity}
+                        </Typography>
+                        <Typography variant="body1" fontWeight="bold">Days</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Average time to first identity creation
+                        </Typography>
+                      </Box>
+                      
+                      <Box sx={{ textAlign: 'center', p: 3, bgcolor: 'action.hover', borderRadius: 2 }}>
+                        <Typography variant="h4" fontWeight="bold" color="secondary.main">
+                          {behavioralAnalytics.timePatterns.avgTimeToFeedback}
+                        </Typography>
+                        <Typography variant="body1" fontWeight="bold">Days</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Average time to first feedback submission
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Registration Trends */}
+            <Grid item xs={12}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    Registration Trends (Last 30 Days)
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Daily registration patterns showing direct vs invited signups
+                  </Typography>
+                  
+                  {behavioralAnalytics && behavioralAnalytics.registrationTrends.length > 0 && (
+                    <Box sx={{ height: 300 }}>
+                      <Chart 
+                        data={{
+                          labels: behavioralAnalytics.registrationTrends.map(t => t.date),
+                          datasets: [
+                            {
+                              label: 'Direct Registrations',
+                              data: behavioralAnalytics.registrationTrends.map(t => t.direct),
+                              borderColor: '#4CAF50',
+                              backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                              tension: 0.4,
+                              fill: true,
+                            },
+                            {
+                              label: 'Invited Registrations',
+                              data: behavioralAnalytics.registrationTrends.map(t => t.invited),
+                              borderColor: '#9C27B0',
+                              backgroundColor: 'rgba(156, 39, 176, 0.2)',
+                              tension: 0.4,
+                              fill: true,
+                            }
+                          ]
+                        }}
+                        options={chartOptions}
+                      />
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
           </Grid>
-        </Grid>
+        )}
       </TabPanel>
 
       {/* FINANCIAL Tab */}
