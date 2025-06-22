@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { AUTO_LOGOUT } from '@/lib/constants'
 
 interface UseAutoLogoutOptions {
   inactivityTimeout?: number // in minutes
@@ -10,8 +11,8 @@ interface UseAutoLogoutOptions {
 }
 
 export const useAutoLogout = ({
-  inactivityTimeout = 30, // 30 minutes default
-  warningTime = 5, // 5 minutes warning
+  inactivityTimeout = AUTO_LOGOUT.INACTIVITY_TIMEOUT,
+  warningTime = AUTO_LOGOUT.WARNING_TIME,
   onWarning,
   onLogout
 }: UseAutoLogoutOptions = {}) => {

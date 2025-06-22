@@ -38,7 +38,8 @@ export default function FeedbackForm({
   const [formData, setFormData] = useState<CreateFeedbackData>({
     title: '',
     description: '',
-    type: initialType
+    type: initialType,
+    project: 'kenal.com'
   })
   const [showSuccess, setShowSuccess] = useState(false)
 
@@ -46,6 +47,14 @@ export default function FeedbackForm({
     if (!formData.title.trim() || !formData.description.trim()) {
       return
     }
+
+    // Debug authentication
+    console.log('🔍 Feedback submission debug:', {
+      hasAdminEmail: !!adminEmail,
+      adminEmail,
+      formData,
+      timestamp: new Date().toISOString()
+    })
 
     try {
       // Save to database
@@ -76,10 +85,19 @@ export default function FeedbackForm({
         })
 
         setShowSuccess(true)
+        
+        // Immediately notify parent to refresh data
+        window.dispatchEvent(new CustomEvent('feedbackSubmitted', {
+          detail: { 
+            newFeedback: true,
+            timestamp: new Date().toISOString() 
+          }
+        }))
+        
         setTimeout(() => {
           setShowSuccess(false)
           handleClose()
-        }, 2000)
+        }, 1500)
       }
     } catch (error) {
       console.error('Error submitting feedback:', error)
@@ -90,7 +108,8 @@ export default function FeedbackForm({
     setFormData({
       title: '',
       description: '',
-      type: initialType
+      type: initialType,
+      project: 'kenal.com'
     })
     setShowSuccess(false)
     onClose()
@@ -135,6 +154,18 @@ export default function FeedbackForm({
           </Alert>
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <FormControl fullWidth>
+              <InputLabel>Project</InputLabel>
+              <Select
+                value={formData.project}
+                label="Project"
+                onChange={(e) => setFormData(prev => ({ ...prev, project: e.target.value as any }))}
+              >
+                <MenuItem value="kenal.com">🌐 Kenal.com (Main App)</MenuItem>
+                <MenuItem value="ADMIN">⚙️ Admin Dashboard</MenuItem>
+              </Select>
+            </FormControl>
+
             <FormControl fullWidth>
               <InputLabel>Feedback Type</InputLabel>
               <Select

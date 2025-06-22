@@ -70,6 +70,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
 import Chart from '@/components/Chart'
+import { ELEMENTS, ELEMENT_NUMBER_TO_TYPE, getElementTypeFromNumber } from '@/lib/constants'
 
 // Types
 interface TabPanelProps {
@@ -84,7 +85,7 @@ interface AnalyticsData {
   monthlyGrowthRate: number
   avgDailyRegistrations: number
   totalIdentities: number
-  usersByElement: { [key: number]: number }
+  usersByElement: { [key: number]: number } // Indexed by element number (1-9)
   usersByCountry: { [key: string]: number }
   usersByGender: { [key: string]: number }
   usersByType: { admin: number, public: number }
@@ -201,14 +202,7 @@ export default function AnalyticsPage() {
     }]
   })
 
-  // Element information - Updated to match KENAL JSON structure
-  const elementInfo = {
-    1: { name: 'Wood', color: '#059669', symbol: '🌳' },    // emerald-600
-    2: { name: 'Metal', color: '#4B5563', symbol: '⚡' },   // gray-600  
-    3: { name: 'Earth', color: '#D97706', symbol: '🏔️' },   // amber-600
-    4: { name: 'Fire', color: '#DC2626', symbol: '🔥' },    // red-600
-    5: { name: 'Water', color: '#2563EB', symbol: '🌊' },   // blue-600
-  }
+
 
   const loadChartData = async (range: string) => {
     try {
@@ -464,7 +458,7 @@ export default function AnalyticsPage() {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
       const { data: recentUsers } = await supabase
         .from('kd_users')
-        .select('created_at, user_type, element_type, gender, registration_country, join_by_invitation')
+        .select('created_at, user_type, element_number, gender, registration_country, join_by_invitation')
         .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: true })
 
@@ -497,19 +491,22 @@ export default function AnalyticsPage() {
       // Get ALL users for segmentation analysis (not just last 30 days)
       const { data: allUsers } = await supabase
         .from('kd_users')
-        .select('user_type, element_type, gender, registration_country')
+        .select('user_type, element_number, gender, registration_country')
 
       // Process user segmentation from ALL users
-      const usersByElement: { [key: number]: number } = {}
+      // Initialize all element numbers (1-9) with 0 count
+      const usersByElement: { [key: number]: number } = {
+        1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0
+      }
       const usersByCountry: { [key: string]: number } = {}
       const usersByGender: { [key: string]: number } = {}
       let adminCount = 0
       let publicCount = 0
 
       allUsers?.forEach(user => {
-        // Element analysis
-        if (user.element_type) {
-          usersByElement[user.element_type] = (usersByElement[user.element_type] || 0) + 1
+        // Element analysis - Count by individual element numbers
+        if (user.element_number && user.element_number >= 1 && user.element_number <= 9) {
+          usersByElement[user.element_number] = (usersByElement[user.element_number] || 0) + 1
         }
         
         // Country analysis
@@ -1062,37 +1059,40 @@ export default function AnalyticsPage() {
                   Element Distribution
                 </Typography>
                 <Stack spacing={1}>
-                  {Object.entries(analyticsData.usersByElement).map(([element, count]) => {
-                    const elementNum = parseInt(element)
-                    const info = elementInfo[elementNum as keyof typeof elementInfo]
-                    return (
-                      <Box key={element} 
-                        sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center',
-                          p: 1,
-                          bgcolor: alpha(info?.color || '#9E9E9E', 0.1),
-                          borderRadius: 1,
-                          border: `1px solid ${alpha(info?.color || '#9E9E9E', 0.3)}`
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography sx={{ fontSize: '1.2rem' }}>{info?.symbol}</Typography>
-                          <Typography>Element {element}: {info?.name}</Typography>
-                        </Box>
-                        <Chip 
-                          label={count} 
-                          size="small" 
+                  {Object.entries(analyticsData.usersByElement)
+                    .sort(([a], [b]) => parseInt(a) - parseInt(b)) // Sort by element number
+                    .map(([element, count]) => {
+                      const elementNum = parseInt(element)
+                      const elementType = ELEMENT_NUMBER_TO_TYPE[elementNum as keyof typeof ELEMENT_NUMBER_TO_TYPE]
+                      const info = elementType ? ELEMENTS[elementType as keyof typeof ELEMENTS] : null
+                      return (
+                        <Box key={element} 
                           sx={{ 
-                            bgcolor: info?.color, 
-                            color: 'white',
-                            fontWeight: 'bold'
-                          }} 
-                        />
-                      </Box>
-                    )
-                  })}
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            p: 1,
+                            bgcolor: alpha(info?.color || '#9E9E9E', 0.1),
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(info?.color || '#9E9E9E', 0.3)}`
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography sx={{ fontSize: '1.2rem' }}>{info?.symbol || '❓'}</Typography>
+                            <Typography>User with element {element} ({info?.name || 'Unknown'})</Typography>
+                          </Box>
+                          <Chip 
+                            label={count} 
+                            size="small" 
+                            sx={{ 
+                              bgcolor: info?.color || '#9E9E9E', 
+                              color: 'white',
+                              fontWeight: 'bold'
+                            }} 
+                          />
+                        </Box>
+                      )
+                    })}
                 </Stack>
               </CardContent>
             </Card>
@@ -1254,38 +1254,41 @@ export default function AnalyticsPage() {
                 </Typography>
                 
                 <Grid container spacing={2} sx={{ mt: 2 }}>
-                  {Object.entries(analyticsData.usersByElement).map(([element, count]) => {
-                    const elementNum = parseInt(element)
-                    const info = elementInfo[elementNum as keyof typeof elementInfo]
-                    const percentage = ((count / analyticsData.totalUsers) * 100).toFixed(1)
-                    
-                    return (
-                      <Grid item xs={12} sm={6} md={4} key={element}>
-                        <Card 
-                          variant="outlined"
-                          sx={{ 
-                            bgcolor: alpha(info?.color || '#9E9E9E', 0.1),
-                            border: `2px solid ${alpha(info?.color || '#9E9E9E', 0.3)}`
-                          }}
-                        >
-                          <CardContent sx={{ textAlign: 'center' }}>
-                            <Typography sx={{ fontSize: '2rem', mb: 1 }}>
-                              {info?.symbol}
-                            </Typography>
-                            <Typography variant="h6" fontWeight="bold" gutterBottom>
-                              Element {element}: {info?.name}
-                            </Typography>
-                            <Typography variant="h4" fontWeight="bold" color={info?.color}>
-                              {count}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {percentage}% of users
-                            </Typography>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    )
-                  })}
+                  {Object.entries(analyticsData.usersByElement)
+                    .sort(([a], [b]) => parseInt(a) - parseInt(b)) // Sort by element number
+                    .map(([element, count]) => {
+                      const elementNum = parseInt(element)
+                      const elementType = ELEMENT_NUMBER_TO_TYPE[elementNum as keyof typeof ELEMENT_NUMBER_TO_TYPE]
+                      const info = elementType ? ELEMENTS[elementType as keyof typeof ELEMENTS] : null
+                      const percentage = ((count / analyticsData.totalUsers) * 100).toFixed(1)
+                      
+                      return (
+                        <Grid item xs={12} sm={6} md={4} key={element}>
+                          <Card 
+                            variant="outlined"
+                            sx={{ 
+                              bgcolor: alpha(info?.color || '#9E9E9E', 0.1),
+                              border: `2px solid ${alpha(info?.color || '#9E9E9E', 0.3)}`
+                            }}
+                          >
+                            <CardContent sx={{ textAlign: 'center' }}>
+                              <Typography sx={{ fontSize: '2rem', mb: 1 }}>
+                                {info?.symbol || '❓'}
+                              </Typography>
+                              <Typography variant="h6" fontWeight="bold" gutterBottom>
+                                Element {element} ({info?.name || 'Unknown'})
+                              </Typography>
+                              <Typography variant="h4" fontWeight="bold" color={info?.color || '#9E9E9E'}>
+                                {count}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {percentage}% of users
+                              </Typography>
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      )
+                    })}
                 </Grid>
               </CardContent>
             </Card>

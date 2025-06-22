@@ -27,11 +27,18 @@ export default function LoginPage() {
 
   // Redirect if already authenticated
   useEffect(() => {
+    console.log('🔍 Login page auth state:', { authLoading, user: user?.email, isAdmin })
+    
     if (!authLoading && user && isAdmin) {
-      console.log('User already authenticated, redirecting to dashboard')
+      console.log('✅ User already authenticated, redirecting to dashboard')
       router.push('/dashboard')
     }
   }, [user, isAdmin, authLoading, router])
+
+  // Debug logging for auth loading state changes
+  useEffect(() => {
+    console.log('🔄 Auth loading state changed:', authLoading)
+  }, [authLoading])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,12 +69,21 @@ export default function LoginPage() {
         sx={{
           minHeight: '100vh',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: '#0a1929',
+          gap: 2
         }}
       >
         <CircularProgress />
+        <Typography variant="body2" color="white" sx={{ mt: 2 }}>
+          Checking authentication...
+        </Typography>
+        {/* Debug info */}
+        <Typography variant="caption" color="white" sx={{ opacity: 0.7 }}>
+          Debug: authLoading={String(authLoading)}, user={user?.email || 'none'}, isAdmin={String(isAdmin)}
+        </Typography>
       </Box>
     )
   }

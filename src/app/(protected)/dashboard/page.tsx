@@ -44,62 +44,7 @@ import { useTheme as useThemeMode } from '@mui/material/styles'
 import Chart from '@/components/Chart'
 import { useRealTimeDashboard } from '@/hooks/useRealTimeDashboard'
 import { useAuth } from '@/contexts/AuthContext'
-
-// Helper function to get country flag emoji
-const getCountryFlag = (countryCode?: string): string => {
-  if (!countryCode) return '🌍'
-  
-  const flagMap: { [key: string]: string } = {
-    'US': '🇺🇸', 'USA': '🇺🇸', 'United States': '🇺🇸',
-    'MY': '🇲🇾', 'Malaysia': '🇲🇾',
-    'SG': '🇸🇬', 'Singapore': '🇸🇬',
-    'ID': '🇮🇩', 'Indonesia': '🇮🇩',
-    'TH': '🇹🇭', 'Thailand': '🇹🇭',
-    'VN': '🇻🇳', 'Vietnam': '🇻🇳',
-    'PH': '🇵🇭', 'Philippines': '🇵🇭',
-    'CN': '🇨🇳', 'China': '🇨🇳',
-    'JP': '🇯🇵', 'Japan': '🇯🇵',
-    'KR': '🇰🇷', 'Korea': '🇰🇷', 'South Korea': '🇰🇷',
-    'IN': '🇮🇳', 'India': '🇮🇳',
-    'AU': '🇦🇺', 'Australia': '🇦🇺',
-    'UK': '🇬🇧', 'GB': '🇬🇧', 'United Kingdom': '🇬🇧',
-    'CA': '🇨🇦', 'Canada': '🇨🇦',
-    'DE': '🇩🇪', 'Germany': '🇩🇪',
-    'FR': '🇫🇷', 'France': '🇫🇷',
-    'BR': '🇧🇷', 'Brazil': '🇧🇷',
-    'MX': '🇲🇽', 'Mexico': '🇲🇽',
-  }
-  
-  return flagMap[countryCode] || flagMap[countryCode.toUpperCase()] || '🌍'
-}
-
-// Helper function to get country display name
-const getCountryName = (countryCode?: string): string => {
-  if (!countryCode) return 'Unknown'
-  
-  const countryMap: { [key: string]: string } = {
-    'US': 'United States', 'USA': 'United States',
-    'MY': 'Malaysia',
-    'SG': 'Singapore', 
-    'ID': 'Indonesia',
-    'TH': 'Thailand',
-    'VN': 'Vietnam',
-    'PH': 'Philippines',
-    'CN': 'China',
-    'JP': 'Japan',
-    'KR': 'South Korea', 'Korea': 'South Korea',
-    'IN': 'India',
-    'AU': 'Australia',
-    'UK': 'United Kingdom', 'GB': 'United Kingdom',
-    'CA': 'Canada',
-    'DE': 'Germany',
-    'FR': 'France',
-    'BR': 'Brazil',
-    'MX': 'Mexico',
-  }
-  
-  return countryMap[countryCode] || countryMap[countryCode.toUpperCase()] || countryCode
-}
+import { getCountryFlag, getCountryName, formatTime, downloadCSV } from '@/lib/utils'
 
 // Use any for chart options due to dynamic import
 type ChartOptions = any
@@ -138,10 +83,7 @@ export default function DashboardPage() {
     if (typeof window === 'undefined') return
     
     const updateTime = () => {
-      setCurrentTime(new Date().toLocaleTimeString('en-MY', { 
-        timeZone: 'Asia/Kuala_Lumpur',
-        hour12: false 
-      }))
+      setCurrentTime(formatTime(new Date()))
     }
     updateTime()
     const timeInterval = setInterval(updateTime, 1000)
@@ -173,9 +115,6 @@ export default function DashboardPage() {
   const handleExportChart = () => {
     setAnchorEl(null)
     
-    // Only run on client side
-    if (typeof window === 'undefined') return
-    
     const csvData = chartDataPoints.map((point: any, index: number) => ({
       'Date/Time': chartData.labels[index],
       'Direct Registrations': point.directRegistrations || 0,
@@ -186,18 +125,7 @@ export default function DashboardPage() {
     
     if (csvData.length === 0) return
     
-    const csvContent = [
-      Object.keys(csvData[0]).join(','),
-      ...csvData.map((row: any) => Object.values(row).join(','))
-    ].join('\n')
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `kenal-users-${timeRange}-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
+    downloadCSV(csvData, `kenal-users-${timeRange}`)
   }
 
   const handleResetZoom = () => {

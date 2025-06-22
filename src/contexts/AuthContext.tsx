@@ -21,8 +21,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false)
   const router = useRouter()
 
-  // Check if user is admin (user_type = 5) - WITH TIMEOUT AND BETTER ERROR HANDLING
-  const checkAdminStatus = async (userId: string) => {
+  // Safety mechanism: Force stop loading after maximum timeout
+  useEffect(() => {
+    const forceStopLoading = setTimeout(() => {
+      if (loading) {
+        console.warn('🚨 Auth loading timeout reached - forcing stop')
+        setLoading(false)
+        setUser(null)
+        setIsAdmin(false)
+      }
+    }, 20000) // 20 second maximum timeout
+
+    return () => clearTimeout(forceStopLoading)
+  }, [loading])
+
+  // Check if user is admin (user_type = 5) - WITH IMPROVED ERROR HANDLING
+  const checkAdminStatus = async (userId: string): Promise<boolean> => {
     try {
       // For neo@todak.com, allow direct access
       const { data: { session } } = await supabase.auth.getSession()
@@ -33,9 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log('🔍 Checking admin status for user:', userId)
       
-      // Add timeout to prevent infinite loading
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Admin check timeout')), 10000)
+      // Shorter timeout for faster fallback
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('Admin check timeout after 5s')), 5000)
       )
       
       const queryPromise = supabase
@@ -44,20 +58,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', userId)
         .single()
       
-      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise])
       
       if (error) {
         console.error('❌ Admin check error:', error)
-        // If it's an RLS error, allow access for now
+        
+        // Handle specific error cases
+        if (error.message?.includes('timeout')) {
+          console.warn('⏰ Admin check timed out - denying access for safety')
+          return false
+        }
+        
+        // If it's an RLS error, allow access for development
         if (error.message?.includes('RLS') || error.message?.includes('policy') || error.code === '42501') {
-          console.log('🔓 RLS policy issue - allowing access')
+          console.log('🔓 RLS policy issue - allowing access (dev mode)')
           return true
         }
+        
         // If user not found in kd_users, deny access
         if (error.code === 'PGRST116') {
           console.log('❌ User not found in kd_users table')
           return false
         }
+        
+        // For other errors, deny access for safety
+        console.warn('⚠️ Unknown error - denying access for safety')
         return false
       }
       
@@ -67,32 +92,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
     } catch (e) {
       console.error('❌ Admin status check failed:', e)
+      console.log('🔒 Defaulting to non-admin access')
       return false
     }
   }
 
   useEffect(() => {
-    // Check active sessions - simplified
+    // Check active sessions with timeout protection
     const checkSession = async () => {
       try {
         console.log('🔄 Checking existing session...')
+        
+        // Add overall timeout for the entire session check
+        const sessionCheckPromise = new Promise(async (resolve, reject) => {
+          try {
         const { data: { session } } = await supabase.auth.getSession()
         
         if (session?.user) {
           console.log('👤 Found existing session for:', session.user.email)
           setUser(session.user)
+              
+              // Check admin status with timeout protection
+              try {
           const adminStatus = await checkAdminStatus(session.user.id)
           setIsAdmin(adminStatus)
+                resolve(true)
+              } catch (adminError) {
+                console.warn('⚠️ Admin check failed, defaulting to false:', adminError)
+                setIsAdmin(false)
+                resolve(true)
+              }
         } else {
           console.log('🚫 No existing session found')
           setUser(null)
           setIsAdmin(false)
-        }
+              resolve(true)
+            }
+          } catch (sessionError) {
+            reject(sessionError)
+          }
+        })
+        
+        // Add 15-second timeout for the entire session check
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session check timeout')), 15000)
+        )
+        
+        await Promise.race([sessionCheckPromise, timeoutPromise])
+        
       } catch (e) {
-        console.error('Session check error:', e)
+        console.error('🚨 Session check failed:', e)
+        console.log('🔓 Falling back to logged-out state')
         setUser(null)
         setIsAdmin(false)
       } finally {
+        console.log('✅ Auth loading complete')
         setLoading(false)
       }
     }

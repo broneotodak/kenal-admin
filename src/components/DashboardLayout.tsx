@@ -49,8 +49,9 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useAutoLogout } from '@/hooks/useAutoLogout'
 import AutoLogoutWarning from './AutoLogoutWarning'
+import { UI, AUTO_LOGOUT } from '@/lib/constants'
 
-const drawerWidth = 280
+const drawerWidth = UI.DRAWER_WIDTH
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -87,8 +88,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   // Auto-logout functionality
   const { extendSession } = useAutoLogout({
-    inactivityTimeout: 30, // 30 minutes
-    warningTime: 5, // 5 minute warning
+    inactivityTimeout: AUTO_LOGOUT.INACTIVITY_TIMEOUT,
+    warningTime: AUTO_LOGOUT.WARNING_TIME,
     onWarning: () => {
       setShowLogoutWarning(true)
     },

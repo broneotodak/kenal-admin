@@ -71,6 +71,7 @@ import {
   useSmartUserFilterOptions,
   useSmartUserStatistics
 } from '@/hooks/useSmartOptimizedUsers'
+import { getCountryFlag, getElementColor, getElementInfo, getDisplayName, downloadCSV } from '@/lib/utils'
 
 interface User {
   id: string
@@ -99,19 +100,7 @@ interface UserFilters {
 // Element visualization component
 const ElementVisualization = ({ element }: { element: number }) => {
   const theme = useTheme()
-  const elementInfo = {
-    1: { name: 'Wood', color: '#059669', symbol: '🌳' },    // emerald-600
-    2: { name: 'Metal', color: '#4B5563', symbol: '⚡' },   // gray-600  
-    3: { name: 'Earth', color: '#D97706', symbol: '🏔️' },   // amber-600
-    4: { name: 'Fire', color: '#DC2626', symbol: '🔥' },    // red-600
-    5: { name: 'Water', color: '#2563EB', symbol: '🌊' },   // blue-600
-  }
-
-  const info = elementInfo[element as keyof typeof elementInfo] || { 
-    name: 'Unknown', 
-    color: '#9E9E9E', 
-    symbol: '❓' 
-  }
+  const info = getElementInfo(element)
 
   return (
     <Box sx={{ 
@@ -451,26 +440,7 @@ export default function UsersPage() {
     }
   }
 
-  const getElementColor = (element?: number) => {
-    const colors = {
-      1: '#059669',  // Wood - emerald-600
-      2: '#4B5563',  // Metal - gray-600
-      3: '#D97706',  // Earth - amber-600
-      4: '#DC2626',  // Fire - red-600
-      5: '#2563EB',  // Water - blue-600
-    }
-    return colors[element as keyof typeof colors] || '#9E9E9E'
-  }
 
-  const getCountryFlag = (countryCode?: string) => {
-    const flags: { [key: string]: string } = {
-      'US': '🇺🇸', 'UK': '🇬🇧', 'CA': '🇨🇦', 'AU': '🇦🇺',
-      'DE': '🇩🇪', 'FR': '🇫🇷', 'MY': '🇲🇾', 'SG': '🇸🇬',
-      'IN': '🇮🇳', 'JP': '🇯🇵', 'CN': '🇨🇳', 'KR': '🇰🇷',
-      'TH': '🇹🇭', 'VN': '🇻🇳', 'ID': '🇮🇩', 'PH': '🇵🇭'
-    }
-    return flags[countryCode || ''] || '🌍'
-  }
 
   const handleDeleteUser = async (userId: string, userName: string) => {
     if (window.confirm(`⚠️ WARNING: Delete user "${userName}"?\n\nThis will permanently delete:\n• User account\n• All identity data\n• All associated records\n\nThis action CANNOT be undone!`)) {
