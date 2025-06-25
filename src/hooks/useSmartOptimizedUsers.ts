@@ -45,8 +45,11 @@ export const useSmartOptimizedUsers = (params: UseSmartOptimizedUsersParams) => 
   // Always start with true to avoid SSR hydration mismatch, then check cache
   const [useViews, setUseViews] = useState(true)
   
+  // Immediate check to prevent even first call if cache indicates views don't exist
+  const shouldUseViews = useViews && (typeof window === 'undefined' || getViewsExistCache() !== false)
+  
   // ONLY call one hook at a time to prevent double loading
-  const viewsResult = useViews ? useOptimizedUsersViews(params) : {
+  const viewsResult = shouldUseViews ? useOptimizedUsersViews(params) : {
     users: [],
     totalCount: 0,
     loading: false,
@@ -54,7 +57,7 @@ export const useSmartOptimizedUsers = (params: UseSmartOptimizedUsersParams) => 
     refetch: () => {}
   }
   
-  const directResult = !useViews ? useOptimizedUsers(params) : {
+  const directResult = !shouldUseViews ? useOptimizedUsers(params) : {
     users: [],
     totalCount: 0,
     loading: false,
@@ -72,7 +75,7 @@ export const useSmartOptimizedUsers = (params: UseSmartOptimizedUsersParams) => 
 
   // Monitor for view errors and switch to direct queries IMMEDIATELY
   useEffect(() => {
-    if (useViews && viewsResult.error) {
+    if (shouldUseViews && viewsResult.error) {
       // Check for any database view related errors
       const isViewError = viewsResult.error.includes('does not exist') || 
                          viewsResult.error.includes('relation') ||
@@ -84,10 +87,10 @@ export const useSmartOptimizedUsers = (params: UseSmartOptimizedUsersParams) => 
         setUseViews(false)
       }
     }
-  }, [useViews, viewsResult.error])
+  }, [shouldUseViews, viewsResult.error])
 
   // Return the appropriate result
-  if (useViews) {
+  if (shouldUseViews) {
     return {
       ...viewsResult,
       mode: 'views' as const
@@ -105,14 +108,17 @@ export const useSmartUserFilterOptions = () => {
   // Always start with true to avoid SSR hydration mismatch, then check cache
   const [useViews, setUseViews] = useState(true)
   
+  // Immediate check to prevent even first call if cache indicates views don't exist
+  const shouldUseViews = useViews && (typeof window === 'undefined' || getViewsExistCache() !== false)
+  
   // ONLY call one hook at a time to prevent double loading
-  const viewsResult = useViews ? useUserFilterOptionsViews() : {
+  const viewsResult = shouldUseViews ? useUserFilterOptionsViews() : {
     countries: [],
     loading: false,
     refetch: () => {}
   }
   
-  const directResult = !useViews ? useUserFilterOptions() : {
+  const directResult = !shouldUseViews ? useUserFilterOptions() : {
     countries: [],
     loading: false,
     refetch: () => {}
@@ -127,7 +133,7 @@ export const useSmartUserFilterOptions = () => {
   }, [])
 
   // Return the appropriate result
-  if (useViews) {
+  if (shouldUseViews) {
     return {
       ...viewsResult,
       mode: 'views' as const
@@ -145,8 +151,11 @@ export const useSmartUserStatistics = () => {
   // Always start with true to avoid SSR hydration mismatch, then check cache
   const [useViews, setUseViews] = useState(true)
   
+  // Immediate check to prevent even first call if cache indicates views don't exist
+  const shouldUseViews = useViews && (typeof window === 'undefined' || getViewsExistCache() !== false)
+  
   // ONLY call one hook at a time to prevent double loading
-  const viewsResult = useViews ? useUserStatisticsViews() : {
+  const viewsResult = shouldUseViews ? useUserStatisticsViews() : {
     stats: {
       totalUsers: 0,
       activeUsers: 0,
@@ -158,7 +167,7 @@ export const useSmartUserStatistics = () => {
     refetch: () => {}
   }
   
-  const directResult = !useViews ? useUserStatistics() : {
+  const directResult = !shouldUseViews ? useUserStatistics() : {
     stats: {
       totalUsers: 0,
       activeUsers: 0,
@@ -179,7 +188,7 @@ export const useSmartUserStatistics = () => {
   }, [])
 
   // Return the appropriate result
-  if (useViews) {
+  if (shouldUseViews) {
     return {
       ...viewsResult,
       mode: 'views' as const
