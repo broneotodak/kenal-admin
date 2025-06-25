@@ -56,13 +56,11 @@ import {
 import { supabase } from '@/lib/supabase'
 import { UserMobileCard } from '@/components/UserMobileCard'
 import { 
-  useOptimizedUserDetails
+  useOptimizedUsers,
+  useOptimizedUserDetails,
+  useUserFilterOptions,
+  useUserStatistics
 } from '@/hooks/useOptimizedUsers'
-import {
-  useSmartOptimizedUsers,
-  useSmartUserFilterOptions,
-  useSmartUserStatistics
-} from '@/hooks/useSmartOptimizedUsers'
 import { getCountryFlag, getElementColor, getElementInfo, getDisplayName, downloadCSV } from '@/lib/utils'
 import { ELEMENT_NUMBER_TO_TYPE } from '@/lib/constants'
 
@@ -310,16 +308,16 @@ export default function UsersPage() {
   const [totalMutualCount, setTotalMutualCount] = useState<number>(0)
   const router = useRouter()
 
-  // Use smart optimized hooks (tries views first, falls back to direct queries)
-  const { users, totalCount, loading, error, refetch: refetchUsers, mode } = useSmartOptimizedUsers({
+  // Use direct optimized hooks (same as working dashboard/analytics pages)
+  const { users, totalCount, loading, error, refetch: refetchUsers } = useOptimizedUsers({
     page,
     rowsPerPage,
     searchQuery,
     filters
   })
 
-  const { countries: availableCountries, mode: filterMode } = useSmartUserFilterOptions()
-  const { stats, mode: statsMode } = useSmartUserStatistics()
+  const { countries: availableCountries } = useUserFilterOptions()
+  const { stats } = useUserStatistics()
   const { userDetails, userIdentities } = useOptimizedUserDetails(selectedUser?.id || null)
 
   // Calculate total mutual count for all user identities (simplified version)
@@ -589,19 +587,11 @@ export default function UsersPage() {
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
             <Chip 
-              label={mode === 'views' ? '🚀 Database Views' : '📋 Direct Queries'}
+              label="📋 Direct Queries"
               size="small"
-              color={mode === 'views' ? 'success' : 'default'}
+              color="primary"
               variant="outlined"
             />
-            {mode === 'direct' && (
-              <Chip 
-                label="Run SQL views for faster loading"
-                size="small"
-                color="warning"
-                variant="outlined"
-              />
-            )}
           </Box>
         </Box>
         <Button

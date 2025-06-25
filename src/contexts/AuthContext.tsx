@@ -204,6 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           throw new Error('Access denied. Admin privileges required.')
         }
         console.log('✅ Admin verification successful!')
+        setUser(data.user) // Fix: Set the user object
         setIsAdmin(true)
       }
     } catch (e) {

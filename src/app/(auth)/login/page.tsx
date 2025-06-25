@@ -25,7 +25,7 @@ export default function LoginPage() {
   const router = useRouter()
   const { user, isAdmin, signIn, loading: authLoading } = useAuth()
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated (for existing sessions)
   useEffect(() => {
     console.log('🔍 Login page auth state:', { authLoading, user: user?.email, isAdmin })
     
@@ -52,6 +52,7 @@ export default function LoginPage() {
       await signIn(email, password)
       
       console.log('✅ Login successful! Redirecting to dashboard...')
+      // Redirect immediately after successful signIn - the AuthContext already handles admin verification
       router.push('/dashboard')
 
     } catch (err: any) {
@@ -170,7 +171,10 @@ export default function LoginPage() {
                 }}
               >
                 {loading ? (
-                  <CircularProgress size={24} color="inherit" />
+                  <>
+                    <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                    Signing In...
+                  </>
                 ) : (
                   'Sign In'
                 )}

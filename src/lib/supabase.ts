@@ -10,7 +10,7 @@ if (!supabaseUrl) {
     
     Please create a .env.local file in your project root with:
     NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0a3V4YXR5Y2pxd3Zmamp3eHFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI5MjExMTQsImV4cCI6MjA1ODQ5NzExNH0.howZlko9y3nnJRFe_c53MVxjNvET2nXjka8OCL4mUrA
     
     Get these values from your Supabase dashboard → Settings → API
   `)
@@ -22,7 +22,7 @@ if (!supabaseAnonKey) {
     
     Please create a .env.local file in your project root with:
     NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV0a3V4YXR5Y2pxd3Zmamp3eHFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI5MjExMTQsImV4cCI6MjA1ODQ5NzExNH0.howZlko9y3nnJRFe_c53MVxjNvET2nXjka8OCL4mUrA
     
     Get these values from your Supabase dashboard → Settings → API
   `)

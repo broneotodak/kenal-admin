@@ -908,7 +908,7 @@ export default function GrowthForecastingPage() {
                       <Box sx={{ 
                         textAlign: 'center', 
                         p: 1, 
-                        bgcolor: alpha(theme.palette.primary.main, trendAnalysis.weeklySeasonality[index] - 0.5),
+                        bgcolor: alpha(theme.palette.primary.main, Math.max(0, Math.min(1, trendAnalysis.weeklySeasonality[index] - 0.5))),
                         borderRadius: 1,
                         border: '1px solid',
                         borderColor: 'divider'
