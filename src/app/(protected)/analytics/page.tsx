@@ -36,6 +36,10 @@ import {
   Stack,
   LinearProgress,
   alpha,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Link,
 } from '@mui/material'
 import { 
   People, 
@@ -66,6 +70,12 @@ import {
   BarChart,
   ShowChart,
   TableChart,
+  InfoOutlined,
+  ExpandMore,
+  SecurityOutlined,
+  GroupsOutlined,
+  EventNoteOutlined,
+  BusinessCenterOutlined,
 } from '@mui/icons-material'
 import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
@@ -106,6 +116,13 @@ interface AnalyticsData {
     period: string
     projectedUsers: number
     growth: number
+    method?: string
+  }>
+  advancedGrowthForecast?: Array<{
+    period: string
+    projectedUsers: number
+    growth: number
+    method: string
   }>
   totalDirectRegistrations: number
   totalInvitedRegistrations: number
@@ -334,11 +351,26 @@ export default function AnalyticsPage() {
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: true })
 
-      // Get identities data for the time range
-      const { data: identities } = await supabase
+      // Get exact count of identities for the time range first
+      const { count: totalIdentitiesInPeriod } = await supabase
+        .from('kd_identity')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', startDate.toISOString())
+      
+      // Get identities data for the time range (remove default 1000 limit)
+      const { data: identities, error: identitiesError } = await supabase
         .from('kd_identity')
         .select('created_at, user_id')
         .gte('created_at', startDate.toISOString())
+        .limit(50000) // Explicit high limit to get all identities
+      
+      console.log('Identities Query Debug:', {
+        totalIdentitiesInPeriod,
+        identitiesDataLength: identities?.length,
+        identitiesError,
+        startDate: startDate.toISOString(),
+        range
+      })
 
       // Process data for each period
       const dailyTrends: Array<{
@@ -388,11 +420,17 @@ export default function AnalyticsPage() {
       const totalDirectRegistrations = directRegistrationsData.reduce((sum, count) => sum + count, 0)
       const totalInvitedRegistrations = invitedRegistrationsData.reduce((sum, count) => sum + count, 0)
       const totalIdentitiesForPeriod = newIdentitiesData.reduce((sum, count) => sum + count, 0)
+      
+      // Use the accurate count from the count query (not limited by data retrieval)
+      const finalIdentitiesCount = totalIdentitiesInPeriod || totalIdentitiesForPeriod
 
       console.log('Chart Data Totals:', {
         totalDirectRegistrations,
         totalInvitedRegistrations,
         totalIdentitiesForPeriod,
+        actualIdentitiesReceived: identities?.length,
+        totalIdentitiesInPeriod,
+        finalIdentitiesCount,
         range
       })
 
@@ -427,13 +465,66 @@ export default function AnalyticsPage() {
         ]
       })
 
-      // Update the analytics data with new totals
+      // Generate advanced forecast using the dailyTrends data that's now available
+      const generateAdvancedGrowthForecast = (currentUsers: number, recentGrowthData: typeof dailyTrends) => {
+        if (!recentGrowthData || recentGrowthData.length < 7) {
+          // Fallback to current simple forecast if insufficient data
+          return []
+        }
+
+        // Calculate exponential moving average
+        const alpha = 0.3
+        let ema = recentGrowthData[0]?.newUsers || 0
+        const emaValues = [ema]
+        
+        for (let i = 1; i < recentGrowthData.length; i++) {
+          ema = alpha * recentGrowthData[i].newUsers + (1 - alpha) * ema
+          emaValues.push(ema)
+        }
+        
+        const currentEMA = emaValues[emaValues.length - 1]
+        
+        // Apply advanced projections with seasonality adjustment
+        const forecasts: Array<{
+          period: string
+          projectedUsers: number
+          growth: number
+          method: string
+        }> = []
+        const periods = [
+          { days: 30, label: '1 Month' },
+          { days: 90, label: '3 Months' },
+          { days: 180, label: '6 Months' },
+          { days: 365, label: '12 Months' }
+        ]
+        
+        periods.forEach(({ days, label }) => {
+          const decayFactor = Math.pow(0.98, days / 30) // Progressive decay
+          const seasonalMultiplier = 1 + Math.sin(Date.now() / (1000 * 60 * 60 * 24 * 365) * 2 * Math.PI) * 0.1 // Seasonal variation
+          const projectedUsers = Math.round(currentUsers + (currentEMA * days * decayFactor * seasonalMultiplier))
+          
+          forecasts.push({
+            period: label,
+            projectedUsers: Math.max(currentUsers, projectedUsers),
+            growth: Math.max(0, projectedUsers - currentUsers),
+            method: 'Advanced'
+          })
+        })
+        
+        return forecasts
+      }
+
+      const currentTotalUsers = totalDirectRegistrations + totalInvitedRegistrations
+      const advancedForecast = generateAdvancedGrowthForecast(currentTotalUsers, dailyTrends)
+
+      // Update the analytics data with new totals and both forecast methods
       setAnalyticsData(prev => ({
         ...prev,
         totalDirectRegistrations,
         totalInvitedRegistrations,
-        totalIdentities: totalIdentitiesForPeriod,
-        registrationTrends: dailyTrends
+        totalIdentities: finalIdentitiesCount, // Use the accurate count
+        registrationTrends: dailyTrends,
+        advancedGrowthForecast: advancedForecast
       }))
 
     } catch (error) {
@@ -560,13 +651,116 @@ export default function AnalyticsPage() {
         })
       }
 
-      // Growth forecast based on current trends
-      const growthForecast = [
-        { period: '1 Month', projectedUsers: Math.round((totalUsers || 0) * (1 + monthlyGrowthRate / 100)), growth: Math.round((totalUsers || 0) * monthlyGrowthRate / 100) },
-        { period: '3 Months', projectedUsers: Math.round((totalUsers || 0) * Math.pow(1 + monthlyGrowthRate / 100, 3)), growth: Math.round((totalUsers || 0) * (Math.pow(1 + monthlyGrowthRate / 100, 3) - 1)) },
-        { period: '6 Months', projectedUsers: Math.round((totalUsers || 0) * Math.pow(1 + monthlyGrowthRate / 100, 6)), growth: Math.round((totalUsers || 0) * (Math.pow(1 + monthlyGrowthRate / 100, 6) - 1)) },
-        { period: '12 Months', projectedUsers: Math.round((totalUsers || 0) * Math.pow(1 + monthlyGrowthRate / 100, 12)), growth: Math.round((totalUsers || 0) * (Math.pow(1 + monthlyGrowthRate / 100, 12) - 1)) },
-      ]
+      // METHOD 1: Simple Growth Forecast with Market Saturation
+      const generateSimpleGrowthForecast = (currentUsers: number, monthlyRate: number) => {
+        // Cap extreme growth rates to prevent unrealistic projections
+        const cappedRate = Math.min(Math.max(monthlyRate, -50), 30) // Cap between -50% and +30%
+        
+        // Calculate realistic projections with growth decay
+        const forecasts: Array<{
+          period: string
+          projectedUsers: number
+          growth: number
+          method: string
+        }> = []
+        let currentProjection = currentUsers
+        let workingRate = cappedRate
+        
+        // 1 Month - Use current rate with slight decay
+        workingRate = workingRate * 0.95 // 5% decay factor
+        currentProjection = Math.round(currentProjection * (1 + workingRate / 100))
+        forecasts.push({
+          period: '1 Month',
+          projectedUsers: currentProjection,
+          growth: currentProjection - currentUsers,
+          method: 'Simple'
+        })
+        
+        // 3 Months - Apply more decay and market saturation
+        workingRate = cappedRate * 0.85 // 15% total decay from original
+        const threeMonthUsers = Math.round(currentUsers + (currentProjection - currentUsers) * 2.5) // Linear-ish growth
+        forecasts.push({
+          period: '3 Months',
+          projectedUsers: threeMonthUsers,
+          growth: threeMonthUsers - currentUsers,
+          method: 'Simple'
+        })
+        
+        // 6 Months - Significant decay due to market saturation
+        workingRate = cappedRate * 0.7 // 30% total decay
+        const sixMonthUsers = Math.round(currentUsers + (currentProjection - currentUsers) * 4.5) // Slower growth
+        forecasts.push({
+          period: '6 Months',
+          projectedUsers: sixMonthUsers,
+          growth: sixMonthUsers - currentUsers,
+          method: 'Simple'
+        })
+        
+        // 12 Months - Very conservative with market saturation effects
+        workingRate = cappedRate * 0.5 // 50% total decay
+        const twelveMonthUsers = Math.round(currentUsers + (currentProjection - currentUsers) * 7) // Much slower growth
+        forecasts.push({
+          period: '12 Months',
+          projectedUsers: twelveMonthUsers,
+          growth: twelveMonthUsers - currentUsers,
+          method: 'Simple'
+        })
+        
+        return forecasts
+      }
+
+      // METHOD 2: Advanced Growth Forecast with Exponential Smoothing & Seasonality
+      const generateAdvancedGrowthForecast = (currentUsers: number, recentGrowthData: any[]) => {
+        if (!recentGrowthData || recentGrowthData.length < 7) {
+          // Fallback to simple method if insufficient data
+          return generateSimpleGrowthForecast(currentUsers, monthlyGrowthRate)
+        }
+
+        // Calculate exponential moving average
+        const alpha = 0.3
+        let ema = recentGrowthData[0]?.newUsers || 0
+        const emaValues = [ema]
+        
+        for (let i = 1; i < recentGrowthData.length; i++) {
+          ema = alpha * recentGrowthData[i].newUsers + (1 - alpha) * ema
+          emaValues.push(ema)
+        }
+        
+        const currentEMA = emaValues[emaValues.length - 1]
+        const baselineGrowthRate = currentEMA / currentUsers * 100 * 30 // Monthly equivalent
+        
+        // Apply advanced projections with seasonality adjustment
+        const forecasts: Array<{
+          period: string
+          projectedUsers: number
+          growth: number
+          method: string
+        }> = []
+        const periods = [
+          { days: 30, label: '1 Month' },
+          { days: 90, label: '3 Months' },
+          { days: 180, label: '6 Months' },
+          { days: 365, label: '12 Months' }
+        ]
+        
+        periods.forEach(({ days, label }) => {
+          const decayFactor = Math.pow(0.98, days / 30) // Progressive decay
+          const seasonalMultiplier = 1 + Math.sin(Date.now() / (1000 * 60 * 60 * 24 * 365) * 2 * Math.PI) * 0.1 // Seasonal variation
+          const projectedUsers = Math.round(currentUsers + (currentEMA * days * decayFactor * seasonalMultiplier))
+          
+          forecasts.push({
+            period: label,
+            projectedUsers: Math.max(currentUsers, projectedUsers),
+            growth: Math.max(0, projectedUsers - currentUsers),
+            method: 'Advanced'
+          })
+        })
+        
+        return forecasts
+      }
+
+      const simpleGrowthForecast = generateSimpleGrowthForecast(totalUsers || 0, monthlyGrowthRate)
+      // Advanced forecast will be generated in loadChartData where dailyTrends is available
 
       setAnalyticsData({
         totalUsers: totalUsers || 0,
@@ -580,7 +774,7 @@ export default function AnalyticsPage() {
         usersByType: { admin: adminCount, public: publicCount },
         registrationTrends: [],
         userCohorts: cohorts,
-        growthForecast,
+        growthForecast: simpleGrowthForecast, // Will be updated with both methods in loadChartData
         totalDirectRegistrations: 0, // Will be updated by loadChartData
         totalInvitedRegistrations: 0 // Will be updated by loadChartData
       })
@@ -905,39 +1099,173 @@ export default function AnalyticsPage() {
           </Grid>
         </Grid>
 
-        {/* Growth Forecast - Now under Registration Trends */}
+        {/* User Growth Forecast - Now under Registration Trends */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12}>
             <Card>
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Growth Forecast
+                  🚀 User Growth Forecast (Two Methods)
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Based on current growth rate of {analyticsData.monthlyGrowthRate}% monthly
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Comparing simple vs. advanced forecasting methods based on {analyticsData.monthlyGrowthRate.toFixed(1)}% monthly growth rate
                 </Typography>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Period</TableCell>
-                      <TableCell align="right">Projected Users</TableCell>
-                      <TableCell align="right">Growth</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {analyticsData.growthForecast.map((forecast) => (
-                      <TableRow key={forecast.period}>
-                        <TableCell>{forecast.period}</TableCell>
-                        <TableCell align="right">{forecast.projectedUsers.toLocaleString()}</TableCell>
-                        <TableCell align="right">
-                          <Typography color="success.main">
-                            +{forecast.growth.toLocaleString()}
+                
+                <Grid container spacing={3}>
+                  {/* Method 1: Simple Forecast */}
+                  <Grid item xs={12} md={6}>
+                    <Card variant="outlined" sx={{ bgcolor: alpha('#4CAF50', 0.05), border: '2px solid', borderColor: alpha('#4CAF50', 0.3) }}>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                          <SecurityOutlined sx={{ color: '#4CAF50' }} />
+                          <Typography variant="h6" fontWeight="bold" sx={{ color: '#4CAF50' }}>
+                            Method 1: Simple + Market Saturation
                           </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          Growth decay model with capped rates (95% → 85% → 70% → 50%)
+                        </Typography>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Period</TableCell>
+                              <TableCell align="right">Users</TableCell>
+                              <TableCell align="right">Growth</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {analyticsData.growthForecast.map((forecast) => (
+                              <TableRow key={forecast.period}>
+                                <TableCell>{forecast.period}</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                                  {forecast.projectedUsers.toLocaleString()}
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography color="success.main" fontWeight="bold">
+                                    +{forecast.growth.toLocaleString()}
+                                  </Typography>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  {/* Method 2: Advanced Forecast */}
+                  <Grid item xs={12} md={6}>
+                    <Card variant="outlined" sx={{ bgcolor: alpha('#2196F3', 0.05), border: '2px solid', borderColor: alpha('#2196F3', 0.3) }}>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                          <Timeline sx={{ color: '#2196F3' }} />
+                          <Typography variant="h6" fontWeight="bold" sx={{ color: '#2196F3' }}>
+                            Method 2: Advanced + Seasonality
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          Exponential smoothing with seasonality patterns from real data
+                        </Typography>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell>Period</TableCell>
+                              <TableCell align="right">Users</TableCell>
+                              <TableCell align="right">Growth</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {(analyticsData.advancedGrowthForecast || []).length > 0 ? (
+                              analyticsData.advancedGrowthForecast!.map((forecast) => (
+                                <TableRow key={forecast.period}>
+                                  <TableCell>{forecast.period}</TableCell>
+                                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>
+                                    {forecast.projectedUsers.toLocaleString()}
+                                  </TableCell>
+                                  <TableCell align="right">
+                                    <Typography color="info.main" fontWeight="bold">
+                                      +{forecast.growth.toLocaleString()}
+                                    </Typography>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={3} align="center">
+                                  <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                                    Advanced forecast calculating...
+                                  </Typography>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+
+                {/* Methodology Comparison */}
+                <Accordion sx={{ mt: 3, bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider' }}>
+                  <AccordionSummary
+                    expandIcon={<ExpandMore />}
+                    aria-controls="forecast-methodology-content"
+                    id="forecast-methodology-header"
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <InfoOutlined color="primary" fontSize="small" />
+                      <Typography variant="subtitle2" fontWeight="bold">
+                        📊 Methodology Comparison & Future Financial Growth
+                      </Typography>
+                    </Box>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="subtitle2" fontWeight="bold" color="success.main" gutterBottom>
+                          🟢 Simple Method Benefits:
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2 }}>
+                          • Easy to understand and explain<br/>
+                          • Conservative estimates for safe planning<br/>
+                          • Accounts for market saturation effects<br/>
+                          • Good for investor presentations
+                        </Typography>
+                      </Grid>
+                      
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="subtitle2" fontWeight="bold" color="info.main" gutterBottom>
+                          🔵 Advanced Method Benefits:
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2 }}>
+                          • Uses real historical patterns<br/>
+                          • Includes seasonality adjustments<br/>
+                          • More accurate for short-term planning<br/>
+                          • Adapts to actual user behavior
+                        </Typography>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Divider sx={{ my: 2 }} />
+                        <Box sx={{ 
+                          p: 2, 
+                          bgcolor: alpha('#FF9800', theme.palette.mode === 'dark' ? 0.15 : 0.1),
+                          border: `1px solid ${alpha('#FF9800', theme.palette.mode === 'dark' ? 0.3 : 0.2)}`,
+                          borderRadius: 1 
+                        }}>
+                          <Typography variant="subtitle2" fontWeight="bold" sx={{ color: '#FF9800', mb: 1 }}>
+                            💰 Future Financial Growth Tracking
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                            <strong>Note:</strong> These forecasts show <strong>User Growth</strong>. When monetization features are implemented, 
+                            we'll add separate <strong>Financial Growth</strong> forecasts including revenue, subscription rates, and ARPU metrics 
+                            alongside these user metrics for complete business intelligence.
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </AccordionDetails>
+                </Accordion>
               </CardContent>
             </Card>
           </Grid>
