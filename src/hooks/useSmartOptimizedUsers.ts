@@ -1,18 +1,4 @@
 import { useState, useEffect, useCallback } from 'react'
-
-// Persistent cache using localStorage to survive hot reloads
-const VIEWS_CACHE_KEY = 'kenal_admin_views_exist'
-
-const getViewsExistCache = (): boolean | null => {
-  if (typeof window === 'undefined') return null
-  const cached = localStorage.getItem(VIEWS_CACHE_KEY)
-  return cached ? JSON.parse(cached) : null
-}
-
-const setViewsExistCache = (exists: boolean): void => {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(VIEWS_CACHE_KEY, JSON.stringify(exists))
-}
 import { 
   useOptimizedUsersViews, 
   useUserFilterOptionsViews, 
@@ -42,14 +28,11 @@ interface UseSmartOptimizedUsersParams {
 
 // Smart hook that tries views first, falls back to direct queries
 export const useSmartOptimizedUsers = (params: UseSmartOptimizedUsersParams) => {
-  // Always start with true to avoid SSR hydration mismatch, then check cache
+  // Simple: start with views, let error handling switch to direct queries
   const [useViews, setUseViews] = useState(true)
   
-  // Immediate check to prevent even first call if cache indicates views don't exist
-  const shouldUseViews = useViews && (typeof window === 'undefined' || getViewsExistCache() !== false)
-  
   // ONLY call one hook at a time to prevent double loading
-  const viewsResult = shouldUseViews ? useOptimizedUsersViews(params) : {
+  const viewsResult = useViews ? useOptimizedUsersViews(params) : {
     users: [],
     totalCount: 0,
     loading: false,
@@ -57,7 +40,7 @@ export const useSmartOptimizedUsers = (params: UseSmartOptimizedUsersParams) => 
     refetch: () => {}
   }
   
-  const directResult = !shouldUseViews ? useOptimizedUsers(params) : {
+  const directResult = !useViews ? useOptimizedUsers(params) : {
     users: [],
     totalCount: 0,
     loading: false,
@@ -65,32 +48,23 @@ export const useSmartOptimizedUsers = (params: UseSmartOptimizedUsersParams) => 
     refetch: () => {}
   }
 
-  // Check cache immediately on client-side mount
+  // Monitor for view errors and switch to direct queries
   useEffect(() => {
-    if (getViewsExistCache() === false) {
-      console.log('📋 Using cached knowledge that views don\'t exist, switching to direct queries')
-      setUseViews(false)
-    }
-  }, [])
-
-  // Monitor for view errors and switch to direct queries IMMEDIATELY
-  useEffect(() => {
-    if (shouldUseViews && viewsResult.error) {
+    if (useViews && viewsResult.error) {
       // Check for any database view related errors
       const isViewError = viewsResult.error.includes('does not exist') || 
                          viewsResult.error.includes('relation') ||
                          viewsResult.error.includes('404')
       
       if (isViewError) {
-        console.log('📋 Database views not found, switching to direct queries permanently')
-        setViewsExistCache(false) // Remember this in localStorage
+        console.log('📋 Database views not found, switching to direct queries')
         setUseViews(false)
       }
     }
-  }, [shouldUseViews, viewsResult.error])
+  }, [useViews, viewsResult.error])
 
   // Return the appropriate result
-  if (shouldUseViews) {
+  if (useViews) {
     return {
       ...viewsResult,
       mode: 'views' as const
@@ -105,35 +79,35 @@ export const useSmartOptimizedUsers = (params: UseSmartOptimizedUsersParams) => 
 
 // Smart filter options hook
 export const useSmartUserFilterOptions = () => {
-  // Always start with true to avoid SSR hydration mismatch, then check cache
+  // Simple: start with views, let error handling switch to direct queries
   const [useViews, setUseViews] = useState(true)
   
-  // Immediate check to prevent even first call if cache indicates views don't exist
-  const shouldUseViews = useViews && (typeof window === 'undefined' || getViewsExistCache() !== false)
-  
   // ONLY call one hook at a time to prevent double loading
-  const viewsResult = shouldUseViews ? useUserFilterOptionsViews() : {
+  const viewsResult = useViews ? useUserFilterOptionsViews() : {
     countries: [],
     loading: false,
     refetch: () => {}
   }
   
-  const directResult = !shouldUseViews ? useUserFilterOptions() : {
+  const directResult = !useViews ? useUserFilterOptions() : {
     countries: [],
     loading: false,
     refetch: () => {}
   }
 
-  // Check cache immediately on client-side mount
+  // Auto-switch to direct queries after 3 seconds if no countries loaded
   useEffect(() => {
-    if (getViewsExistCache() === false) {
-      console.log('📋 Using cached knowledge that views don\'t exist, switching to direct queries')
-      setUseViews(false)
+    if (useViews && !viewsResult.loading && viewsResult.countries.length === 0) {
+      const timer = setTimeout(() => {
+        console.log('📋 No countries from views, switching to direct queries')
+        setUseViews(false)
+      }, 3000)
+      return () => clearTimeout(timer)
     }
-  }, [])
+  }, [useViews, viewsResult.loading, viewsResult.countries.length])
 
   // Return the appropriate result
-  if (shouldUseViews) {
+  if (useViews) {
     return {
       ...viewsResult,
       mode: 'views' as const
@@ -148,14 +122,11 @@ export const useSmartUserFilterOptions = () => {
 
 // Smart statistics hook
 export const useSmartUserStatistics = () => {
-  // Always start with true to avoid SSR hydration mismatch, then check cache
+  // Simple: start with views, let error handling switch to direct queries
   const [useViews, setUseViews] = useState(true)
   
-  // Immediate check to prevent even first call if cache indicates views don't exist
-  const shouldUseViews = useViews && (typeof window === 'undefined' || getViewsExistCache() !== false)
-  
   // ONLY call one hook at a time to prevent double loading
-  const viewsResult = shouldUseViews ? useUserStatisticsViews() : {
+  const viewsResult = useViews ? useUserStatisticsViews() : {
     stats: {
       totalUsers: 0,
       activeUsers: 0,
@@ -167,7 +138,7 @@ export const useSmartUserStatistics = () => {
     refetch: () => {}
   }
   
-  const directResult = !shouldUseViews ? useUserStatistics() : {
+  const directResult = !useViews ? useUserStatistics() : {
     stats: {
       totalUsers: 0,
       activeUsers: 0,
@@ -179,16 +150,19 @@ export const useSmartUserStatistics = () => {
     refetch: () => {}
   }
 
-  // Check cache immediately on client-side mount
+  // Auto-switch to direct queries after 3 seconds if no stats loaded
   useEffect(() => {
-    if (getViewsExistCache() === false) {
-      console.log('📋 Using cached knowledge that views don\'t exist, switching to direct queries')
-      setUseViews(false)
+    if (useViews && !viewsResult.loading && viewsResult.stats.totalUsers === 0) {
+      const timer = setTimeout(() => {
+        console.log('📋 No stats from views, switching to direct queries')
+        setUseViews(false)
+      }, 3000)
+      return () => clearTimeout(timer)
     }
-  }, [])
+  }, [useViews, viewsResult.loading, viewsResult.stats.totalUsers])
 
   // Return the appropriate result
-  if (shouldUseViews) {
+  if (useViews) {
     return {
       ...viewsResult,
       mode: 'views' as const
