@@ -98,12 +98,12 @@ export default function EventManagementPage() {
         const demoEvents: GrowthEvent[] = [
           {
             id: 'iftdo-2025',
-            name: 'IFTDO Conference 2025',
+            name: '51st IFTDO World Conference & Exhibition 2025',
             start_date: '2025-06-17',
             end_date: '2025-06-19',
             event_type: 'conference',
             impact_level: 4,
-            notes: 'Indonesian Federation of Traditional Dance Organizations conference - expected high user growth during this period',
+            notes: '51st IFTDO (International Federation of Training and Development Organisation) World Conference & Exhibition 2025 at Jakarta International Convention Center - expected high user growth during this period',
             created_at: new Date().toISOString(),
           }
         ]
