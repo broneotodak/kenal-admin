@@ -56,16 +56,8 @@ import {
 import { supabase } from '@/lib/supabase'
 import { UserMobileCard } from '@/components/UserMobileCard'
 import { 
-  useOptimizedUsers, 
-  useUserFilterOptions, 
-  useOptimizedUserDetails, 
-  useUserStatistics 
+  useOptimizedUserDetails
 } from '@/hooks/useOptimizedUsers'
-import {
-  useOptimizedUsersViews,
-  useUserFilterOptionsViews, 
-  useUserStatisticsViews
-} from '@/hooks/useOptimizedUsersViews'
 import {
   useSmartOptimizedUsers,
   useSmartUserFilterOptions,

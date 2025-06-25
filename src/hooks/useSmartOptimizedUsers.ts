@@ -1,4 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
+
+// Persistent cache using localStorage to survive hot reloads
+const VIEWS_CACHE_KEY = 'kenal_admin_views_exist'
+
+const getViewsExistCache = (): boolean | null => {
+  if (typeof window === 'undefined') return null
+  const cached = localStorage.getItem(VIEWS_CACHE_KEY)
+  return cached ? JSON.parse(cached) : null
+}
+
+const setViewsExistCache = (exists: boolean): void => {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(VIEWS_CACHE_KEY, JSON.stringify(exists))
+}
 import { 
   useOptimizedUsersViews, 
   useUserFilterOptionsViews, 
@@ -28,24 +42,52 @@ interface UseSmartOptimizedUsersParams {
 
 // Smart hook that tries views first, falls back to direct queries
 export const useSmartOptimizedUsers = (params: UseSmartOptimizedUsersParams) => {
+  // Always start with true to avoid SSR hydration mismatch, then check cache
   const [useViews, setUseViews] = useState(true)
   
-  // Try views first
-  const viewsResult = useOptimizedUsersViews(params)
+  // ONLY call one hook at a time to prevent double loading
+  const viewsResult = useViews ? useOptimizedUsersViews(params) : {
+    users: [],
+    totalCount: 0,
+    loading: false,
+    error: null,
+    refetch: () => {}
+  }
   
-  // Fallback to direct queries
-  const directResult = useOptimizedUsers(params)
+  const directResult = !useViews ? useOptimizedUsers(params) : {
+    users: [],
+    totalCount: 0,
+    loading: false,
+    error: null,
+    refetch: () => {}
+  }
 
-  // Monitor for view errors and switch to direct queries
+  // Check cache immediately on client-side mount
   useEffect(() => {
-    if (viewsResult.error && viewsResult.error.includes('relation "admin_users_optimized" does not exist')) {
-      console.log('📋 Database views not found, using direct queries. Create views for better performance!')
+    if (getViewsExistCache() === false) {
+      console.log('📋 Using cached knowledge that views don\'t exist, switching to direct queries')
       setUseViews(false)
     }
-  }, [viewsResult.error])
+  }, [])
+
+  // Monitor for view errors and switch to direct queries IMMEDIATELY
+  useEffect(() => {
+    if (useViews && viewsResult.error) {
+      // Check for any database view related errors
+      const isViewError = viewsResult.error.includes('does not exist') || 
+                         viewsResult.error.includes('relation') ||
+                         viewsResult.error.includes('404')
+      
+      if (isViewError) {
+        console.log('📋 Database views not found, switching to direct queries permanently')
+        setViewsExistCache(false) // Remember this in localStorage
+        setUseViews(false)
+      }
+    }
+  }, [useViews, viewsResult.error])
 
   // Return the appropriate result
-  if (useViews && !viewsResult.error) {
+  if (useViews) {
     return {
       ...viewsResult,
       mode: 'views' as const
@@ -60,29 +102,32 @@ export const useSmartOptimizedUsers = (params: UseSmartOptimizedUsersParams) => 
 
 // Smart filter options hook
 export const useSmartUserFilterOptions = () => {
+  // Always start with true to avoid SSR hydration mismatch, then check cache
   const [useViews, setUseViews] = useState(true)
   
-  // Try views first
-  const viewsResult = useUserFilterOptionsViews()
+  // ONLY call one hook at a time to prevent double loading
+  const viewsResult = useViews ? useUserFilterOptionsViews() : {
+    countries: [],
+    loading: false,
+    refetch: () => {}
+  }
   
-  // Fallback to direct queries
-  const directResult = useUserFilterOptions()
+  const directResult = !useViews ? useUserFilterOptions() : {
+    countries: [],
+    loading: false,
+    refetch: () => {}
+  }
 
-  // Monitor for view errors
+  // Check cache immediately on client-side mount
   useEffect(() => {
-    if (viewsResult.countries.length === 0 && !viewsResult.loading) {
-      // Check if it's likely due to missing views
-      setTimeout(() => {
-        if (viewsResult.countries.length === 0) {
-          console.log('📋 Country views not found, using direct queries')
-          setUseViews(false)
-        }
-      }, 2000)
+    if (getViewsExistCache() === false) {
+      console.log('📋 Using cached knowledge that views don\'t exist, switching to direct queries')
+      setUseViews(false)
     }
-  }, [viewsResult.countries.length, viewsResult.loading])
+  }, [])
 
   // Return the appropriate result
-  if (useViews && viewsResult.countries.length > 0) {
+  if (useViews) {
     return {
       ...viewsResult,
       mode: 'views' as const
@@ -97,29 +142,44 @@ export const useSmartUserFilterOptions = () => {
 
 // Smart statistics hook
 export const useSmartUserStatistics = () => {
+  // Always start with true to avoid SSR hydration mismatch, then check cache
   const [useViews, setUseViews] = useState(true)
   
-  // Try views first
-  const viewsResult = useUserStatisticsViews()
+  // ONLY call one hook at a time to prevent double loading
+  const viewsResult = useViews ? useUserStatisticsViews() : {
+    stats: {
+      totalUsers: 0,
+      activeUsers: 0,
+      adminUsers: 0,
+      usersWithIdentities: 0,
+      avgIdentitiesPerUser: 0
+    },
+    loading: false,
+    refetch: () => {}
+  }
   
-  // Fallback to direct queries
-  const directResult = useUserStatistics()
+  const directResult = !useViews ? useUserStatistics() : {
+    stats: {
+      totalUsers: 0,
+      activeUsers: 0,
+      adminUsers: 0,
+      usersWithIdentities: 0,
+      avgIdentitiesPerUser: 0
+    },
+    loading: false,
+    refetch: () => {}
+  }
 
-  // Monitor for view errors
+  // Check cache immediately on client-side mount
   useEffect(() => {
-    if (viewsResult.stats.totalUsers === 0 && !viewsResult.loading) {
-      // Check if it's likely due to missing views
-      setTimeout(() => {
-        if (viewsResult.stats.totalUsers === 0) {
-          console.log('📋 Statistics views not found, using direct queries')
-          setUseViews(false)
-        }
-      }, 2000)
+    if (getViewsExistCache() === false) {
+      console.log('📋 Using cached knowledge that views don\'t exist, switching to direct queries')
+      setUseViews(false)
     }
-  }, [viewsResult.stats.totalUsers, viewsResult.loading])
+  }, [])
 
   // Return the appropriate result
-  if (useViews && viewsResult.stats.totalUsers > 0) {
+  if (useViews) {
     return {
       ...viewsResult,
       mode: 'views' as const

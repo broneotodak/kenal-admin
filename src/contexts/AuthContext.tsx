@@ -99,10 +99,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    // Prevent double execution in React StrictMode
+    // Prevent double execution in React StrictMode with improved ref handling
     if (hasInitiallyChecked.current) {
+      console.log('🔄 Auth already initialized, skipping duplicate check')
       return
     }
+    
+    // Mark as checked immediately to prevent any race conditions
+    hasInitiallyChecked.current = true
 
     // Check active sessions with timeout protection
     const checkSession = async () => {
@@ -137,7 +141,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } finally {
         console.log('✅ Auth loading complete')
         setLoading(false)
-        hasInitiallyChecked.current = true
       }
     }
     
