@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -48,6 +48,7 @@ export function useFeedback() {
   const [allComments, setAllComments] = useState<FeedbackComment[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const hasInitiallyLoaded = useRef(false)
 
   // Simple fetch all problems with user information
   const fetchProblems = useCallback(async () => {
@@ -114,7 +115,7 @@ export function useFeedback() {
   }, [])
 
   // Fetch comments for a specific problem with user information
-  const fetchComments = async (problemId: string) => {
+  const fetchComments = useCallback(async (problemId: string) => {
     try {
       const { data, error } = await supabase
         .from('kd_problem_comments')
@@ -141,10 +142,10 @@ export function useFeedback() {
     } catch (error) {
       console.error('Error fetching comments:', error)
     }
-  }
+  }, [])
 
   // Create a new problem/feedback
-  const createProblem = async (data: CreateFeedbackData): Promise<boolean> => {
+  const createProblem = useCallback(async (data: CreateFeedbackData): Promise<boolean> => {
     console.log('🔍 createProblem called with:', {
       hasUser: !!user,
       userEmail: user?.email,
@@ -195,10 +196,10 @@ export function useFeedback() {
     } finally {
       setSubmitting(false)
     }
-  }
+  }, [user, fetchProblems])
 
   // Add a comment to a problem
-  const addComment = async (data: CreateCommentData): Promise<boolean> => {
+  const addComment = useCallback(async (data: CreateCommentData): Promise<boolean> => {
     if (!user?.email) return false
 
     try {
@@ -223,10 +224,10 @@ export function useFeedback() {
       console.error('Error adding comment:', error)
       return false
     }
-  }
+  }, [user, problems, fetchComments])
 
   // Update problem status
-  const updateProblemStatus = async (problemId: string, status: FeedbackProblem['status']): Promise<boolean> => {
+  const updateProblemStatus = useCallback(async (problemId: string, status: FeedbackProblem['status']): Promise<boolean> => {
     try {
       console.log('🔄 Updating problem status:', { problemId, status })
       
@@ -251,10 +252,10 @@ export function useFeedback() {
       console.error('Error updating problem status:', error)
       return false
     }
-  }
+  }, [user, fetchProblems])
 
   // Delete problem (admin only)
-  const deleteProblem = async (problemId: string): Promise<boolean> => {
+  const deleteProblem = useCallback(async (problemId: string): Promise<boolean> => {
     if (!user?.email || !['neo@todak.com', 'lan@todak.com'].includes(user.email)) {
       console.error('❌ Delete access denied - admin privileges required')
       return false
@@ -292,42 +293,7 @@ export function useFeedback() {
       console.error('Error deleting problem:', error)
       return false
     }
-  }
-
-  // Get problems by status
-  const getProblemsByStatus = (status?: FeedbackProblem['status']) => {
-    if (!status) return problems
-    return problems.filter(problem => problem.status === status)
-  }
-
-  // Get user's problems
-  const getUserProblems = () => {
-    if (!user?.id) return []
-    return problems.filter(problem => problem.created_by === user.id)
-  }
-
-  // Check if user has admin privileges for feedback management
-  const isPrivilegedUser = () => {
-    return user?.email && ['neo@todak.com', 'lan@todak.com'].includes(user.email)
-  }
-
-  // Initial data load - simple and clean
-  useEffect(() => {
-    const loadData = async () => {
-      console.log('🚀 Loading feedback data...')
-      setLoading(true)
-      
-      await Promise.all([
-        fetchProblems(),
-        fetchAllComments()
-      ])
-      
-      setLoading(false)
-      console.log('✅ Feedback data loaded')
-    }
-
-    loadData()
-  }, [fetchProblems, fetchAllComments])
+  }, [user])
 
   // Manual refresh function
   const refreshData = useCallback(async () => {
@@ -345,6 +311,49 @@ export function useFeedback() {
       setLoading(false)
     }
   }, [fetchProblems, fetchAllComments])
+
+  // Get problems by status
+  const getProblemsByStatus = useCallback((status?: FeedbackProblem['status']) => {
+    if (!status) return problems
+    return problems.filter(problem => problem.status === status)
+  }, [problems])
+
+  // Get user's problems
+  const getUserProblems = useCallback(() => {
+    if (!user?.id) return []
+    return problems.filter(problem => problem.created_by === user.id)
+  }, [user, problems])
+
+  // Check if user has admin privileges for feedback management
+  const isPrivilegedUser = useCallback(() => {
+    return user?.email && ['neo@todak.com', 'lan@todak.com'].includes(user.email)
+  }, [user])
+
+  // Initial data load - FIXED to prevent infinite loops
+  useEffect(() => {
+    if (!hasInitiallyLoaded.current) {
+      const loadData = async () => {
+        console.log('🚀 Loading feedback data...')
+        setLoading(true)
+        
+        try {
+          await Promise.all([
+            fetchProblems(),
+            fetchAllComments()
+          ])
+          
+          hasInitiallyLoaded.current = true
+          console.log('✅ Feedback data loaded')
+        } catch (error) {
+          console.error('❌ Initial data load failed:', error)
+        } finally {
+          setLoading(false)
+        }
+      }
+
+      loadData()
+    }
+  }, []) // Empty dependency array - only run once!
 
   return {
     // Data

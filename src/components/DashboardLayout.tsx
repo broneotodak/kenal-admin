@@ -43,6 +43,8 @@ import {
   DarkMode,
   ChevronLeft,
   ChevronRight,
+  TrendingUp,
+  Event,
 } from '@mui/icons-material'
 import { KenalLogo } from './KenalLogo'
 import { useAuth } from '@/contexts/AuthContext'
@@ -184,17 +186,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </ListItemIcon>
               <ListItemText primary="All Users" />
             </ListItemButton>
-            <ListItemButton 
-              sx={{ pl: 4 }}
-              onClick={() => router.push('/users/analysis')}
-              selected={pathname === '/users/analysis'}
-              disabled
-            >
-              <ListItemIcon>
-                <BarChart fontSize="small" />
-              </ListItemIcon>
-              <ListItemText primary="User Analysis" />
-            </ListItemButton>
           </List>
         </Collapse>
 
@@ -224,6 +215,26 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <BarChart fontSize="small" />
               </ListItemIcon>
               <ListItemText primary="User Analytics" />
+            </ListItemButton>
+            <ListItemButton 
+              sx={{ pl: 4 }}
+              onClick={() => router.push('/analytics/growth')}
+              selected={pathname === '/analytics/growth'}
+            >
+              <ListItemIcon>
+                <TrendingUp fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="Growth Forecasting" />
+            </ListItemButton>
+            <ListItemButton 
+              sx={{ pl: 4 }}
+              onClick={() => router.push('/analytics/events')}
+              selected={pathname === '/analytics/events'}
+            >
+              <ListItemIcon>
+                <Event fontSize="small" />
+              </ListItemIcon>
+              <ListItemText primary="Event Management" />
             </ListItemButton>
           </List>
         </Collapse>

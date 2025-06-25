@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -20,6 +20,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   const router = useRouter()
+  const hasInitiallyChecked = useRef(false)
 
   // Safety mechanism: Force stop loading after maximum timeout
   useEffect(() => {
@@ -98,47 +99,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    // Prevent double execution in React StrictMode
+    if (hasInitiallyChecked.current) {
+      return
+    }
+
     // Check active sessions with timeout protection
     const checkSession = async () => {
       try {
         console.log('🔄 Checking existing session...')
         
-        // Add overall timeout for the entire session check
-        const sessionCheckPromise = new Promise(async (resolve, reject) => {
-          try {
         const { data: { session } } = await supabase.auth.getSession()
         
         if (session?.user) {
           console.log('👤 Found existing session for:', session.user.email)
           setUser(session.user)
-              
-              // Check admin status with timeout protection
-              try {
-          const adminStatus = await checkAdminStatus(session.user.id)
-          setIsAdmin(adminStatus)
-                resolve(true)
-              } catch (adminError) {
-                console.warn('⚠️ Admin check failed, defaulting to false:', adminError)
-                setIsAdmin(false)
-                resolve(true)
-              }
+          
+          // Check admin status with timeout protection
+          try {
+            const adminStatus = await checkAdminStatus(session.user.id)
+            setIsAdmin(adminStatus)
+          } catch (adminError) {
+            console.warn('⚠️ Admin check failed, defaulting to false:', adminError)
+            setIsAdmin(false)
+          }
         } else {
           console.log('🚫 No existing session found')
           setUser(null)
           setIsAdmin(false)
-              resolve(true)
-            }
-          } catch (sessionError) {
-            reject(sessionError)
-          }
-        })
-        
-        // Add 15-second timeout for the entire session check
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session check timeout')), 15000)
-        )
-        
-        await Promise.race([sessionCheckPromise, timeoutPromise])
+        }
         
       } catch (e) {
         console.error('🚨 Session check failed:', e)
@@ -148,6 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } finally {
         console.log('✅ Auth loading complete')
         setLoading(false)
+        hasInitiallyChecked.current = true
       }
     }
     
@@ -171,7 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, []) // Empty dependency array to run only once
 
   // Simplified signIn - no automatic redirects
   const signIn = async (email: string, password: string) => {

@@ -156,7 +156,7 @@ export default function FeedbackPage() {
   }
 
   // Admin handlers
-  const handleAdminMenuOpen = (problemId: string, event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleAdminMenuOpen = (problemId: string, event: React.MouseEvent<HTMLElement>) => {
     setAdminMenuAnchor(prev => ({ ...prev, [problemId]: event.currentTarget }))
   }
 
@@ -568,19 +568,27 @@ export default function FeedbackPage() {
                   {/* Admin Controls for Privileged Users */}
                   {isPrivilegedUser() && (
                     <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
-                      <IconButton
-                        size="small"
+                      <Box
+                        component="div"
                         onClick={(e) => {
                           e.stopPropagation()
                           handleAdminMenuOpen(problem.id, e)
                         }}
                         sx={{ 
+                          p: 1,
+                          borderRadius: 1,
+                          cursor: 'pointer',
                           bgcolor: 'action.hover',
-                          '&:hover': { bgcolor: 'action.selected' }
+                          '&:hover': { bgcolor: 'action.selected' },
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minWidth: 32,
+                          minHeight: 32
                         }}
                       >
                         <Edit fontSize="small" />
-                      </IconButton>
+                      </Box>
                       
                       <Menu
                         anchorEl={adminMenuAnchor[problem.id]}

@@ -5,6 +5,18 @@ import dynamic from 'next/dynamic'
 
 const LineChart = dynamic(() => import('react-chartjs-2').then((mod) => ({ default: mod.Line })), {
   ssr: false,
+  loading: () => (
+    <div style={{ 
+      height: '400px', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      fontSize: '14px',
+      color: '#666'
+    }}>
+      Loading chart...
+    </div>
+  )
 })
 
 interface ChartProps {
@@ -18,27 +30,20 @@ interface ChartHandle {
 }
 
 const Chart = forwardRef<ChartHandle, ChartProps>(({ data, options, onResetZoom }, ref) => {
-  const chartRef = useRef<any>(null)
   const [isChartReady, setIsChartReady] = useState(false)
+  const [chartInstance, setChartInstance] = useState<any>(null)
 
   // Expose resetZoom method through ref
   useImperativeHandle(ref, () => ({
     resetZoom: () => {
-      if (chartRef.current) {
-        chartRef.current.resetZoom()
+      if (chartInstance) {
+        chartInstance.resetZoom()
+      }
+      if (onResetZoom) {
+        onResetZoom()
       }
     }
   }))
-
-  // Expose resetZoom method through callback
-  const handleResetZoom = () => {
-    if (chartRef.current) {
-      chartRef.current.resetZoom()
-    }
-    if (onResetZoom) {
-      onResetZoom()
-    }
-  }
 
   useEffect(() => {
     // Dynamically import and register Chart.js components
@@ -80,6 +85,17 @@ const Chart = forwardRef<ChartHandle, ChartProps>(({ data, options, onResetZoom 
     registerChartJS()
   }, [])
 
+  // Enhanced options with ref callback to capture chart instance
+  const enhancedOptions = {
+    ...options,
+    onReady: (chart: any) => {
+      setChartInstance(chart)
+      if (options?.onReady) {
+        options.onReady(chart)
+      }
+    }
+  }
+
   if (!isChartReady) {
     return (
       <div style={{ 
@@ -95,7 +111,8 @@ const Chart = forwardRef<ChartHandle, ChartProps>(({ data, options, onResetZoom 
     )
   }
 
-  return <LineChart ref={chartRef} data={data} options={options} />
+  // Render without ref to avoid the warning
+  return <LineChart data={data} options={enhancedOptions} />
 })
 
 Chart.displayName = 'Chart'

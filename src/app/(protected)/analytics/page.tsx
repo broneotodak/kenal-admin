@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, ReactNode } from 'react'
 import { 
   Box, 
   Typography, 
@@ -147,6 +147,7 @@ export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState(0)
   const [timeRange, setTimeRange] = useState('Last 30 Days')
   const [loading, setLoading] = useState(true)
+  const hasInitiallyLoaded = useRef(false)
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
     totalUsers: 0,
     todayRegistrations: 0,
@@ -205,8 +206,6 @@ export default function AnalyticsPage() {
 
   // Behavioral analytics hook
   const { analytics: behavioralAnalytics, loading: behavioralLoading, refreshAnalytics } = useBehavioralAnalytics()
-
-
 
   const loadChartData = async (range: string) => {
     try {
@@ -531,8 +530,6 @@ export default function AnalyticsPage() {
         }
       })
 
-
-
       // Generate user cohorts (last 6 months)
       const cohorts = []
       const cohortLabels = []
@@ -605,15 +602,24 @@ export default function AnalyticsPage() {
   }
 
   useEffect(() => {
+    // Prevent double execution in React StrictMode
+    if (hasInitiallyLoaded.current) {
+      return
+    }
+    
     const loadData = async () => {
       await loadAnalyticsData()
       await loadChartData(timeRange) // Load chart data immediately after analytics data
+      hasInitiallyLoaded.current = true
     }
     loadData()
   }, []) // Only run on mount
 
   useEffect(() => {
-    loadChartData(timeRange)
+    // Only load chart data when timeRange changes if initial load is complete
+    if (hasInitiallyLoaded.current) {
+      loadChartData(timeRange)
+    }
   }, [timeRange])
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {

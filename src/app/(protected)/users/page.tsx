@@ -72,6 +72,20 @@ import {
   useSmartUserStatistics
 } from '@/hooks/useSmartOptimizedUsers'
 import { getCountryFlag, getElementColor, getElementInfo, getDisplayName, downloadCSV } from '@/lib/utils'
+import { ELEMENT_NUMBER_TO_TYPE } from '@/lib/constants'
+
+// Helper function to get element numbers that map to a specific element type
+const getElementNumbersForType = (elementType: number): number[] => {
+  return Object.entries(ELEMENT_NUMBER_TO_TYPE)
+    .filter(([_, type]) => type === elementType)
+    .map(([number, _]) => parseInt(number))
+}
+
+// Helper function to get the first element number for an element type (for display)
+const getElementNumberForType = (elementType: number): number | null => {
+  const numbers = getElementNumbersForType(elementType)
+  return numbers.length > 0 ? numbers[0] : null
+}
 
 interface User {
   id: string
@@ -122,7 +136,7 @@ const ElementVisualization = ({ element }: { element: number }) => {
           fontWeight: 'bold' 
         }}
       >
-        Element {element}: {info.name}
+        {info.name}
       </Typography>
     </Box>
   )
@@ -439,8 +453,6 @@ export default function UsersPage() {
       setEditingUser({ ...editingUser, [field]: value })
     }
   }
-
-
 
   const handleDeleteUser = async (userId: string, userName: string) => {
     if (window.confirm(`⚠️ WARNING: Delete user "${userName}"?\n\nThis will permanently delete:\n• User account\n• All identity data\n• All associated records\n\nThis action CANNOT be undone!`)) {
@@ -1037,14 +1049,18 @@ export default function UsersPage() {
                     <FormControl fullWidth>
                       <InputLabel>Element</InputLabel>
                       <Select
-                        value={editingUser?.element_type?.toString() || ''}
-                        onChange={(e) => handleEditingUserChange('element_type', e.target.value ? parseInt(e.target.value) : null)}
+                        value={editingUser?.element_type ? getElementNumberForType(editingUser.element_type)?.toString() || '' : ''}
+                        onChange={(e) => {
+                          const elementNumber = e.target.value ? parseInt(e.target.value) : null
+                          const elementType = elementNumber ? ELEMENT_NUMBER_TO_TYPE[elementNumber as keyof typeof ELEMENT_NUMBER_TO_TYPE] : null
+                          handleEditingUserChange('element_type', elementType)
+                        }}
                         disabled={!isEditing}
                         label="Element"
                       >
                         <MenuItem value="">None</MenuItem>
-                        {[1,2,3,4,5].map(num => (
-                          <MenuItem key={num} value={num}>Element {num}</MenuItem>
+                        {[1,2,3,4,5,6,7,8,9].map(num => (
+                          <MenuItem key={num} value={num}>{num}</MenuItem>
                         ))}
                       </Select>
                     </FormControl>
