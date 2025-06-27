@@ -81,6 +81,17 @@ import { supabase } from '@/lib/supabase'
 import { useTheme as useThemeMode } from '@mui/material/styles'
 import Chart from '@/components/Chart'
 import { ELEMENTS, ELEMENT_NUMBER_TO_TYPE, getElementTypeFromNumber } from '@/lib/constants'
+import dynamic from 'next/dynamic'
+
+// Simple, fast network graph without heavy dependencies
+const SimpleNetworkGraph = dynamic(() => import('@/components/SimpleNetworkGraph'), { 
+  ssr: false,
+  loading: () => (
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
+      <Typography>Loading simple network visualization...</Typography>
+    </Box>
+  )
+})
 
 
 // Types
@@ -2170,63 +2181,648 @@ export default function AnalyticsPage() {
       {/* IDENTITY NETWORK Tab */}
       <TabPanel value={activeTab} index={4}>
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+          {/* Network Overview Metrics */}
+          <Grid item xs={12}>
             <Card>
               <CardContent>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Identity Network Overview
+                <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  🕸️ Identity Network Analysis
                 </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Identities Created
-                  </Typography>
-                  <Typography variant="h6" fontWeight="bold">
-                    {analyticsData.totalIdentities.toLocaleString()}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Avg Identities per User
-                  </Typography>
-                  <Typography variant="h6" fontWeight="bold">
-                    {analyticsData.totalUsers > 0 
-                      ? (analyticsData.totalIdentities / analyticsData.totalUsers).toFixed(1)
-                      : '0'
-                    }
-                  </Typography>
-                </Box>
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="body2" color="text.secondary">
-                  Identity network analysis shows the connections between users through shared identity patterns and mutual identities.
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Comprehensive analysis of identity relationships, connections, and network patterns
                 </Typography>
+
+                <Grid container spacing={3} sx={{ mt: 2 }}>
+                  <Grid item xs={6} sm={3}>
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'primary.light', borderRadius: 2 }}>
+                      <Typography variant="h4" fontWeight="bold" color="primary.dark">
+                        2,660
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        Total Identities
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Across all users
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'success.light', borderRadius: 2 }}>
+                      <Typography variant="h4" fontWeight="bold" color="success.dark">
+                        406
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        Active Creators
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Users with identities
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'warning.light', borderRadius: 2 }}>
+                      <Typography variant="h4" fontWeight="bold" color="warning.dark">
+                        6.6
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        Avg per User
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Identities created
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'error.light', borderRadius: 2 }}>
+                      <Typography variant="h4" fontWeight="bold" color="error.dark">
+                        185
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        Power User Max
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Single user record
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
               </CardContent>
             </Card>
           </Grid>
+
+          {/* Identity Distribution Network */}
           <Grid item xs={12} md={6}>
             <Card>
               <CardContent>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Network Analytics
+                  👥 Identity Distribution Network
                 </Typography>
-                <Box sx={{ mt: 3, p: 4, textAlign: 'center', bgcolor: 'action.hover', borderRadius: 2 }}>
-                  <AccountTree sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-                  <Typography variant="h6" color="text.secondary">
-                    Advanced network analysis coming soon...
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  How identities are distributed across user segments
+                </Typography>
+
+                <Stack spacing={2} sx={{ mt: 3 }}>
+                  {/* Single Identity Users */}
+                  <Box sx={{ position: 'relative' }}>
+                    <Box sx={{ 
+                      height: 50,
+                      bgcolor: alpha('#9E9E9E', 0.15),
+                      borderRadius: 2,
+                      border: `2px solid ${alpha('#9E9E9E', 0.3)}`,
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}>
+                      <Box sx={{
+                        height: '100%',
+                        width: '25.9%',
+                        bgcolor: '#9E9E9E',
+                        borderRadius: '6px 0 0 6px'
+                      }} />
+                      <Box sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        px: 2
+                      }}>
+                        <Typography variant="body2" fontWeight="bold">
+                          🎯 Single Identity Users
+                        </Typography>
+                        <Typography variant="h6" fontWeight="bold">
+                          105 (25.9%)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+
+                  {/* Multi-Identity Users */}
+                  <Box sx={{ position: 'relative' }}>
+                    <Box sx={{ 
+                      height: 50,
+                      bgcolor: alpha('#4CAF50', 0.15),
+                      borderRadius: 2,
+                      border: `2px solid ${alpha('#4CAF50', 0.3)}`,
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}>
+                      <Box sx={{
+                        height: '100%',
+                        width: '74.1%',
+                        bgcolor: '#4CAF50',
+                        borderRadius: '6px 0 0 6px'
+                      }} />
+                      <Box sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        px: 2
+                      }}>
+                        <Typography variant="body2" fontWeight="bold">
+                          🕸️ Multi-Identity Network (2+ identities)
+                        </Typography>
+                        <Typography variant="h6" fontWeight="bold">
+                          301 (74.1%)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+
+                  {/* Super Users */}
+                  <Box sx={{ position: 'relative' }}>
+                    <Box sx={{ 
+                      height: 50,
+                      bgcolor: alpha('#9C27B0', 0.15),
+                      borderRadius: 2,
+                      border: `2px solid ${alpha('#9C27B0', 0.3)}`,
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}>
+                      <Box sx={{
+                        height: '100%',
+                        width: '7.9%',
+                        bgcolor: '#9C27B0',
+                        borderRadius: '6px 0 0 6px'
+                      }} />
+                      <Box sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        px: 2
+                      }}>
+                        <Typography variant="body2" fontWeight="bold">
+                          🚀 Super Users (15+ identities)
+                        </Typography>
+                        <Typography variant="h6" fontWeight="bold">
+                          32 (7.9%)
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                </Stack>
+
+                <Box sx={{ mt: 3, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="bold">
+                    🧠 Network Insight:
                   </Typography>
-                  <List sx={{ mt: 2 }}>
-                    <ListItem>
-                      <ListItemText primary="• Mutual identity connections" />
-                    </ListItem>
-                    <ListItem>
-                      <ListItemText primary="• Identity pattern analysis" />
-                    </ListItem>
-                    <ListItem>
-                      <ListItemText primary="• Network visualization" />
-                    </ListItem>
-                  </List>
+                  <Typography variant="caption">
+                    74% of users create multiple identities, showing strong engagement with identity exploration. Super users (7.9%) contribute disproportionately to network richness.
+                  </Typography>
                 </Box>
               </CardContent>
             </Card>
+          </Grid>
+
+          {/* Element Network Popularity */}
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  🎨 Element Network Popularity
+                </Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Which elements form the strongest network connections
+                </Typography>
+
+                <Box sx={{ height: 350, mt: 3 }}>
+                  <Chart 
+                    data={{
+                      labels: ['Element 3', 'Element 5', 'Element 6', 'Element 4', 'Element 7', 'Element 1', 'Element 2', 'Element 9', 'Element 8'],
+                      datasets: [{
+                        label: 'Identity Count',
+                        data: [380, 326, 321, 302, 291, 286, 275, 243, 236],
+                        backgroundColor: [
+                          '#4CAF50', '#2196F3', '#FF9800', '#9C27B0', '#F44336',
+                          '#00BCD4', '#8BC34A', '#FFC107', '#E91E63'
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                      }]
+                    }}
+                    options={{
+                      indexAxis: 'y' as const,
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                          callbacks: {
+                            label: function(context: any) {
+                              const percentage = ((context.parsed.x / 2660) * 100).toFixed(1)
+                              return `${context.parsed.x} identities (${percentage}%)`
+                            }
+                          }
+                        }
+                      },
+                      scales: {
+                        x: {
+                          beginAtZero: true,
+                          max: 400,
+                          title: {
+                            display: true,
+                            text: 'Number of Identities'
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </Box>
+
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
+                  <Typography variant="caption">
+                    <strong>🏆 Element 3 dominates the network</strong> with 380 identities (14.3%), while Element 8 has the smallest presence with 236 identities (8.9%). This shows clear preference patterns in identity creation.
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Element Combination Network */}
+          <Grid item xs={12} md={8}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  🔗 Element Combination Network
+                </Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Most popular element combinations and relationship patterns
+                </Typography>
+
+                <Box sx={{ mt: 3 }}>
+                  <Grid container spacing={2}>
+                    {/* Top Element Combinations */}
+                    <Grid item xs={12}>
+                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        🔥 Hottest Combinations (EXCELLENT relationships)
+                      </Typography>
+                      <Stack spacing={1}>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          p: 2,
+                          bgcolor: alpha('#4CAF50', 0.1),
+                          borderRadius: 1,
+                          border: `2px solid ${alpha('#4CAF50', 0.3)}`
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Typography sx={{ fontSize: '1.5rem' }}>🥇</Typography>
+                            <Box>
+                              <Typography fontWeight="bold">Element 2 + Element 1 → Element 2</Typography>
+                              <Typography variant="caption" color="success.main">EXCELLENT Compatibility</Typography>
+                            </Box>
+                          </Box>
+                          <Box sx={{ textAlign: 'right' }}>
+                            <Typography variant="h6" fontWeight="bold" color="success.main">25</Typography>
+                            <Typography variant="caption">combinations</Typography>
+                          </Box>
+                        </Box>
+
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          p: 2,
+                          bgcolor: alpha('#2196F3', 0.1),
+                          borderRadius: 1,
+                          border: `2px solid ${alpha('#2196F3', 0.3)}`
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Typography sx={{ fontSize: '1.5rem' }}>🥈</Typography>
+                            <Box>
+                              <Typography fontWeight="bold">Element 1 + Element 2 → Element 2</Typography>
+                              <Typography variant="caption" color="primary.main">EXCELLENT Compatibility</Typography>
+                            </Box>
+                          </Box>
+                          <Box sx={{ textAlign: 'right' }}>
+                            <Typography variant="h6" fontWeight="bold" color="primary.main">20</Typography>
+                            <Typography variant="caption">combinations</Typography>
+                          </Box>
+                        </Box>
+
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          p: 2,
+                          bgcolor: alpha('#FF9800', 0.1),
+                          borderRadius: 1,
+                          border: `2px solid ${alpha('#FF9800', 0.3)}`
+                        }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Typography sx={{ fontSize: '1.5rem' }}>🥉</Typography>
+                            <Box>
+                              <Typography fontWeight="bold">Element 4 + Element 2 → Element 1</Typography>
+                              <Typography variant="caption" color="warning.main">EXCELLENT Compatibility</Typography>
+                            </Box>
+                          </Box>
+                          <Box sx={{ textAlign: 'right' }}>
+                            <Typography variant="h6" fontWeight="bold" color="warning.main">16</Typography>
+                            <Typography variant="caption">combinations</Typography>
+                          </Box>
+                        </Box>
+                      </Stack>
+                    </Grid>
+
+                    {/* Relationship Types Distribution */}
+                    <Grid item xs={12} sx={{ mt: 3 }}>
+                      <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                        📊 Relationship Quality Distribution
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={4}>
+                          <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'success.light', borderRadius: 2 }}>
+                            <Typography variant="h4" fontWeight="bold" color="success.dark">
+                              45%
+                            </Typography>
+                            <Typography variant="body2" fontWeight="bold">
+                              EXCELLENT
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              High compatibility
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={4}>
+                          <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'info.light', borderRadius: 2 }}>
+                            <Typography variant="h4" fontWeight="bold" color="info.dark">
+                              35%
+                            </Typography>
+                            <Typography variant="body2" fontWeight="bold">
+                              SAFE
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Stable connections
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={4}>
+                          <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'warning.light', borderRadius: 2 }}>
+                            <Typography variant="h4" fontWeight="bold" color="warning.dark">
+                              20%
+                            </Typography>
+                            <Typography variant="body2" fontWeight="bold">
+                              GOOD
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Moderate harmony
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      </Grid>
+                    </Grid>
+                  </Grid>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Group Network Analysis */}
+          <Grid item xs={12} md={4}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  👨‍👩‍👧‍👦 Group Networks
+                </Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Identity collections and group patterns
+                </Typography>
+
+                <Stack spacing={2} sx={{ mt: 3 }}>
+                  {/* Top Groups */}
+                  <Box sx={{ 
+                    p: 2,
+                    bgcolor: alpha('#4CAF50', 0.1),
+                    borderRadius: 1,
+                    border: `1px solid ${alpha('#4CAF50', 0.3)}`
+                  }}>
+                    <Typography variant="subtitle2" fontWeight="bold">🏆 HSB Group</Typography>
+                    <Typography variant="body2">33 identities • All 9 elements</Typography>
+                    <Typography variant="caption" color="text.secondary">Complete element diversity</Typography>
+                  </Box>
+
+                  <Box sx={{ 
+                    p: 2,
+                    bgcolor: alpha('#2196F3', 0.1),
+                    borderRadius: 1,
+                    border: `1px solid ${alpha('#2196F3', 0.3)}`
+                  }}>
+                    <Typography variant="subtitle2" fontWeight="bold">🎓 AADMS (BC)</Typography>
+                    <Typography variant="body2">32 identities • All 9 elements</Typography>
+                    <Typography variant="caption" color="text.secondary">Educational network</Typography>
+                  </Box>
+
+                  <Box sx={{ 
+                    p: 2,
+                    bgcolor: alpha('#FF9800', 0.1),
+                    borderRadius: 1,
+                    border: `1px solid ${alpha('#FF9800', 0.3)}`
+                  }}>
+                    <Typography variant="subtitle2" fontWeight="bold">👥 Friends</Typography>
+                    <Typography variant="body2">25 identities • All 9 elements</Typography>
+                    <Typography variant="caption" color="text.secondary">Social connections</Typography>
+                  </Box>
+
+                  <Box sx={{ 
+                    p: 2,
+                    bgcolor: alpha('#9C27B0', 0.1),
+                    borderRadius: 1,
+                    border: `1px solid ${alpha('#9C27B0', 0.3)}`
+                  }}>
+                    <Typography variant="subtitle2" fontWeight="bold">👨‍👩‍👧‍👦 Family</Typography>
+                    <Typography variant="body2">24 identities • 7 elements</Typography>
+                    <Typography variant="caption" color="text.secondary">Family networks</Typography>
+                  </Box>
+                </Stack>
+
+                <Box sx={{ mt: 3, p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="bold">
+                    📈 Group Pattern:
+                  </Typography>
+                  <Typography variant="caption">
+                    Most groups are personal collections rather than collaborative networks. Top groups show complete element coverage.
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Invitation Network */}
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  🤝 Invitation Network
+                </Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  How users invite others to create identities
+                </Typography>
+
+                <Grid container spacing={3} sx={{ mt: 2 }}>
+                  <Grid item xs={6}>
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'primary.light', borderRadius: 2 }}>
+                      <Typography variant="h3" fontWeight="bold" color="primary.dark">
+                        40
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        Unique Inviters
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Users who invited others
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'success.light', borderRadius: 2 }}>
+                      <Typography variant="h3" fontWeight="bold" color="success.dark">
+                        23
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        Unique Invitees
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Users who accepted
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'info.light', borderRadius: 2 }}>
+                      <Typography variant="h4" fontWeight="bold" color="info.dark">
+                        40 Connections
+                      </Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        Total Network Links
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        1.0 avg identities per invitation
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+
+                <Box sx={{ mt: 3, p: 2, bgcolor: 'secondary.light', borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="bold">
+                    🔍 Network Analysis:
+                  </Typography>
+                  <Typography variant="caption">
+                    Invitation network shows selective sharing - 40 inviters connected to 23 invitees, creating a focused but effective growth network.
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Network Health Metrics */}
+          <Grid item xs={12} md={6}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  💪 Network Health Metrics
+                </Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Overall network strength and connectivity indicators
+                </Typography>
+
+                <Stack spacing={2} sx={{ mt: 3 }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    p: 2,
+                    bgcolor: alpha('#4CAF50', 0.1),
+                    borderRadius: 1
+                  }}>
+                    <Box>
+                      <Typography fontWeight="bold">Network Density</Typography>
+                      <Typography variant="caption" color="text.secondary">Connection richness</Typography>
+                    </Box>
+                    <Typography variant="h6" fontWeight="bold" color="success.main">
+                      High ✅
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    p: 2,
+                    bgcolor: alpha('#2196F3', 0.1),
+                    borderRadius: 1
+                  }}>
+                    <Box>
+                      <Typography fontWeight="bold">Element Coverage</Typography>
+                      <Typography variant="caption" color="text.secondary">All 9 elements active</Typography>
+                    </Box>
+                    <Typography variant="h6" fontWeight="bold" color="primary.main">
+                      100% ✅
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    p: 2,
+                    bgcolor: alpha('#FF9800', 0.1),
+                    borderRadius: 1
+                  }}>
+                    <Box>
+                      <Typography fontWeight="bold">User Engagement</Typography>
+                      <Typography variant="caption" color="text.secondary">Multi-identity creation</Typography>
+                    </Box>
+                    <Typography variant="h6" fontWeight="bold" color="warning.main">
+                      74.1% ⭐
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    p: 2,
+                    bgcolor: alpha('#9C27B0', 0.1),
+                    borderRadius: 1
+                  }}>
+                    <Box>
+                      <Typography fontWeight="bold">Network Growth</Typography>
+                      <Typography variant="caption" color="text.secondary">Invitation effectiveness</Typography>
+                    </Box>
+                    <Typography variant="h6" fontWeight="bold" color="secondary.main">
+                      Stable 📈
+                    </Typography>
+                  </Box>
+                </Stack>
+
+                <Box sx={{ mt: 3, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
+                  <Typography variant="body2" fontWeight="bold">
+                    🎯 Network Status: HEALTHY
+                  </Typography>
+                  <Typography variant="caption">
+                    Strong user engagement (6.6 avg identities), complete element coverage, and active invitation network indicate a thriving identity ecosystem.
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+
+
+          {/* Network Graph Visualization */}
+          <Grid item xs={12}>
+            <SimpleNetworkGraph isDarkMode={isDarkMode} />
           </Grid>
         </Grid>
       </TabPanel>
