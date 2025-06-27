@@ -94,19 +94,54 @@ export const useBehavioralAnalytics = () => {
   const loadBehavioralAnalytics = async () => {
     setLoading(true)
     try {
-      // Get all user data
-      const { data: users } = await supabase
+      // Get all user data - FORCE NO LIMITS with explicit count first
+      console.log('🔍 Getting user count first...')
+      const { count: totalUsersCount } = await supabase
+        .from('kd_users')
+        .select('*', { count: 'exact', head: true })
+      
+      console.log('🔍 Total users in database:', totalUsersCount)
+      
+      console.log('🔍 About to query kd_users table with NO LIMITS...')
+      const usersResult = await supabase
         .from('kd_users')
         .select('id, email, element_number, gender, registration_country, created_at, user_type, join_by_invitation')
-        .eq('user_type', 1) // Only get regular users, not admins
+        .limit(50000) // Explicit high limit instead of range
+      
+      console.log('🔍 Users query result:', {
+        data: usersResult.data?.length,
+        error: usersResult.error,
+        status: usersResult.status,
+        statusText: usersResult.statusText
+      })
+      
+      const { data: users } = usersResult
 
-      const { data: identities } = await supabase
+      console.log('🔍 About to query kd_identity table with NO LIMITS...')
+      const identitiesResult = await supabase
         .from('kd_identity')
         .select('user_id, created_at')
+        .limit(50000) // Explicit high limit instead of range
+        
+      console.log('🔍 Identities query result:', {
+        data: identitiesResult.data?.length,
+        error: identitiesResult.error,
+        status: identitiesResult.status
+      })
+      
+      const { data: identities } = identitiesResult
 
       const { data: feedback } = await supabase
         .from('kd_problem_updates')
         .select('created_by, created_at, project')
+        .limit(50000) // Explicit high limit instead of range
+
+      console.log('🔍 Behavioral Analytics Debug:', {
+        totalUsers: users?.length || 0,
+        totalIdentities: identities?.length || 0,
+        totalFeedback: feedback?.length || 0,
+        sampleUser: users?.[0]
+      })
 
       if (!users) {
         console.error('No users data found')
@@ -162,6 +197,8 @@ export const useBehavioralAnalytics = () => {
         hasProfile: userJourneyStages.filter(u => u.hasGender && u.hasCountry).length,
         hasEngaged: userJourneyStages.filter(u => u.feedbackCount > 0).length
       }
+
+      console.log('📊 Completion Funnel Debug:', completionFunnel)
 
       // Calculate element behavior patterns
       const elementBehavior: BehavioralAnalytics['elementBehavior'] = {}
