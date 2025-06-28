@@ -148,15 +148,42 @@ export default function GrowthForecastingPage() {
         }))
       })
 
-      // Get user registration data with invitation status
-      const { data: userData } = await supabase
-        .from('kd_users')
-        .select('created_at, join_by_invitation')
-        .gte('created_at', startDate.toISOString())
-        .order('created_at', { ascending: true })
+      // Get user registration data with invitation status - fetch ALL records
+      let allUserData: { created_at: string; join_by_invitation: boolean }[] = []
+      let from = 0
+      const batchSize = 1000
+      
+      while (true) {
+        const { data: userData, error } = await supabase
+          .from('kd_users')
+          .select('created_at, join_by_invitation')
+          .gte('created_at', startDate.toISOString())
+          .order('created_at', { ascending: true })
+          .range(from, from + batchSize - 1)
+        
+        if (error) {
+          console.error('Error fetching user data:', error)
+          break
+        }
+        
+        if (!userData || userData.length === 0) {
+          break
+        }
+        
+        allUserData = allUserData.concat(userData)
+        
+        // If we got less than batch size, we've reached the end
+        if (userData.length < batchSize) {
+          break
+        }
+        
+        from += batchSize
+      }
+      
+      console.log(`✅ Fetched ${allUserData.length} user records for growth analysis`)
 
       // Process growth data
-      const processedData = processGrowthData(userData || [], eventList, startDate, endDate)
+      const processedData = processGrowthData(allUserData || [], eventList, startDate, endDate)
       setGrowthData(processedData)
       
       // Generate forecast

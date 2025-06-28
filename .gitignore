@@ -61,3 +61,16 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# MCP and credential files - NEVER COMMIT
+mcp_config.json
+cursor-mcp-setup.md
+*-credentials.*
+*.credentials
+*-secrets.*
+*.secrets
+supabase-keys.*
+api-keys.*
+
+# Development utility scripts
+cleanup-servers.ps1

@@ -900,38 +900,44 @@ export default function AnalyticsPage() {
 
   // Stat Card Component
   const StatCard = ({ icon, title, subtitle, value, growth, color = 'primary' }: any) => (
-    <Card sx={{ height: '100%' }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              {title}
-            </Typography>
-            <Typography variant="h4" fontWeight="bold">
-              {typeof value === 'number' ? value.toLocaleString() : value}
-            </Typography>
-            {subtitle && (
-              <Typography variant="caption" color="text.secondary" display="block">
-                {subtitle}
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', height: '100%' }}>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 120 }}>
+            <Box>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                {title}
               </Typography>
-            )}
-            {growth !== null && growth !== undefined && (
-              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                {growth.startsWith('+') ? (
-                  <TrendingUp sx={{ color: 'success.main', fontSize: 16, mr: 0.5 }} />
-                ) : (
-                  <TrendingDown sx={{ color: 'error.main', fontSize: 16, mr: 0.5 }} />
-                )}
-                <Typography 
-                  variant="body2" 
-                  color={growth.startsWith('+') ? 'success.main' : 'error.main'}
-                >
-                  {growth}% vs last month
+              <Typography variant="h4" fontWeight="bold" sx={{ mb: 1 }}>
+                {typeof value === 'number' ? value.toLocaleString() : value}
+              </Typography>
+            </Box>
+            
+            <Box sx={{ minHeight: 40, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+              {subtitle && (
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                  {subtitle}
                 </Typography>
-              </Box>
-            )}
+              )}
+              {growth !== null && growth !== undefined && (
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  {growth.startsWith('+') ? (
+                    <TrendingUp sx={{ color: 'success.main', fontSize: 16, mr: 0.5 }} />
+                  ) : (
+                    <TrendingDown sx={{ color: 'error.main', fontSize: 16, mr: 0.5 }} />
+                  )}
+                  <Typography 
+                    variant="body2" 
+                    color={growth.startsWith('+') ? 'success.main' : 'error.main'}
+                  >
+                    {growth}% vs last month
+                  </Typography>
+                </Box>
+              )}
+            </Box>
           </Box>
-          <Avatar sx={{ bgcolor: `${color}.main`, width: 56, height: 56 }}>
+          
+          <Avatar sx={{ bgcolor: `${color}.main`, width: 56, height: 56, ml: 2 }}>
             {icon}
           </Avatar>
         </Box>

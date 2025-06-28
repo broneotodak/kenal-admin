@@ -1,0 +1,103 @@
+# CURSOR AI RULES - CLAUDE DESKTOP MEMORY INTEGRATION
+
+## MEMORY-FIRST APPROACH
+Before solving ANY problem, ALWAYS search Claude Desktop's memory vault using Supabase MCP tools.
+
+## SUPABASE MEMORY ACCESS
+- **Database**: uzamamymfzhelvkwpvgt.supabase.co
+- **Table**: claude_desktop_memory  
+- **User**: neo_todak
+
+### Essential Queries:
+```sql
+-- Load project context
+SELECT id, content, importance, created_at FROM claude_desktop_memory 
+WHERE user_id = 'neo_todak' AND category = 'KENAL' AND importance >= 8
+ORDER BY created_at DESC LIMIT 15;
+
+-- Search for similar problems  
+SELECT id, content, memory_type FROM claude_desktop_memory 
+WHERE user_id = 'neo_todak' AND content ILIKE '%keywords%'
+ORDER BY importance DESC;
+```
+
+## LOCAL SERVER MANAGEMENT RULES
+**CRITICAL**: Before starting ANY local server, ALWAYS terminate existing instances to prevent port conflicts and resource waste.
+
+### Pre-Server Startup Commands (Windows):
+```powershell
+# Kill all Node.js processes
+taskkill /F /IM node.exe 2>$null
+taskkill /F /IM "Next.js*" 2>$null
+
+# Kill specific development servers
+Get-Process | Where-Object {$_.ProcessName -like "*next*" -or $_.ProcessName -like "*react*" -or $_.ProcessName -like "*vite*"} | Stop-Process -Force -ErrorAction SilentlyContinue
+
+# Kill processes using common dev ports
+netstat -ano | findstr ":3000 " | ForEach-Object { $pid = ($_ -split '\s+')[-1]; if($pid -ne "0") { taskkill /F /PID $pid 2>$null } }
+netstat -ano | findstr ":3001 " | ForEach-Object { $pid = ($_ -split '\s+')[-1]; if($pid -ne "0") { taskkill /F /PID $pid 2>$null } }
+netstat -ano | findstr ":8000 " | ForEach-Object { $pid = ($_ -split '\s+')[-1]; if($pid -ne "0") { taskkill /F /PID $pid 2>$null } }
+netstat -ano | findstr ":5173 " | ForEach-Object { $pid = ($_ -split '\s+')[-1]; if($pid -ne "0") { taskkill /F /PID $pid 2>$null } }
+```
+
+### Server Startup Workflow:
+1. **ALWAYS run cleanup commands FIRST**
+2. **Wait 2-3 seconds** for processes to terminate
+3. **Check port availability** before starting
+4. **Start server with clear output**
+5. **Confirm successful startup**
+
+### Standard Server Commands:
+```bash
+# Next.js Development
+npm run dev
+
+# Alternative ports if 3000 is busy
+npm run dev -- --port 3001
+
+# Production build test
+npm run build && npm run start
+```
+
+### Port Conflict Resolution:
+- **Port 3000**: Primary Next.js development
+- **Port 3001**: Secondary Next.js instance  
+- **Port 8000**: Admin dashboard
+- **Port 5173**: Vite development server
+
+**NEVER start a server without cleanup - this prevents system slowdown and port conflicts!**
+
+## CURRENT PROJECT CONTEXT
+- **KENAL Admin Dashboard**: React + TypeScript + Supabase
+- **Database**: etkuxatycjqwvfjjwxqm.supabase.co
+- **Admin URLs**: https://todakai.neotodak.com/admin, http://localhost:8000/admin
+- **Tech Stack**: Next.js, Tailwind CSS, Supabase Auth, pgvector
+
+## PROVEN SOLUTION PATTERNS
+- **Auth issues**: Check OAuth redirect URLs in Google Console
+- **Dashboard empty**: Verify RLS policies and user permissions
+- **Performance**: Use optimized hooks (useOptimizedDashboard, useSmartDashboard)
+- **Real-time**: Leverage Supabase realtime subscriptions
+
+## OPERATING WORKFLOW
+1. **Search memory** for existing solutions first
+2. **Apply proven patterns** before creating new solutions  
+3. **Store new learnings** in claude_desktop_memory with metadata
+4. **Reference Memory IDs** when citing historical solutions
+5. **Use latest knowledge** and prioritize performance/clean code
+
+## CRITICAL MEMORY IDs
+- **1490**: TODAK AI project context and recent updates
+- **1477**: NTFY notification system working solution  
+- **1473**: VentureCanvas authentication credentials
+- **1463**: Non-THR user storage fix for WhatsApp system
+
+## CODING STANDARDS
+- Use latest knowledge or documentation as possible
+- Avoid garbage collection, simplify code for human readability
+- Prioritize performance and provide clean code
+- Avoid redundant patterns
+- Read other files or scripts for any references
+- If using C# system.threading.tasks, change to UniTask if available
+
+**Remember**: Claude Desktop has 1,300+ memories across 90+ projects. Search this knowledge base FIRST, always cite Memory IDs, and build on existing solutions rather than starting from scratch. 

@@ -638,14 +638,9 @@ export default function DashboardPage() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body1" sx={{ fontSize: '1.2rem' }}>
-                          {getCountryFlag(user.registration_country)}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                          {user.country_display}
-                        </Typography>
-                      </Box>
+                      <Typography variant="body1" sx={{ fontSize: '1.5rem' }}>
+                        {getCountryFlag(user.registration_country)}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip

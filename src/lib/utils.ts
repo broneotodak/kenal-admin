@@ -3,9 +3,69 @@ import { COUNTRY_FLAGS, COUNTRY_NAMES, ELEMENTS } from './constants'
 // ===== COUNTRY UTILITIES =====
 export const getCountryFlag = (countryCode?: string): string => {
   if (!countryCode) return '🌍'
-  return COUNTRY_FLAGS[countryCode as keyof typeof COUNTRY_FLAGS] || 
-         COUNTRY_FLAGS[countryCode.toUpperCase() as keyof typeof COUNTRY_FLAGS] || 
-         '🌍'
+  
+  // Handle both country codes and full country names
+  const input = countryCode.toUpperCase().trim()
+  
+  // Method 1: Direct emoji mapping (codes and names)
+  const emojiFlags: { [key: string]: string } = {
+    // Country codes
+    'MY': '🇲🇾',
+    'US': '🇺🇸', 
+    'SG': '🇸🇬',
+    'ID': '🇮🇩',
+    'TH': '🇹🇭',
+    'VN': '🇻🇳',
+    'PH': '🇵🇭',
+    'CN': '🇨🇳',
+    'JP': '🇯🇵',
+    'KR': '🇰🇷',
+    'IN': '🇮🇳',
+    'AU': '🇦🇺',
+    'UK': '🇬🇧',
+    'GB': '🇬🇧',
+    'CA': '🇨🇦',
+    'DE': '🇩🇪',
+    'FR': '🇫🇷',
+    'BR': '🇧🇷',
+    'MX': '🇲🇽',
+    // Full country names
+    'MALAYSIA': '🇲🇾',
+    'UNITED STATES': '🇺🇸',
+    'SINGAPORE': '🇸🇬',
+    'INDONESIA': '🇮🇩',
+    'THAILAND': '🇹🇭',
+    'VIETNAM': '🇻🇳',
+    'PHILIPPINES': '🇵🇭',
+    'CHINA': '🇨🇳',
+    'JAPAN': '🇯🇵',
+    'SOUTH KOREA': '🇰🇷',
+    'KOREA': '🇰🇷',
+    'INDIA': '🇮🇳',
+    'AUSTRALIA': '🇦🇺',
+    'UNITED KINGDOM': '🇬🇧',
+    'CANADA': '🇨🇦',
+    'GERMANY': '🇩🇪',
+    'FRANCE': '🇫🇷',
+    'BRAZIL': '🇧🇷',
+    'MEXICO': '🇲🇽'
+  }
+  
+  // Try direct mapping first
+  if (emojiFlags[input]) {
+    return emojiFlags[input]
+  }
+  
+  // Method 2: Unicode composition for 2-letter codes
+  if (input.length === 2) {
+    const codePoints = input
+      .split('')
+      .map(char => 127397 + char.charCodeAt(0))
+    return String.fromCodePoint(...codePoints)
+  }
+  
+  // Fallback
+  return '🌍'
 }
 
 export const getCountryName = (countryCode?: string): string => {
