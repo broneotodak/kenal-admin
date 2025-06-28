@@ -111,6 +111,17 @@ interface AnalyticsData {
   usersByCountry: { [key: string]: number }
   usersByGender: { [key: string]: number }
   usersByType: { admin: number, public: number }
+  elementGenderDistribution: { [key: number]: { male: number, female: number, total: number } }
+  testCompletionStats: {
+    anyTestCompleted: number
+    multipleTests: number
+    highEngagement: number
+    powerTesters: number
+    anyTestPercentage: number
+    multipleTestsPercentage: number
+    highEngagementPercentage: number
+    powerTestersPercentage: number
+  }
   registrationTrends: Array<{
     date: string
     newUsers: number
@@ -186,6 +197,17 @@ export default function AnalyticsPage() {
     usersByCountry: {},
     usersByGender: {},
     usersByType: { admin: 0, public: 0 },
+    elementGenderDistribution: {},
+    testCompletionStats: {
+      anyTestCompleted: 0,
+      multipleTests: 0,
+      highEngagement: 0,
+      powerTesters: 0,
+      anyTestPercentage: 0,
+      multipleTestsPercentage: 0,
+      highEngagementPercentage: 0,
+      powerTestersPercentage: 0
+    },
     registrationTrends: [],
     userCohorts: [],
     growthForecast: [],
@@ -607,13 +629,27 @@ export default function AnalyticsPage() {
       }
       const usersByCountry: { [key: string]: number } = {}
       const usersByGender: { [key: string]: number } = {}
+      const elementGenderDistribution: { [key: number]: { male: number, female: number, total: number } } = {}
       let adminCount = 0
       let publicCount = 0
+
+      // Initialize element-gender distribution
+      for (let i = 1; i <= 9; i++) {
+        elementGenderDistribution[i] = { male: 0, female: 0, total: 0 }
+      }
 
       allUsers?.forEach(user => {
         // Element analysis - Count by individual element numbers
         if (user.element_number && user.element_number >= 1 && user.element_number <= 9) {
           usersByElement[user.element_number] = (usersByElement[user.element_number] || 0) + 1
+          
+          // Element-Gender cross analysis
+          elementGenderDistribution[user.element_number].total++
+          if (user.gender === 'male') {
+            elementGenderDistribution[user.element_number].male++
+          } else if (user.gender === 'female') {
+            elementGenderDistribution[user.element_number].female++
+          }
         }
         
         // Country analysis
@@ -772,6 +808,45 @@ export default function AnalyticsPage() {
         return forecasts
       }
 
+      // Calculate test completion statistics
+      const { data: identityData } = await supabase
+        .from('kd_identity')
+        .select('user_id')
+        .limit(50000) // Get all identities
+
+      const testCompletionStats = {
+        anyTestCompleted: 0,
+        multipleTests: 0,
+        highEngagement: 0,
+        powerTesters: 0,
+        anyTestPercentage: 0,
+        multipleTestsPercentage: 0,
+        highEngagementPercentage: 0,
+        powerTestersPercentage: 0
+      }
+
+      if (identityData && totalUsers && totalUsers > 0) {
+        // Group identities by user to count tests per user
+        const userTestCounts: { [userId: number]: number } = {}
+        identityData.forEach(identity => {
+          userTestCounts[identity.user_id] = (userTestCounts[identity.user_id] || 0) + 1
+        })
+
+        const usersWithTests = Object.keys(userTestCounts).length
+        const usersWithMultipleTests = Object.values(userTestCounts).filter(count => count >= 2).length
+        const usersWithHighEngagement = Object.values(userTestCounts).filter(count => count >= 6).length
+        const powerTesters = Object.values(userTestCounts).filter(count => count >= 10).length
+
+        testCompletionStats.anyTestCompleted = usersWithTests
+        testCompletionStats.multipleTests = usersWithMultipleTests
+        testCompletionStats.highEngagement = usersWithHighEngagement
+        testCompletionStats.powerTesters = powerTesters
+        testCompletionStats.anyTestPercentage = Math.round((usersWithTests / totalUsers) * 1000) / 10
+        testCompletionStats.multipleTestsPercentage = Math.round((usersWithMultipleTests / totalUsers) * 1000) / 10
+        testCompletionStats.highEngagementPercentage = Math.round((usersWithHighEngagement / totalUsers) * 1000) / 10
+        testCompletionStats.powerTestersPercentage = Math.round((powerTesters / totalUsers) * 1000) / 10
+      }
+
       const simpleGrowthForecast = generateSimpleGrowthForecast(totalUsers || 0, monthlyGrowthRate)
       // Advanced forecast will be generated in loadChartData where dailyTrends is available
 
@@ -785,6 +860,8 @@ export default function AnalyticsPage() {
         usersByCountry,
         usersByGender,
         usersByType: { admin: adminCount, public: publicCount },
+        elementGenderDistribution,
+        testCompletionStats,
         registrationTrends: [],
         userCohorts: cohorts,
         growthForecast: simpleGrowthForecast, // Will be updated with both methods in loadChartData
@@ -1408,6 +1485,191 @@ export default function AnalyticsPage() {
             </Card>
           </Grid>
 
+          {/* Element-Gender Distribution */}
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Element Distribution by Gender
+                </Typography>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Which genders dominate each element number - discover personality patterns across demographics
+                </Typography>
+                
+                                 <Grid container spacing={2} sx={{ mt: 2 }}>
+                   {Object.entries(analyticsData.elementGenderDistribution)
+                     .filter(([element, data]) => data.total > 0) // Only show elements with users
+                     .sort(([,a], [,b]) => b.total - a.total) // Sort by total count (highest first)
+                     .map(([element, data], index) => {
+                      const elementNum = parseInt(element)
+                      const elementType = ELEMENT_NUMBER_TO_TYPE[elementNum as keyof typeof ELEMENT_NUMBER_TO_TYPE]
+                      const info = elementType ? ELEMENTS[elementType as keyof typeof ELEMENTS] : null
+                      const malePercentage = data.total > 0 ? (data.male / data.total * 100) : 0
+                                             const femalePercentage = data.total > 0 ? (data.female / data.total * 100) : 0
+                       const dominantGender = data.male > data.female ? 'male' : 'female'
+                       const dominantPercentage = Math.max(malePercentage, femalePercentage)
+                       const rank = index + 1
+                       const isTop3 = rank <= 3
+                       
+                       return (
+                         <Grid item xs={12} sm={6} md={4} key={element}>
+                           <Card 
+                             variant="outlined" 
+                             sx={{ 
+                               bgcolor: alpha(info?.color || '#9E9E9E', 0.05),
+                               border: `2px solid ${alpha(info?.color || '#9E9E9E', isTop3 ? 0.6 : 0.3)}`,
+                               height: '100%',
+                               position: 'relative',
+                               boxShadow: isTop3 ? 3 : 1 // Enhanced shadow for top 3
+                             }}
+                                                      >
+                             {/* Ranking Badge */}
+                             <Box sx={{
+                               position: 'absolute',
+                               top: 8,
+                               right: 8,
+                               width: 28,
+                               height: 28,
+                               borderRadius: '50%',
+                               bgcolor: isTop3 ? 'gold' : 'rgba(255,255,255,0.9)',
+                               color: isTop3 ? '#000' : '#666',
+                               display: 'flex',
+                               alignItems: 'center',
+                               justifyContent: 'center',
+                               fontSize: '0.8rem',
+                               fontWeight: 'bold',
+                               zIndex: 2,
+                               border: isTop3 ? '2px solid #FFD700' : '1px solid #ccc'
+                             }}>
+                               #{rank}
+                             </Box>
+                             
+                             <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                               {/* Element Header */}
+                               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
+                                 <Typography sx={{ fontSize: '2rem' }}>
+                                   {info?.symbol || '❓'}
+                                 </Typography>
+                                 <Box>
+                                   <Typography variant="h6" fontWeight="bold">
+                                     Element {element}
+                                   </Typography>
+                                   <Typography variant="caption" color="text.secondary">
+                                     {info?.name || 'Unknown'}
+                                   </Typography>
+                                 </Box>
+                               </Box>
+                              
+                                                             {/* Total Users */}
+                               <Typography 
+                                 variant={isTop3 ? "h3" : "h4"} 
+                                 fontWeight="bold" 
+                                 color={info?.color || 'text.primary'}
+                                 sx={{ 
+                                   textShadow: isTop3 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                                 }}
+                               >
+                                 {data.total.toLocaleString()}
+                               </Typography>
+                               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                 {isTop3 ? `🏆 #${rank} Most Popular` : 'Total Users'}
+                               </Typography>
+                              
+                              {/* Gender Breakdown */}
+                              <Box sx={{ mb: 2 }}>
+                                {/* Male Bar */}
+                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                  <Typography variant="body2" sx={{ minWidth: 60, textAlign: 'left' }}>
+                                    👨 Male
+                                  </Typography>
+                                  <Box sx={{ flex: 1, mx: 1 }}>
+                                    <LinearProgress 
+                                      variant="determinate" 
+                                      value={malePercentage}
+                                      sx={{ 
+                                        height: 8, 
+                                        borderRadius: 4,
+                                        bgcolor: alpha('#2196F3', 0.2),
+                                        '& .MuiLinearProgress-bar': {
+                                          bgcolor: '#2196F3'
+                                        }
+                                      }}
+                                    />
+                                  </Box>
+                                  <Typography variant="body2" sx={{ minWidth: 40, textAlign: 'right', fontWeight: 'bold' }}>
+                                    {data.male}
+                                  </Typography>
+                                </Box>
+                                
+                                {/* Female Bar */}
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                  <Typography variant="body2" sx={{ minWidth: 60, textAlign: 'left' }}>
+                                    👩 Female
+                                  </Typography>
+                                  <Box sx={{ flex: 1, mx: 1 }}>
+                                    <LinearProgress 
+                                      variant="determinate" 
+                                      value={femalePercentage}
+                                      sx={{ 
+                                        height: 8, 
+                                        borderRadius: 4,
+                                        bgcolor: alpha('#E91E63', 0.2),
+                                        '& .MuiLinearProgress-bar': {
+                                          bgcolor: '#E91E63'
+                                        }
+                                      }}
+                                    />
+                                  </Box>
+                                  <Typography variant="body2" sx={{ minWidth: 40, textAlign: 'right', fontWeight: 'bold' }}>
+                                    {data.female}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              
+                              {/* Dominance Indicator */}
+                              <Chip
+                                label={`${dominantGender === 'male' ? '👨' : '👩'} ${dominantGender.charAt(0).toUpperCase() + dominantGender.slice(1)} Dominated (${dominantPercentage.toFixed(1)}%)`}
+                                color={dominantGender === 'male' ? 'primary' : 'secondary'}
+                                size="small"
+                                sx={{ 
+                                  fontWeight: 'bold',
+                                  fontSize: '0.7rem'
+                                }}
+                              />
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      )
+                    })}
+                </Grid>
+                
+                {/* Summary Insights */}
+                <Box sx={{ mt: 3, p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
+                  <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+                    🎯 Gender-Element Insights:
+                  </Typography>
+                  <Grid container spacing={2}>
+                                         <Grid item xs={12} md={6}>
+                       <Typography variant="body2">
+                         <strong>🏆 Top 3 Elements:</strong> {Object.entries(analyticsData.elementGenderDistribution)
+                           .filter(([,data]) => data.total > 0)
+                           .sort(([,a], [,b]) => b.total - a.total)
+                           .slice(0, 3)
+                           .map(([element, data], index) => `#${index + 1} Element ${element} (${data.total} users)`)
+                           .join(', ')}
+                       </Typography>
+                     </Grid>
+                     <Grid item xs={12} md={6}>
+                       <Typography variant="body2">
+                         <strong>📊 Ranking:</strong> Cards are sorted by total users (highest first) with top 3 highlighted
+                       </Typography>
+                     </Grid>
+                  </Grid>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
           {/* Element Distribution - Visual Segments */}
           <Grid item xs={12} md={6}>
             <Card>
@@ -1994,6 +2256,176 @@ export default function AnalyticsPage() {
                         }}
                       />
                     </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Test Completion Statistics */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                    🧪 Test Completion Statistics
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Percentage of users who completed each test type
+                  </Typography>
+
+                  <Stack spacing={2} sx={{ mt: 3 }}>
+                    {/* Any Test Completion */}
+                    <Box sx={{ position: 'relative' }}>
+                      <Box sx={{ 
+                        height: 50,
+                        bgcolor: alpha('#4CAF50', 0.15),
+                        borderRadius: 2,
+                        border: `2px solid ${alpha('#4CAF50', 0.3)}`,
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}>
+                        <Box sx={{
+                          height: '100%',
+                          width: `${analyticsData.testCompletionStats.anyTestPercentage}%`,
+                          bgcolor: '#4CAF50',
+                          borderRadius: '6px 0 0 6px'
+                        }} />
+                        <Box sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          px: 2
+                        }}>
+                          <Typography variant="body1" fontWeight="bold">
+                            🎯 Any Test Completed
+                          </Typography>
+                          <Typography variant="h6" fontWeight="bold">
+                            {analyticsData.testCompletionStats.anyTestPercentage}%
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    {/* Multiple Tests */}
+                    <Box sx={{ position: 'relative' }}>
+                      <Box sx={{ 
+                        height: 40,
+                        bgcolor: alpha('#2196F3', 0.15),
+                        borderRadius: 2,
+                        border: `2px solid ${alpha('#2196F3', 0.3)}`,
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}>
+                        <Box sx={{
+                          height: '100%',
+                          width: `${analyticsData.testCompletionStats.multipleTestsPercentage}%`,
+                          bgcolor: '#2196F3',
+                          borderRadius: '6px 0 0 6px'
+                        }} />
+                        <Box sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          px: 2
+                        }}>
+                          <Typography variant="body2" fontWeight="bold">
+                            🔄 Multiple Tests (2+ identities)
+                          </Typography>
+                          <Typography variant="h6" fontWeight="bold">
+                            {analyticsData.testCompletionStats.multipleTestsPercentage}%
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    {/* High Engagement */}
+                    <Box sx={{ position: 'relative' }}>
+                      <Box sx={{ 
+                        height: 40,
+                        bgcolor: alpha('#FF9800', 0.15),
+                        borderRadius: 2,
+                        border: `2px solid ${alpha('#FF9800', 0.3)}`,
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}>
+                        <Box sx={{
+                          height: '100%',
+                          width: `${analyticsData.testCompletionStats.highEngagementPercentage}%`,
+                          bgcolor: '#FF9800',
+                          borderRadius: '6px 0 0 6px'
+                        }} />
+                        <Box sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          px: 2
+                        }}>
+                          <Typography variant="body2" fontWeight="bold">
+                            🔥 High Engagement (6+ tests)
+                          </Typography>
+                          <Typography variant="h6" fontWeight="bold">
+                            {analyticsData.testCompletionStats.highEngagementPercentage}%
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    {/* Power Testers */}
+                    <Box sx={{ position: 'relative' }}>
+                      <Box sx={{ 
+                        height: 40,
+                        bgcolor: alpha('#9C27B0', 0.15),
+                        borderRadius: 2,
+                        border: `2px solid ${alpha('#9C27B0', 0.3)}`,
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}>
+                        <Box sx={{
+                          height: '100%',
+                          width: `${analyticsData.testCompletionStats.powerTestersPercentage}%`,
+                          bgcolor: '#9C27B0',
+                          borderRadius: '6px 0 0 6px'
+                        }} />
+                        <Box sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          px: 2
+                        }}>
+                          <Typography variant="body2" fontWeight="bold">
+                            🚀 Power Testers (10+ tests)
+                          </Typography>
+                          <Typography variant="h6" fontWeight="bold">
+                            {analyticsData.testCompletionStats.powerTestersPercentage}%
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  </Stack>
+
+                  <Box sx={{ mt: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      <strong>Test Engagement:</strong> Each identity represents a completed personality test. {analyticsData.testCompletionStats.anyTestPercentage}% of users engage with testing features, with {analyticsData.testCompletionStats.anyTestCompleted} users completing at least one test.
+                    </Typography>
                   </Box>
                 </CardContent>
               </Card>

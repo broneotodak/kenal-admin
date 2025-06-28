@@ -47,6 +47,7 @@ import {
   Event,
 } from '@mui/icons-material'
 import { KenalLogo } from './KenalLogo'
+import NotificationCenter from './NotificationCenter'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useAutoLogout } from '@/hooks/useAutoLogout'
@@ -284,7 +285,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <ListItemButton 
             onClick={() => router.push('/settings')}
             selected={pathname === '/settings'}
-            disabled
             sx={{
               color: 'text.secondary',
               '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
@@ -411,6 +411,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* Right side controls */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <NotificationCenter />
             <IconButton
               onClick={toggleTheme}
               size="small"
