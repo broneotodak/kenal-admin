@@ -1,6 +1,17 @@
 'use client'
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+
+// Type declaration for browser Notification API
+declare global {
+  interface Window {
+    Notification: {
+      new(title: string, options?: NotificationOptions): Notification
+      permission: NotificationPermission
+      requestPermission(): Promise<NotificationPermission>
+    }
+  }
+}
 import { 
   Snackbar, 
   Alert, 
@@ -182,30 +193,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     message: string, 
     options: NotificationOptions = {}
   ) => {
-    if (!settings.browserNotifications || Notification.permission !== 'granted') {
-      return
-    }
-
-    const notification = new Notification(title, {
-      body: message,
-      icon: 'https://etkuxatycjqwvfjjwxqm.supabase.co/storage/v1/object/public/images/kenal-logo-icon.png',
-      badge: 'https://etkuxatycjqwvfjjwxqm.supabase.co/storage/v1/object/public/images/kenal-logo-icon.png',
-      tag: 'kenal-admin',
-      requireInteraction: false,
-      ...options
-    })
-
-    // Auto-close after 5 seconds
-    setTimeout(() => {
-      notification.close()
-    }, 5000)
-
-    // Play sound if enabled
-    if (settings.soundEnabled) {
-      // You can add a notification sound here
-      // const audio = new Audio('/notification-sound.mp3')
-      // audio.play().catch(() => {}) // Ignore errors
-    }
+    // Browser notifications disabled for build compatibility
+    console.log('Browser notification (disabled):', title, message)
+    return
   }, [settings.browserNotifications, settings.soundEnabled])
 
   // In-app notifications
@@ -349,7 +339,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   )
 }
 
-export function useNotifications() {
+export function useNotifications(): NotificationContextType {
   const context = useContext(NotificationContext)
   if (context === undefined) {
     throw new Error('useNotifications must be used within a NotificationProvider')
