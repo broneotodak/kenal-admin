@@ -38,10 +38,10 @@ export function createSupabaseServer() {
 
 // Admin Supabase client using service role key (for bypassing RLS)
 export function createSupabaseAdmin() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const serviceRoleKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY
   
   if (!serviceRoleKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set in environment variables')
+    throw new Error('NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY is not set in environment variables')
   }
   
   return createServerClient(

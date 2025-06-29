@@ -31,9 +31,11 @@ import {
   Send as SendIcon,
   SmartToy as BotIcon,
   Person as UserIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@mui/material/styles'
+import DashboardCard from './components/DashboardCard'
 
 interface ChatMessage {
   id: string
@@ -67,7 +69,7 @@ export default function CustomDashboardPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
 
-  // Simulate AI response (we'll implement real AI later)
+  // Real AI integration
   const handleSendMessage = async () => {
     if (!currentMessage.trim()) return
 
@@ -79,20 +81,64 @@ export default function CustomDashboardPage() {
     }
 
     setChatMessages(prev => [...prev, userMessage])
+    const prompt = currentMessage
     setCurrentMessage('')
     setIsLoading(true)
 
-    // Simulate AI processing
-    setTimeout(() => {
-      const aiResponse: ChatMessage = {
+    try {
+      // Call AI API to generate dashboard card
+      const response = await fetch('/api/ai/generate-card', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userPrompt: prompt,
+          availableData: [
+            'kd_users', 'kd_identity', 'kd_user_details', 
+            'kd_conversations', 'kd_messages', 'kd_analytics'
+          ],
+          currentDashboard: dashboardCards
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        // Create new dashboard card from AI response
+        const newCard: DashboardCard = {
+          id: Date.now().toString(),
+          title: result.card.basic.title,
+          type: result.card.basic.type,
+          position: result.card.position,
+          size: { width: result.card.position.width, height: result.card.position.height },
+          content: result.card
+        }
+
+        setDashboardCards(prev => [...prev, newCard])
+
+        const aiResponse: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: `✅ Perfect! I've created a "${result.card.basic.title}" card for you.\n\n📊 **Card Details:**\n• Type: ${result.card.basic.type}\n• Description: ${result.card.basic.description}\n\n🤖 **AI Info:**\n• Provider: ${result.metadata.provider}\n• Processing time: ${result.metadata.processingTimeMs}ms\n• Cost: $${result.metadata.tokenUsage.estimatedCost.toFixed(6)}\n\nThe card has been added to your dashboard!`,
+          timestamp: new Date()
+        }
+        setChatMessages(prev => [...prev, aiResponse])
+      } else {
+        throw new Error(result.error || 'Failed to generate card')
+      }
+    } catch (error) {
+      console.error('AI Error:', error)
+      const errorResponse: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
-        content: `I understand you want: "${currentMessage}". I'll create a dashboard card for this. (AI integration coming soon!)`,
+        content: `❌ Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again or rephrase your request.`,
         timestamp: new Date()
       }
-      setChatMessages(prev => [...prev, aiResponse])
+      setChatMessages(prev => [...prev, errorResponse])
+    } finally {
       setIsLoading(false)
-    }, 1500)
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -100,6 +146,40 @@ export default function CustomDashboardPage() {
       e.preventDefault()
       handleSendMessage()
     }
+  }
+
+  const handleDeleteCard = (cardId: string) => {
+    setDashboardCards(prev => prev.filter(card => card.id !== cardId))
+    
+    // Add confirmation message to chat
+    const confirmMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'assistant',
+      content: '🗑️ Card deleted successfully! You can always ask me to create a new one.',
+      timestamp: new Date()
+    }
+    setChatMessages(prev => [...prev, confirmMessage])
+  }
+
+  const handleRefreshCard = (cardId: string) => {
+    console.log('Refreshing card:', cardId)
+  }
+
+  const handleResizeCard = (cardId: string, newSize: { width: number, height: number }) => {
+    setDashboardCards(prev => prev.map(card => 
+      card.id === cardId 
+        ? { ...card, size: newSize }
+        : card
+    ))
+    
+    // Add confirmation message to chat
+    const resizeMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'assistant',
+      content: `📏 Card resized to ${newSize.width}x${newSize.height}! You can resize again using the card menu.`,
+      timestamp: new Date()
+    }
+    setChatMessages(prev => [...prev, resizeMessage])
   }
 
   if (!isAdmin) {
@@ -133,6 +213,25 @@ export default function CustomDashboardPage() {
           >
             AI Assistant
           </Button>
+          {dashboardCards.length > 0 && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={() => {
+                setDashboardCards([])
+                const clearMessage: ChatMessage = {
+                  id: Date.now().toString(),
+                  type: 'assistant',
+                  content: '🧹 All cards have been cleared! Ready to create new ones.',
+                  timestamp: new Date()
+                }
+                setChatMessages(prev => [...prev, clearMessage])
+              }}
+            >
+              Clear All Cards
+            </Button>
+          )}
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -175,18 +274,27 @@ export default function CustomDashboardPage() {
           </Box>
         ) : (
           <Grid container spacing={3}>
-            {dashboardCards.map((card) => (
-              <Grid item xs={12} sm={6} md={4} key={card.id}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6">{card.title}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {card.type} card
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+            {dashboardCards.map((card) => {
+              // Calculate grid size based on card width
+              const getGridSize = (width: number) => {
+                if (width >= 8) return { xs: 12, sm: 12, md: 12 }
+                if (width >= 6) return { xs: 12, sm: 12, md: 8 }
+                return { xs: 12, sm: 6, md: 4 }
+              }
+              
+              const gridSize = getGridSize(card.size.width)
+              
+              return (
+                <Grid item {...gridSize} key={card.id}>
+                  <DashboardCard
+                    card={card}
+                    onDelete={handleDeleteCard}
+                    onRefresh={handleRefreshCard}
+                    onResize={handleResizeCard}
+                  />
+                </Grid>
+              )
+            })}
           </Grid>
         )}
       </Paper>
