@@ -45,6 +45,7 @@ import {
   ChevronRight,
   TrendingUp,
   Event,
+  AutoAwesome,
 } from '@mui/icons-material'
 import { KenalLogo } from './KenalLogo'
 import NotificationCenter from './NotificationCenter'
@@ -242,6 +243,37 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         <ListItem disablePadding>
           <ListItemButton 
+            onClick={() => router.push('/custom-dashboard')}
+            selected={pathname === '/custom-dashboard'}
+            sx={{
+              color: 'text.secondary',
+              '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
+              '&.Mui-selected': {
+                color: 'primary.main',
+                '& .MuiListItemIcon-root': { color: 'primary.main' },
+              },
+            }}
+          >
+            <ListItemIcon>
+              <AutoAwesome fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Custom Dashboard" />
+            <Chip 
+              label="AI" 
+              size="small" 
+              color="primary" 
+              variant="outlined"
+              sx={{ 
+                height: 18, 
+                fontSize: '0.6rem',
+                '& .MuiChip-label': { px: 0.5 }
+              }} 
+            />
+          </ListItemButton>
+        </ListItem>
+
+        <ListItem disablePadding>
+          <ListItemButton 
             onClick={() => router.push('/content')}
             selected={pathname === '/content'}
             disabled
@@ -332,6 +364,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     if (pathname === '/dashboard') return 'Admin Dashboard'
     if (pathname === '/users') return 'Users Management'
     if (pathname === '/analytics') return 'Analytics'
+    if (pathname === '/custom-dashboard') return 'Custom Dashboard'
     if (pathname === '/content') return 'Content'
     if (pathname === '/feedback') return 'Feedback'
     if (pathname === '/settings') return 'Settings'
