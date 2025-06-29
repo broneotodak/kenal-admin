@@ -23,7 +23,7 @@ import {
   Typography,
   Button
 } from '@mui/material'
-import { Close, CheckCircle, Error, Warning, Info } from '@mui/icons-material'
+import { Close, CheckCircle, Error as ErrorIcon, Warning, Info } from '@mui/icons-material'
 
 export interface NotificationItem {
   id: string
