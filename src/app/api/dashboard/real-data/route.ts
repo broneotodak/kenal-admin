@@ -3,16 +3,151 @@ import { createSupabaseAdmin } from '@/lib/supabase-server'
 
 export async function POST(request: NextRequest) {
   try {
-    const { type, cardType } = await request.json()
+    const { type, cardType, processing } = await request.json()
     
-    console.log('🔍 Real data request:', { type, cardType })
+    console.log('🔍 Real data request:', { type, cardType, processing })
     
     // Create admin client with service role key
     const supabase = createSupabaseAdmin()
     
     let result = null
     
-    if (type === 'user_count' || cardType === 'stat') {
+    // Handle smart age analysis processing (from AI-generated cards)
+    if (processing === 'smart_age_analysis' || type === 'user_age' || (cardType === 'chart' && type.includes('age'))) {
+      // Get real user age distribution
+      console.log('👥 [SMART AGE ANALYSIS] Fetching user age distribution...')
+      
+      const { data: users, error } = await supabase
+        .from('kd_users')
+        .select('created_at, birth_date')
+        .order('created_at', { ascending: true })
+      
+      if (error) throw error
+      
+      console.log(`👥 Retrieved ${users?.length || 0} users for smart age analysis`)
+      
+      // Enhanced smart age distribution with better categorization
+      const ageDistribution = users?.reduce((acc: any, user: any) => {
+        let userAge = null
+        let ageSource = 'unknown'
+        
+        // Method 1: Birth date calculation (most reliable since age column doesn't exist)
+        if (user.birth_date) {
+          try {
+            const birthDate = new Date(user.birth_date)
+            const today = new Date()
+            if (birthDate instanceof Date && !isNaN(birthDate.getTime())) {
+              userAge = today.getFullYear() - birthDate.getFullYear()
+              const monthDiff = today.getMonth() - birthDate.getMonth()
+              if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                userAge--
+              }
+              ageSource = 'birth_date_calculated'
+            }
+          } catch (e) {
+            console.log('Birth date parsing error:', e)
+          }
+        }
+        
+        // Categorize by age groups (standard demographic categories)
+        if (userAge !== null && userAge >= 0 && userAge <= 120) {
+          const ageGroup = userAge < 18 ? 'Under 18' :
+                          userAge < 25 ? '18-24' :
+                          userAge < 35 ? '25-34' :
+                          userAge < 45 ? '35-44' :
+                          userAge < 55 ? '45-54' :
+                          userAge < 65 ? '55-64' :
+                          '65+'
+          acc[ageGroup] = (acc[ageGroup] || 0) + 1
+        } else {
+          // Fallback: Account tenure analysis (when age data is unavailable)
+          if (user.created_at) {
+            const accountMonths = Math.floor((Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30))
+            const tenureGroup = accountMonths < 1 ? 'New Users (< 1 month)' :
+                               accountMonths < 6 ? 'Recent (1-6 months)' :
+                               accountMonths < 12 ? 'Regular (6-12 months)' :
+                               'Veteran (1+ years)'
+            acc[tenureGroup] = (acc[tenureGroup] || 0) + 1
+          }
+        }
+        return acc
+      }, {})
+      
+      console.log('👥 Smart age distribution result:', ageDistribution)
+      
+      result = Object.entries(ageDistribution || {})
+        .map(([ageGroup, count]) => ({ category: ageGroup, value: count }))
+        .sort((a, b) => {
+          // Sort age groups in logical order
+          const ageOrder = ['Under 18', '18-24', '25-34', '35-44', '45-54', '55-64', '65+', 
+                           'New Users (< 1 month)', 'Recent (1-6 months)', 'Regular (6-12 months)', 'Veteran (1+ years)']
+          return ageOrder.indexOf(a.category) - ageOrder.indexOf(b.category)
+        })
+    
+    } else if (type === 'user_geography' || type.includes('country') || type.includes('location')) {
+      // Geographic distribution analysis
+      console.log('🌍 Fetching geographic distribution...')
+      
+      const { data: users, error } = await supabase
+        .from('kd_users')
+        .select('registration_country')
+        .not('registration_country', 'is', null)
+      
+      if (error) throw error
+      
+      const countryDistribution = users?.reduce((acc: any, user: any) => {
+        const country = user.registration_country || 'Unknown'
+        acc[country] = (acc[country] || 0) + 1
+        return acc
+      }, {})
+      
+      result = Object.entries(countryDistribution || {})
+        .map(([country, count]) => ({ category: country, value: count }))
+        .sort((a, b) => (b.value as number) - (a.value as number))
+        .slice(0, 10) // Top 10 countries
+    
+    } else if (type === 'user_gender' || type.includes('gender')) {
+      // Gender distribution analysis
+      console.log('👫 Fetching gender distribution...')
+      
+      const { data: users, error } = await supabase
+        .from('kd_users')
+        .select('gender')
+      
+      if (error) throw error
+      
+      const genderDistribution = users?.reduce((acc: any, user: any) => {
+        const gender = user.gender || 'Not Specified'
+        acc[gender] = (acc[gender] || 0) + 1
+        return acc
+      }, {})
+      
+      result = Object.entries(genderDistribution || {})
+        .map(([gender, count]) => ({ category: gender, value: count }))
+        .sort((a, b) => (b.value as number) - (a.value as number))
+    
+    } else if (type === 'user_elements' || type.includes('element')) {
+      // Element distribution analysis
+      console.log('🔥 Fetching element distribution...')
+      
+      const { data: users, error } = await supabase
+        .from('kd_users')
+        .select('element_number')
+        .not('element_number', 'is', null)
+      
+      if (error) throw error
+      
+      const elementDistribution = users?.reduce((acc: any, user: any) => {
+        const element = `Element ${user.element_number || 'Unknown'}`
+        acc[element] = (acc[element] || 0) + 1
+        return acc
+      }, {})
+      
+      result = Object.entries(elementDistribution || {})
+        .map(([element, count]) => ({ category: element, value: count }))
+        .sort((a, b) => a.category.localeCompare(b.category))
+    
+    } else if (type === 'user_count' || cardType === 'stat') {
       // Get real user count
       console.log('📊 Fetching real user count from server...')
       
@@ -71,84 +206,6 @@ export async function POST(request: NextRequest) {
       
       if (error) throw error
       result = users
-      
-    } else if (type === 'user_age' || (cardType === 'chart' && type.includes('age'))) {
-      // Get real user age distribution
-      console.log('👥 Fetching user age distribution from server...')
-      
-      const { data: users, error } = await supabase
-        .from('kd_users')
-        .select('created_at, birth_date, age, user_details')
-        .order('created_at', { ascending: true })
-      
-      if (error) throw error
-      
-      console.log(`👥 Retrieved ${users?.length || 0} users for age analysis`)
-      
-      // Smart age distribution - try multiple approaches
-      const ageDistribution = users?.reduce((acc: any, user: any) => {
-        let userAge = null
-        
-        // Method 1: Direct age field
-        if (user.age && typeof user.age === 'number' && user.age > 0 && user.age < 120) {
-          userAge = user.age
-        }
-        
-        // Method 2: Birth date calculation
-        else if (user.birth_date) {
-          const birthDate = new Date(user.birth_date)
-          const today = new Date()
-          userAge = today.getFullYear() - birthDate.getFullYear()
-          const monthDiff = today.getMonth() - birthDate.getMonth()
-          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-            userAge--
-          }
-        }
-        
-        // Method 3: Check user_details for age info
-        else if (user.user_details && typeof user.user_details === 'object') {
-          if (user.user_details.age) userAge = user.user_details.age
-          else if (user.user_details.birth_date) {
-            const birthDate = new Date(user.user_details.birth_date)
-            const today = new Date()
-            userAge = today.getFullYear() - birthDate.getFullYear()
-          }
-        }
-        
-        // Categorize by age groups
-        if (userAge !== null && userAge >= 0 && userAge <= 120) {
-          const ageGroup = userAge < 18 ? 'Under 18' :
-                          userAge < 25 ? '18-24' :
-                          userAge < 35 ? '25-34' :
-                          userAge < 45 ? '35-44' :
-                          userAge < 55 ? '45-54' :
-                          userAge < 65 ? '55-64' :
-                          '65+'
-          acc[ageGroup] = (acc[ageGroup] || 0) + 1
-        } else {
-          // Fallback: Account tenure (how long they've been users)
-          if (user.created_at) {
-            const accountMonths = Math.floor((Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30))
-            const tenureGroup = accountMonths < 1 ? 'New Users (< 1 month)' :
-                               accountMonths < 6 ? 'Recent (1-6 months)' :
-                               accountMonths < 12 ? 'Regular (6-12 months)' :
-                               'Veteran (1+ years)'
-            acc[tenureGroup] = (acc[tenureGroup] || 0) + 1
-          }
-        }
-        return acc
-      }, {})
-      
-      console.log('👥 Smart age distribution:', ageDistribution)
-      
-      result = Object.entries(ageDistribution || {})
-        .map(([ageGroup, count]) => ({ category: ageGroup, value: count }))
-        .sort((a, b) => {
-          // Sort age groups in logical order
-          const ageOrder = ['Under 18', '18-24', '25-34', '35-44', '45-54', '55-64', '65+', 
-                           'New Users (< 1 month)', 'Recent (1-6 months)', 'Regular (6-12 months)', 'Veteran (1+ years)']
-          return ageOrder.indexOf(a.category) - ageOrder.indexOf(b.category)
-        })
       
     } else {
       // Default to user count

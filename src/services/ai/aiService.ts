@@ -164,22 +164,246 @@ export class AIService {
     return `You are helping create a dashboard card for a KENAL admin system. The user wants: "${request.userPrompt}"
 
 Available data sources in the KENAL database:
-- kd_users (1,350 total users with created_at, username, email, is_active, user_type)
-- kd_conversations (chat conversations)
-- kd_messages (individual messages)
-- Real-time data access with no limits
 
-Data type detection:
-- "user count", "total users", "how many users" → type: "user_count"
-- "user growth", "growth chart", "registration trend" → type: "user_growth" 
-- "users by age", "age distribution", "user age" → type: "user_age"
-- "user table", "recent users", "user list" → type: "user_table"
+🔍 PRIMARY TABLES:
+- kd_users (1,350+ users) with fields:
+  * id, username, email, created_at, is_active, user_type
+  * birth_date (for age calculations), age (direct age field)
+  * element_number, gender, registration_country
+  * user_details (JSONB with additional age info)
+  * join_by_invitation (boolean)
+
+- kd_identity (user personality patterns)
+- kd_conversations (chat conversations)  
+- kd_messages (individual messages)
+- kd_problem_updates (feedback/reports)
+
+🎯 SMART DATA ANALYSIS & VISUALIZATION:
+The system has intelligent age detection with multiple fallback methods and smart chart type selection.
+
+AGE GROUP CATEGORIES:
+- 'Under 18', '18-24', '25-34', '35-44', '45-54', '55-64', '65+'
+- Fallback: 'New Users (< 1 month)', 'Recent (1-6 months)', 'Regular (6-12 months)', 'Veteran (1+ years)'
+
+🔍 DATA TYPE DETECTION & OPTIMAL VISUALIZATION:
+- "user count", "total users", "how many users" → type: "user_count" → STAT card
+- "user growth", "growth chart", "registration trend" → type: "user_growth" → LINE chart 
+- "users by age", "age distribution", "user age", "age groups" → type: "user_age" → BAR chart (categorical)
+- "user table", "recent users", "user list" → type: "user_table" → TABLE
+- "by country", "geography", "location" → type: "user_geography" → DOUGHNUT chart
+- "by gender", "gender split" → type: "user_gender" → PIE chart
+- "by element", "element distribution" → type: "user_elements" → BAR chart
+
+🎨 INTELLIGENT CHART TYPE SELECTION:
+- **Categorical Data** (age groups, countries, elements): Use BAR or DOUGHNUT charts
+- **Time Series Data** (growth, trends): Use LINE charts
+- **Comparisons** (gender, yes/no): Use PIE or DOUGHNUT charts
+- **Large Categories** (>8 items): Use BAR charts for readability
+- **Small Categories** (≤5 items): Use DOUGHNUT for visual appeal
 
 IMPORTANT: Respond with ONLY a valid JSON object. No explanations, no markdown formatting, no additional text.
 
-Generate a JSON configuration for a dashboard card:
+📊 ENHANCED DASHBOARD CARD TEMPLATES:
 
-For user counts/statistics, use:
+For AGE DISTRIBUTION (SMART ANALYSIS), use:
+{
+  "basic": {
+    "type": "chart",
+    "title": "Users by Age Group",
+    "description": "Distribution of users across age demographics with smart analysis"
+  },
+  "position": {"x": 0, "y": 0, "width": 6, "height": 4},
+  "data": {
+    "source": "kd_users",
+    "query": "SELECT created_at, birth_date, age, user_details FROM kd_users ORDER BY created_at ASC",
+    "refresh_interval": 300,
+    "processing": "smart_age_analysis"
+  },
+  "chart": {
+    "type": "bar", 
+    "options": {
+      "responsive": true, 
+      "maintainAspectRatio": false,
+      "indexAxis": "x",
+      "plugins": {
+        "legend": {"display": true, "position": "top"},
+        "tooltip": {
+          "callbacks": {
+            "label": "function(context) { return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' users'; }"
+          }
+        }
+      },
+      "scales": {
+        "y": {"beginAtZero": true, "title": {"display": true, "text": "Number of Users"}},
+        "x": {"title": {"display": true, "text": "Age Groups"}}
+      }
+    }, 
+    "colors": ["#1976d2", "#dc004e", "#ff9800", "#4caf50", "#9c27b0", "#f44336", "#607d8b"]
+  },
+  "ai": {
+    "prompt": "${request.userPrompt}",
+    "insights": "Intelligent age analysis with multiple detection methods, fallback to account tenure when age data unavailable",
+    "visualization_reasoning": "Bar chart chosen for categorical age group data with clear comparisons"
+  }
+}
+
+For GEOGRAPHIC DISTRIBUTION, use:
+{
+  "basic": {
+    "type": "chart",
+    "title": "Users by Country",
+    "description": "Geographic distribution of user registrations"
+  },
+  "position": {"x": 0, "y": 0, "width": 6, "height": 4},
+  "data": {
+    "source": "kd_users",
+    "query": "SELECT registration_country, COUNT(*) as value FROM kd_users WHERE registration_country IS NOT NULL GROUP BY registration_country ORDER BY value DESC LIMIT 10",
+    "refresh_interval": 300
+  },
+  "chart": {
+    "type": "doughnut", 
+    "options": {
+      "responsive": true,
+      "maintainAspectRatio": false,
+      "plugins": {
+        "legend": {"position": "right"},
+        "tooltip": {
+          "callbacks": {
+            "label": "function(context) { return context.label + ': ' + context.parsed + ' users (' + Math.round(context.parsed / context.dataset.data.reduce((a,b) => a+b, 0) * 100) + '%)'; }"
+          }
+        }
+      }
+    }, 
+    "colors": ["#1976d2", "#dc004e", "#ff9800", "#4caf50", "#9c27b0", "#f44336", "#607d8b", "#795548", "#009688", "#e91e63"]
+  },
+  "ai": {
+    "prompt": "${request.userPrompt}",
+    "insights": "Shows user distribution across different countries with percentage breakdown",
+    "visualization_reasoning": "Doughnut chart chosen for geographic data to show proportional relationships"
+  }
+}
+
+For GENDER DISTRIBUTION, use:
+{
+  "basic": {
+    "type": "chart",
+    "title": "Users by Gender",
+    "description": "Gender distribution of registered users"
+  },
+  "position": {"x": 0, "y": 0, "width": 4, "height": 4},
+  "data": {
+    "source": "kd_users",
+    "query": "SELECT gender, COUNT(*) as value FROM kd_users GROUP BY gender ORDER BY value DESC",
+    "refresh_interval": 300
+  },
+  "chart": {
+    "type": "pie", 
+    "options": {
+      "responsive": true,
+      "maintainAspectRatio": false,
+      "plugins": {
+        "legend": {"position": "bottom"},
+        "tooltip": {
+          "callbacks": {
+            "label": "function(context) { return context.label + ': ' + context.parsed + ' users (' + Math.round(context.parsed / context.dataset.data.reduce((a,b) => a+b, 0) * 100) + '%)'; }"
+          }
+        }
+      }
+    }, 
+    "colors": ["#1976d2", "#dc004e", "#ff9800"]
+  },
+  "ai": {
+    "prompt": "${request.userPrompt}",
+    "insights": "Shows gender distribution with percentage breakdown",
+    "visualization_reasoning": "Pie chart chosen for binary/tertiary gender data comparison"
+  }
+}
+
+For USER GROWTH TRENDS, use:
+{
+  "basic": {
+    "type": "chart",
+    "title": "User Growth Trend",
+    "description": "Monthly user registration growth over time"
+  },
+  "position": {"x": 0, "y": 0, "width": 8, "height": 4},
+  "data": {
+    "source": "kd_users",
+    "query": "SELECT DATE_TRUNC('month', created_at) as month, COUNT(*) as value FROM kd_users GROUP BY month ORDER BY month",
+    "refresh_interval": 300
+  },
+  "chart": {
+    "type": "line", 
+    "options": {
+      "responsive": true, 
+      "maintainAspectRatio": false,
+      "tension": 0.4,
+      "plugins": {
+        "legend": {"display": true},
+        "tooltip": {
+          "mode": "index",
+          "intersect": false
+        }
+      },
+      "scales": {
+        "y": {"beginAtZero": true, "title": {"display": true, "text": "New Users"}},
+        "x": {"title": {"display": true, "text": "Month"}}
+      },
+      "elements": {
+        "point": {"radius": 4, "hoverRadius": 6}
+      }
+    }, 
+    "colors": ["#1976d2"]
+  },
+  "ai": {
+    "prompt": "${request.userPrompt}",
+    "insights": "Displays monthly user registration trends with smooth curve visualization",
+    "visualization_reasoning": "Line chart chosen for time series data to show growth trends"
+  }
+}
+
+For ELEMENT DISTRIBUTION, use:
+{
+  "basic": {
+    "type": "chart",
+    "title": "Users by Element Type",
+    "description": "Distribution of users across element categories"
+  },
+  "position": {"x": 0, "y": 0, "width": 6, "height": 4},
+  "data": {
+    "source": "kd_users",
+    "query": "SELECT element_number, COUNT(*) as value FROM kd_users WHERE element_number IS NOT NULL GROUP BY element_number ORDER BY element_number",
+    "refresh_interval": 300
+  },
+  "chart": {
+    "type": "bar", 
+    "options": {
+      "responsive": true,
+      "maintainAspectRatio": false,
+      "plugins": {
+        "legend": {"display": false},
+        "tooltip": {
+          "callbacks": {
+            "title": "function(context) { return 'Element ' + context[0].label; }",
+            "label": "function(context) { return context.parsed.y + ' users'; }"
+          }
+        }
+      },
+      "scales": {
+        "y": {"beginAtZero": true, "title": {"display": true, "text": "Number of Users"}},
+        "x": {"title": {"display": true, "text": "Element Number"}}
+      }
+    }, 
+    "colors": ["#f44336", "#e91e63", "#9c27b0", "#673ab7", "#3f51b5", "#2196f3", "#03a9f4", "#00bcd4", "#009688"]
+  },
+  "ai": {
+    "prompt": "${request.userPrompt}",
+    "insights": "Shows user distribution across 9 element types with distinct color coding",
+    "visualization_reasoning": "Bar chart chosen for element categories to compare quantities across types"
+  }
+}
+
+For USER COUNT (STATISTICS), use:
 {
   "basic": {
     "type": "stat",
@@ -192,34 +416,15 @@ For user counts/statistics, use:
     "query": "SELECT COUNT(*) as count FROM kd_users WHERE deleted_at IS NULL",
     "refresh_interval": 300
   },
-  "chart": {"type": "line", "options": {}, "colors": ["#1976d2"]},
+  "chart": {"type": "stat", "options": {}, "colors": ["#1976d2"]},
   "ai": {
     "prompt": "${request.userPrompt}",
-    "insights": "Shows the total number of active users in the system"
+    "insights": "Shows the total number of active users in the system",
+    "visualization_reasoning": "Stat card chosen for single numeric value display"
   }
 }
 
-For charts/trends, use:
-{
-  "basic": {
-    "type": "chart",
-    "title": "User Growth",
-    "description": "Monthly user registration trend"
-  },
-  "position": {"x": 0, "y": 0, "width": 6, "height": 4},
-  "data": {
-    "source": "kd_users",
-    "query": "SELECT DATE_TRUNC('month', created_at) as month, COUNT(*) as value FROM kd_users GROUP BY month ORDER BY month",
-    "refresh_interval": 300
-  },
-  "chart": {"type": "line", "options": {}, "colors": ["#1976d2", "#dc004e"]},
-  "ai": {
-    "prompt": "${request.userPrompt}",
-    "insights": "Displays monthly user registration trends over time"
-  }
-}
-
-For tables, use:
+For USER TABLES/LISTS, use:
 {
   "basic": {
     "type": "table",
@@ -235,11 +440,19 @@ For tables, use:
   "chart": {"type": "table", "options": {}, "colors": ["#1976d2"]},
   "ai": {
     "prompt": "${request.userPrompt}",
-    "insights": "Shows the most recently registered users in the system"
+    "insights": "Shows the most recently registered users in the system",
+    "visualization_reasoning": "Table chosen for detailed user data display"
   }
 }
 
-Choose the appropriate template based on the user request and respond with clean JSON only.`
+🎯 SMART SELECTION RULES:
+1. **Analyze the user's request** for data type and visualization intent
+2. **Choose optimal chart type** based on data characteristics
+3. **Configure appropriate colors** and styling for the chart type
+4. **Add meaningful tooltips** and labels for better UX
+5. **Include visualization reasoning** in AI insights
+
+Choose the most appropriate template and customize it based on the specific user request. Pay special attention to chart type selection for optimal data presentation.`
   }
 
   /**

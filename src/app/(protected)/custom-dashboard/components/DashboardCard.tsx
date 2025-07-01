@@ -92,23 +92,58 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
       setError(null)
       
       console.log('🔍 Fetching data for card:', card.title, card.type)
+      console.log('🔍 Card content:', card.content)
       
-      // Determine what type of data to fetch based on card title and content
+      // Enhanced data type detection based on AI-generated card configuration
       let dataType = 'user_count' // default
+      let processing = card.content?.data?.processing || null
+      
       const titleLower = card.title.toLowerCase()
       const queryLower = card.content?.data?.query?.toLowerCase() || ''
+      const descriptionLower = card.content?.basic?.description?.toLowerCase() || ''
+      const aiInsights = card.content?.ai?.insights?.toLowerCase() || ''
       
-      if (titleLower.includes('age') || queryLower.includes('age') || titleLower.includes('distribution')) {
+      // Smart detection for different data types
+      if (processing === 'smart_age_analysis' || 
+          titleLower.includes('age') || 
+          titleLower.includes('demographic') ||
+          descriptionLower.includes('age') || 
+          aiInsights.includes('age') ||
+          queryLower.includes('birth_date') || 
+          queryLower.includes('age')) {
         dataType = 'user_age'
-      } else if (card.type === 'chart' || titleLower.includes('growth') || queryLower.includes('growth')) {
+        console.log('🎯 Detected AGE ANALYSIS request')
+      } else if (titleLower.includes('country') || 
+                 titleLower.includes('geographic') || 
+                 titleLower.includes('location') ||
+                 queryLower.includes('registration_country')) {
+        dataType = 'user_geography'
+        console.log('🌍 Detected GEOGRAPHY request')
+      } else if (titleLower.includes('gender') || 
+                 queryLower.includes('gender')) {
+        dataType = 'user_gender'
+        console.log('👫 Detected GENDER request')
+      } else if (titleLower.includes('element') || 
+                 queryLower.includes('element_number')) {
+        dataType = 'user_elements'
+        console.log('🔥 Detected ELEMENT request')
+      } else if (card.type === 'chart' || 
+                 titleLower.includes('growth') || 
+                 titleLower.includes('trend') ||
+                 queryLower.includes('growth')) {
         dataType = 'user_growth'
-      } else if (card.type === 'table' || titleLower.includes('table') || titleLower.includes('list')) {
+        console.log('📈 Detected GROWTH request')
+      } else if (card.type === 'table' || 
+                 titleLower.includes('table') || 
+                 titleLower.includes('list') ||
+                 titleLower.includes('recent')) {
         dataType = 'user_table'
+        console.log('📋 Detected TABLE request')
       }
       
-      console.log('📊 Requesting data type:', dataType)
+      console.log('📊 Final request params:', { dataType, processing, cardType: card.type })
       
-      // Call server-side API for real data
+      // Call server-side API for real data with enhanced parameters
       const response = await fetch('/api/dashboard/real-data', {
         method: 'POST',
         headers: {
@@ -116,7 +151,9 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
         },
         body: JSON.stringify({
           type: dataType,
-          cardType: card.type
+          cardType: card.type,
+          processing: processing,
+          cardConfig: card.content // Pass full card configuration for context
         })
       })
       
@@ -129,7 +166,7 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
       console.log('✅ Real data received:', result)
       
       // Format data based on type
-      if (dataType === 'user_count') {
+      if (dataType === 'user_count' || card.type === 'stat') {
         setData([result.data])
       } else {
         setData(result.data)
@@ -155,14 +192,75 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
       return Math.floor((x - Math.floor(x)) * (max - min + 1)) + min
     }
 
+    // Determine data type from card analysis
+    const titleLower = card.title.toLowerCase()
+    const descriptionLower = card.content?.basic?.description?.toLowerCase() || ''
+
+    console.log('🔄 Generating smart mock data for:', titleLower)
+
     if (card.type === 'stat') {
       setData([{ count: seededRandom(1000, 10000) }])
     } else if (card.type === 'chart') {
-      const mockData = Array.from({ length: 12 }, (_, i) => ({
-        month: `2024-${String(i + 1).padStart(2, '0')}`,
-        value: seededRandom(100, 1000) + i * 10
-      }))
-      setData(mockData)
+      // Smart mock data generation based on chart content
+      if (titleLower.includes('age') || descriptionLower.includes('age') || card.content?.data?.processing === 'smart_age_analysis') {
+        // Generate age group data
+        const ageGroups = [
+          { category: 'Under 18', value: seededRandom(50, 150) },
+          { category: '18-24', value: seededRandom(200, 400) },
+          { category: '25-34', value: seededRandom(300, 600) },
+          { category: '35-44', value: seededRandom(200, 500) },
+          { category: '45-54', value: seededRandom(150, 350) },
+          { category: '55-64', value: seededRandom(100, 250) },
+          { category: '65+', value: seededRandom(50, 150) }
+        ]
+        console.log('📊 Generated AGE GROUP mock data:', ageGroups)
+        setData(ageGroups)
+      } else if (titleLower.includes('country') || titleLower.includes('geographic')) {
+        // Generate country data
+        const countries = [
+          { category: 'United States', value: seededRandom(200, 500) },
+          { category: 'United Kingdom', value: seededRandom(150, 300) },
+          { category: 'Canada', value: seededRandom(100, 250) },
+          { category: 'Australia', value: seededRandom(80, 200) },
+          { category: 'Germany', value: seededRandom(70, 180) },
+          { category: 'France', value: seededRandom(60, 150) }
+        ]
+        console.log('🌍 Generated COUNTRY mock data:', countries)
+        setData(countries)
+      } else if (titleLower.includes('gender')) {
+        // Generate gender data
+        const genderData = [
+          { category: 'Female', value: seededRandom(400, 600) },
+          { category: 'Male', value: seededRandom(350, 550) },
+          { category: 'Not Specified', value: seededRandom(50, 100) }
+        ]
+        console.log('👫 Generated GENDER mock data:', genderData)
+        setData(genderData)
+      } else if (titleLower.includes('element')) {
+        // Generate element data
+        const elementData = Array.from({ length: 9 }, (_, i) => ({
+          category: `Element ${i + 1}`,
+          value: seededRandom(80, 200)
+        }))
+        console.log('🔥 Generated ELEMENT mock data:', elementData)
+        setData(elementData)
+      } else if (titleLower.includes('growth') || titleLower.includes('trend')) {
+        // Generate time series data
+        const mockData = Array.from({ length: 12 }, (_, i) => ({
+          month: `2024-${String(i + 1).padStart(2, '0')}`,
+          value: seededRandom(100, 1000) + i * 10
+        }))
+        console.log('📈 Generated GROWTH mock data:', mockData)
+        setData(mockData)
+      } else {
+        // Default chart data
+        const mockData = Array.from({ length: 8 }, (_, i) => ({
+          category: `Category ${i + 1}`,
+          value: seededRandom(100, 500)
+        }))
+        console.log('📊 Generated DEFAULT mock data:', mockData)
+        setData(mockData)
+      }
     } else if (card.type === 'table') {
       const mockData = Array.from({ length: 10 }, (_, i) => ({
         id: i + 1,
@@ -171,6 +269,7 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
         created_at: new Date(Date.now() - (i + 1) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         is_active: i % 3 !== 0
       }))
+      console.log('📋 Generated TABLE mock data:', mockData.slice(0, 3))
       setData(mockData)
     }
     setError(null)
@@ -249,25 +348,97 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
             data: data.map((item: any) => item.value || item.count || item.total),
             borderColor: card.content?.chart?.colors?.[0] || '#1976d2',
             backgroundColor: card.content?.chart?.colors?.[0] + '20' || '#1976d220',
-            tension: 0.1
+            tension: 0.1,
+            // Enhanced styling for different chart types
+            borderWidth: 2,
+            hoverBackgroundColor: card.content?.chart?.colors?.[0] + '40' || '#1976d240',
+            hoverBorderColor: card.content?.chart?.colors?.[0] || '#1976d2',
           }]
         }
 
+        // Enhanced chart options with better formatting
         const chartOptions = {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { display: false },
-            title: { display: false }
+            legend: { 
+              display: true,
+              position: 'top' as const,
+              labels: {
+                usePointStyle: true,
+                padding: 15
+              }
+            },
+            title: { display: false },
+            tooltip: {
+              mode: 'index' as const,
+              intersect: false,
+              callbacks: {
+                label: function(context: any) {
+                  const label = context.dataset.label || ''
+                  const value = context.parsed.y || context.parsed
+                  return `${label}: ${value.toLocaleString()}`
+                }
+              }
+            }
           },
           scales: {
-            y: { beginAtZero: true }
+            y: { 
+              beginAtZero: true,
+              ticks: {
+                callback: function(value: any) {
+                  return value.toLocaleString()
+                }
+              }
+            },
+            x: {
+              ticks: {
+                maxRotation: 45,
+                minRotation: 0
+              }
+            }
+          },
+          // Animation settings
+          animation: {
+            duration: 1000,
+            easing: 'easeInOutQuart' as const
           }
         }
 
-        const ChartComponent = card.content?.chart?.type === 'bar' ? Bar :
-                              card.content?.chart?.type === 'pie' ? Pie :
-                              card.content?.chart?.type === 'doughnut' ? Doughnut : Line
+        // Smart chart type selection based on data characteristics
+        let selectedChartType = card.content?.chart?.type || 'line'
+        
+        // Auto-detect better chart type based on data
+        const hasTimeData = data.some((item: any) => item.month || item.date)
+        const hasCategoricalData = data.some((item: any) => item.category)
+        const dataLength = data.length
+        
+        console.log('📊 Chart data analysis:', {
+          selectedChartType,
+          hasTimeData,
+          hasCategoricalData,
+          dataLength,
+          sampleLabels: chartData.labels.slice(0, 3)
+        })
+        
+        // Override chart type for better visualization
+        if (hasCategoricalData && !hasTimeData) {
+          // Categorical data (age groups, countries, etc.) - use bar chart
+          selectedChartType = 'bar'
+          console.log('📊 Switching to BAR chart for categorical data')
+        } else if (hasTimeData) {
+          // Time series data - use line chart
+          selectedChartType = 'line'
+          console.log('📊 Using LINE chart for time series data')
+        } else if (dataLength <= 8 && hasCategoricalData) {
+          // Small categorical dataset - could use doughnut
+          selectedChartType = selectedChartType === 'doughnut' ? 'doughnut' : 'bar'
+          console.log('📊 Using chart type for small categorical data:', selectedChartType)
+        }
+
+        const ChartComponent = selectedChartType === 'bar' ? Bar :
+                              selectedChartType === 'pie' ? Pie :
+                              selectedChartType === 'doughnut' ? Doughnut : Line
 
         return (
           <Box sx={{ height: 200 }}>

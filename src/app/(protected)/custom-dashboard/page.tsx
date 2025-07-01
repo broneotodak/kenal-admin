@@ -32,6 +32,12 @@ import {
   SmartToy as BotIcon,
   Person as UserIcon,
   Delete as DeleteIcon,
+  Group as GroupIcon,
+  TrendingUp as TrendingUpIcon,
+  Public as PublicIcon,
+  Wc as GenderIcon,
+  Category as ElementIcon,
+  TableChart as TableIcon,
 } from '@mui/icons-material'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@mui/material/styles'
@@ -69,7 +75,75 @@ export default function CustomDashboardPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
 
-  // Real AI integration
+  // Preset commands for quick admin actions
+  const presetCommands = [
+    {
+      id: 'user_count',
+      label: 'Total Users',
+      prompt: 'Show me total number of users',
+      icon: <GroupIcon />,
+      category: 'Users',
+      description: 'Display total user count'
+    },
+    {
+      id: 'age_distribution', 
+      label: 'Age Groups',
+      prompt: 'Show me user distribution by age groups',
+      icon: <GroupIcon />,
+      category: 'Demographics',
+      description: 'Age demographics chart'
+    },
+    {
+      id: 'user_growth',
+      label: 'Growth Trend',
+      prompt: 'Create a chart showing user growth over time',
+      icon: <TrendingUpIcon />,
+      category: 'Analytics', 
+      description: 'Monthly registration trend'
+    },
+    {
+      id: 'geographic',
+      label: 'By Country',
+      prompt: 'Show users by country distribution',
+      icon: <PublicIcon />,
+      category: 'Demographics',
+      description: 'Geographic distribution'
+    },
+    {
+      id: 'gender',
+      label: 'Gender Split',
+      prompt: 'Display gender distribution of users',
+      icon: <GenderIcon />,
+      category: 'Demographics', 
+      description: 'Gender breakdown chart'
+    },
+    {
+      id: 'elements',
+      label: 'Element Types',
+      prompt: 'Show distribution of users by element types',
+      icon: <ElementIcon />,
+      category: 'KENAL Data',
+      description: 'Element 1-9 distribution'
+    },
+    {
+      id: 'recent_users',
+      label: 'Recent Users',
+      prompt: 'Show me a table of recent user registrations',
+      icon: <TableIcon />,
+      category: 'Users',
+      description: 'Latest user signups'
+    },
+    {
+      id: 'active_users',
+      label: 'Active Users',
+      prompt: 'Show me count of active users',
+      icon: <GroupIcon />,
+      category: 'Users', 
+      description: 'Currently active users'
+    }
+  ]
+
+  // Real AI integration - moved before handlePresetCommand
   const handleSendMessage = async () => {
     if (!currentMessage.trim()) return
 
@@ -133,6 +207,76 @@ export default function CustomDashboardPage() {
         id: (Date.now() + 1).toString(),
         type: 'assistant',
         content: `❌ Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again or rephrase your request.`,
+        timestamp: new Date()
+      }
+      setChatMessages(prev => [...prev, errorResponse])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Handle preset command selection
+  const handlePresetCommand = async (command: typeof presetCommands[0]) => {
+    console.log('🎯 Preset command selected:', command.label)
+    
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'user',
+      content: command.prompt,
+      timestamp: new Date()
+    }
+
+    setChatMessages(prev => [...prev, userMessage])
+    setIsLoading(true)
+
+    try {
+      // Call AI API to generate dashboard card
+      const response = await fetch('/api/ai/generate-card', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userPrompt: command.prompt,
+          availableData: [
+            'kd_users', 'kd_identity', 'kd_user_details', 
+            'kd_conversations', 'kd_messages', 'kd_analytics'
+          ],
+          currentDashboard: dashboardCards
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        // Create new dashboard card from AI response
+        const newCard: DashboardCard = {
+          id: Date.now().toString(),
+          title: result.card.basic.title,
+          type: result.card.basic.type,
+          position: result.card.position,
+          size: { width: result.card.position.width, height: result.card.position.height },
+          content: result.card
+        }
+
+        setDashboardCards(prev => [...prev, newCard])
+
+        const aiResponse: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant',
+          content: `✅ Perfect! I've created a "${result.card.basic.title}" card for you.\n\n📊 **Card Details:**\n• Type: ${result.card.basic.type}\n• Description: ${result.card.basic.description}\n\n🤖 **AI Info:**\n• Provider: ${result.metadata.provider}\n• Processing time: ${result.metadata.processingTimeMs}ms\n• Cost: $${result.metadata.tokenUsage.estimatedCost.toFixed(6)}\n\nThe card has been added to your dashboard!`,
+          timestamp: new Date()
+        }
+        setChatMessages(prev => [...prev, aiResponse])
+      } else {
+        throw new Error(result.error || 'Failed to generate card')
+      }
+    } catch (error) {
+      console.error('Preset Command Error:', error)
+      const errorResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: `❌ Sorry, I encountered an error with "${command.label}": ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again or use a different command.`,
         timestamp: new Date()
       }
       setChatMessages(prev => [...prev, errorResponse])
@@ -404,6 +548,56 @@ export default function CustomDashboardPage() {
           </Box>
 
           <Divider />
+
+          {/* Preset Commands Section */}
+          <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AIIcon sx={{ fontSize: 16 }} />
+              Quick Commands
+            </Typography>
+            <Grid container spacing={1}>
+              {presetCommands.map((command) => (
+                <Grid item xs={12} sm={6} md={4} key={command.id}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    fullWidth
+                    startIcon={command.icon}
+                    onClick={() => {
+                      handlePresetCommand(command)
+                      setChatOpen(false) // Close chat after clicking
+                    }}
+                    disabled={isLoading}
+                    sx={{ 
+                      justifyContent: 'flex-start',
+                      textTransform: 'none',
+                      py: 1,
+                      px: 2,
+                      '&:hover': {
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        '& .MuiSvgIcon-root': {
+                          color: 'inherit'
+                        }
+                      }
+                    }}
+                  >
+                    <Box sx={{ textAlign: 'left', overflow: 'hidden' }}>
+                      <Typography variant="body2" fontWeight="medium" noWrap>
+                        {command.label}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        {command.description}
+                      </Typography>
+                    </Box>
+                  </Button>
+                </Grid>
+              ))}
+            </Grid>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              💡 Click any command above or type your own request below
+            </Typography>
+          </Box>
 
           {/* Chat Input */}
           <Box sx={{ p: 2 }}>
