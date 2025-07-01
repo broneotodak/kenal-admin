@@ -49,6 +49,7 @@ import {
 } from '@mui/icons-material'
 import { KenalLogo } from './KenalLogo'
 import NotificationCenter from './NotificationCenter'
+import VersionInfo from './VersionInfo'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useAutoLogout } from '@/hooks/useAutoLogout'
@@ -445,6 +446,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Right side controls */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <NotificationCenter />
+            <VersionInfo />
             <IconButton
               onClick={toggleTheme}
               size="small"
