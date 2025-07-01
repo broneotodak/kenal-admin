@@ -66,7 +66,7 @@ export async function GET() {
     try {
       const { data: recentUsers, error } = await supabase
         .from('kd_users')
-        .select('id, username, created_at, is_active, user_type')
+        .select('id, name, email, created_at, user_type')
         .order('created_at', { ascending: false })
         .limit(5)
       

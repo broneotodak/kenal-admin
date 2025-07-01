@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         console.log('Getting real user table data...')
         const { data, error } = await supabase
           .from('kd_users')
-          .select('id, username, email, created_at, is_active, user_type')
+          .select('id, name, email, created_at, user_type')
           .order('created_at', { ascending: false })
           .limit(20)
         
