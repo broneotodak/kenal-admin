@@ -42,6 +42,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@mui/material/styles'
 import DashboardCard from './components/DashboardCard'
+import { aiService } from '@/services/ai/aiService'
 
 interface ChatMessage {
   id: string
@@ -143,7 +144,7 @@ export default function CustomDashboardPage() {
     }
   ]
 
-  // Real AI integration - moved before handlePresetCommand
+  // Real AI integration - updated to use client-side service
   const handleSendMessage = async () => {
     if (!currentMessage.trim()) return
 
@@ -160,47 +161,45 @@ export default function CustomDashboardPage() {
     setIsLoading(true)
 
     try {
-      // Call AI API to generate dashboard card
-      const response = await fetch('/api/ai/generate-card', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userPrompt: prompt,
-          availableData: [
-            'kd_users', 'kd_identity', 'kd_user_details', 
-            'kd_conversations', 'kd_messages', 'kd_analytics'
-          ],
-          currentDashboard: dashboardCards
-        })
+      // Call AI service directly (works in both development and production)
+      const result = await aiService.generateDashboardCard({
+        userPrompt: prompt,
+        availableData: [
+          'kd_users', 'kd_identity', 'kd_user_details', 
+          'kd_conversations', 'kd_messages', 'kd_analytics'
+        ],
+        currentDashboard: dashboardCards
       })
 
-      const result = await response.json()
-
-      if (result.success) {
-        // Create new dashboard card from AI response
-        const newCard: DashboardCard = {
-          id: Date.now().toString(),
-          title: result.card.basic.title,
-          type: result.card.basic.type,
-          position: result.card.position,
-          size: { width: result.card.position.width, height: result.card.position.height },
-          content: result.card
-        }
-
-        setDashboardCards(prev => [...prev, newCard])
-
-        const aiResponse: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          type: 'assistant',
-          content: `✅ Perfect! I've created a "${result.card.basic.title}" card for you.\n\n📊 **Card Details:**\n• Type: ${result.card.basic.type}\n• Description: ${result.card.basic.description}\n\n🤖 **AI Info:**\n• Provider: ${result.metadata.provider}\n• Processing time: ${result.metadata.processingTimeMs}ms\n• Cost: $${result.metadata.tokenUsage.estimatedCost.toFixed(6)}\n\nThe card has been added to your dashboard!`,
-          timestamp: new Date()
-        }
-        setChatMessages(prev => [...prev, aiResponse])
-      } else {
-        throw new Error(result.error || 'Failed to generate card')
+      // Parse the AI response
+      let cardConfig
+      try {
+        cardConfig = JSON.parse(result.content)
+      } catch (e) {
+        // Fallback if JSON parsing fails
+        throw new Error('Invalid AI response format')
       }
+
+      // Create new dashboard card from AI response
+      const newCard: DashboardCard = {
+        id: Date.now().toString(),
+        title: cardConfig.basic.title,
+        type: cardConfig.basic.type,
+        position: cardConfig.position,
+        size: { width: cardConfig.position.width, height: cardConfig.position.height },
+        content: cardConfig
+      }
+
+      setDashboardCards(prev => [...prev, newCard])
+
+      const aiResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: `✅ Perfect! I've created a "${cardConfig.basic.title}" card for you.\n\n📊 **Card Details:**\n• Type: ${cardConfig.basic.type}\n• Description: ${cardConfig.basic.description}\n\n🤖 **AI Info:**\n• Provider: ${result.provider}\n• Processing time: ${result.processingTimeMs}ms\n• Cost: $${result.tokenUsage.estimatedCost.toFixed(6)}\n\nThe card has been added to your dashboard!`,
+        timestamp: new Date()
+      }
+      setChatMessages(prev => [...prev, aiResponse])
+
     } catch (error) {
       console.error('AI Error:', error)
       const errorResponse: ChatMessage = {
@@ -215,7 +214,7 @@ export default function CustomDashboardPage() {
     }
   }
 
-  // Handle preset command selection
+  // Handle preset command selection - updated to use client-side service
   const handlePresetCommand = async (command: typeof presetCommands[0]) => {
     console.log('🎯 Preset command selected:', command.label)
     
@@ -230,47 +229,45 @@ export default function CustomDashboardPage() {
     setIsLoading(true)
 
     try {
-      // Call AI API to generate dashboard card
-      const response = await fetch('/api/ai/generate-card', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userPrompt: command.prompt,
-          availableData: [
-            'kd_users', 'kd_identity', 'kd_user_details', 
-            'kd_conversations', 'kd_messages', 'kd_analytics'
-          ],
-          currentDashboard: dashboardCards
-        })
+      // Call AI service directly (works in both development and production)
+      const result = await aiService.generateDashboardCard({
+        userPrompt: command.prompt,
+        availableData: [
+          'kd_users', 'kd_identity', 'kd_user_details', 
+          'kd_conversations', 'kd_messages', 'kd_analytics'
+        ],
+        currentDashboard: dashboardCards
       })
 
-      const result = await response.json()
-
-      if (result.success) {
-        // Create new dashboard card from AI response
-        const newCard: DashboardCard = {
-          id: Date.now().toString(),
-          title: result.card.basic.title,
-          type: result.card.basic.type,
-          position: result.card.position,
-          size: { width: result.card.position.width, height: result.card.position.height },
-          content: result.card
-        }
-
-        setDashboardCards(prev => [...prev, newCard])
-
-        const aiResponse: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          type: 'assistant',
-          content: `✅ Perfect! I've created a "${result.card.basic.title}" card for you.\n\n📊 **Card Details:**\n• Type: ${result.card.basic.type}\n• Description: ${result.card.basic.description}\n\n🤖 **AI Info:**\n• Provider: ${result.metadata.provider}\n• Processing time: ${result.metadata.processingTimeMs}ms\n• Cost: $${result.metadata.tokenUsage.estimatedCost.toFixed(6)}\n\nThe card has been added to your dashboard!`,
-          timestamp: new Date()
-        }
-        setChatMessages(prev => [...prev, aiResponse])
-      } else {
-        throw new Error(result.error || 'Failed to generate card')
+      // Parse the AI response
+      let cardConfig
+      try {
+        cardConfig = JSON.parse(result.content)
+      } catch (e) {
+        // Fallback if JSON parsing fails
+        throw new Error('Invalid AI response format')
       }
+
+      // Create new dashboard card from AI response
+      const newCard: DashboardCard = {
+        id: Date.now().toString(),
+        title: cardConfig.basic.title,
+        type: cardConfig.basic.type,
+        position: cardConfig.position,
+        size: { width: cardConfig.position.width, height: cardConfig.position.height },
+        content: cardConfig
+      }
+
+      setDashboardCards(prev => [...prev, newCard])
+
+      const aiResponse: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'assistant',
+        content: `✅ Perfect! I've created a "${cardConfig.basic.title}" card for you.\n\n📊 **Card Details:**\n• Type: ${cardConfig.basic.type}\n• Description: ${cardConfig.basic.description}\n\n🤖 **AI Info:**\n• Provider: ${result.provider}\n• Processing time: ${result.processingTimeMs}ms\n• Cost: $${result.tokenUsage.estimatedCost.toFixed(6)}\n\nThe card has been added to your dashboard!`,
+        timestamp: new Date()
+      }
+      setChatMessages(prev => [...prev, aiResponse])
+
     } catch (error) {
       console.error('Preset Command Error:', error)
       const errorResponse: ChatMessage = {

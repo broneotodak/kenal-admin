@@ -349,51 +349,100 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
     channelsRef.current = []
 
     try {
-      // Subscribe to user changes with error handling
-      const usersChannel = supabase
-        .channel('dashboard-users')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'kd_users'
-        }, () => {
-          // Refresh data when users change
-          fetchDashboardData()
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log('✅ Users real-time subscription active')
-          } else if (status === 'CHANNEL_ERROR') {
-            console.warn('⚠️ Users real-time subscription error')
-          } else if (status === 'TIMED_OUT') {
-            console.warn('⚠️ Users real-time subscription timed out')
-          }
-        })
+      // Add delay to ensure proper connection
+      setTimeout(() => {
+        if (!isMountedRef.current) return
+        
+        // Subscribe to user changes with error handling
+        const usersChannel = supabase
+          .channel('dashboard-users', {
+            config: {
+              presence: {
+                key: 'dashboard-users'
+              }
+            }
+          })
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'kd_users'
+          }, () => {
+            // Refresh data when users change
+            if (isMountedRef.current) {
+              fetchDashboardData()
+            }
+          })
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('✅ Users real-time subscription active')
+            } else if (status === 'CHANNEL_ERROR') {
+              console.warn('⚠️ Users real-time subscription error, retrying...')
+              // Retry after a delay
+              setTimeout(() => {
+                if (isMountedRef.current) {
+                  setupRealtimeSubscriptions()
+                }
+              }, 5000)
+            } else if (status === 'TIMED_OUT') {
+              console.warn('⚠️ Users real-time subscription timed out, retrying...')
+              // Retry after a delay
+              setTimeout(() => {
+                if (isMountedRef.current) {
+                  setupRealtimeSubscriptions()
+                }
+              }, 3000)
+            }
+          })
 
-      // Subscribe to identity changes with error handling
-      const identityChannel = supabase
-        .channel('dashboard-identity')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'kd_identity'
-        }, () => {
-          // Refresh data when identities change
-          fetchDashboardData()
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log('✅ Identity real-time subscription active')
-          } else if (status === 'CHANNEL_ERROR') {
-            console.warn('⚠️ Identity real-time subscription error')
-          } else if (status === 'TIMED_OUT') {
-            console.warn('⚠️ Identity real-time subscription timed out')
-          }
-        })
+        // Subscribe to identity changes with error handling
+        const identityChannel = supabase
+          .channel('dashboard-identity', {
+            config: {
+              presence: {
+                key: 'dashboard-identity'
+              }
+            }
+          })
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'kd_identity'
+          }, () => {
+            // Refresh data when identities change
+            if (isMountedRef.current) {
+              fetchDashboardData()
+            }
+          })
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log('✅ Identity real-time subscription active')
+            } else if (status === 'CHANNEL_ERROR') {
+              console.warn('⚠️ Identity real-time subscription error, retrying...')
+              // Retry after a delay
+              setTimeout(() => {
+                if (isMountedRef.current) {
+                  setupRealtimeSubscriptions()
+                }
+              }, 5000)
+            } else if (status === 'TIMED_OUT') {
+              console.warn('⚠️ Identity real-time subscription timed out, retrying...')
+              // Retry after a delay
+              setTimeout(() => {
+                if (isMountedRef.current) {
+                  setupRealtimeSubscriptions()
+                }
+              }, 3000)
+            }
+          })
 
-      channelsRef.current = [usersChannel, identityChannel]
+        if (isMountedRef.current) {
+          channelsRef.current = [usersChannel, identityChannel]
+        }
+      }, 1000) // 1 second delay to ensure proper initialization
     } catch (error) {
       console.warn('Failed to set up real-time subscriptions:', error)
+      // Fallback: just use regular data fetching without real-time updates
+      console.log('📊 Using dashboard without real-time updates')
     }
   }, [fetchDashboardData])
 
