@@ -105,8 +105,10 @@ export class AIService {
     const prompt = request.userPrompt.toLowerCase()
     let cardConfig
 
-    // Smart card selection based on prompt
-    if (prompt.includes('age') || prompt.includes('demographic')) {
+    // Smart card selection based on prompt - ORDER MATTERS!
+    if (prompt.includes('identity') || prompt.includes('identities')) {
+      cardConfig = this.getIdentityCard(request.userPrompt)
+    } else if (prompt.includes('age') || prompt.includes('demographic')) {
       cardConfig = this.getAgeDistributionCard(request.userPrompt)
     } else if (prompt.includes('country') || prompt.includes('geographic') || prompt.includes('location')) {
       cardConfig = this.getGeographicCard(request.userPrompt)
@@ -237,6 +239,28 @@ export class AIService {
   }
 
   // Mock card generators for fallback
+  private getIdentityCard(prompt: string) {
+    return {
+      "basic": {
+        "type": "stat",
+        "title": "Users with Identity",
+        "description": "Total number of users who have completed their identity assessment"
+      },
+      "position": {"x": 0, "y": 0, "width": 4, "height": 3},
+      "data": {
+        "source": "kd_identity",
+        "query": "SELECT COUNT(DISTINCT user_id) as count FROM kd_identity",
+        "refresh_interval": 300
+      },
+      "chart": {"type": "stat", "options": {}, "colors": ["#9c27b0"]},
+      "ai": {
+        "prompt": prompt,
+        "insights": "Shows the number of users who have completed their personality identity assessment",
+        "visualization_reasoning": "Stat card chosen for single identity count value display"
+      }
+    }
+  }
+
   private getAgeDistributionCard(prompt: string) {
     return {
       "basic": {
