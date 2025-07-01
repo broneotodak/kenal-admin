@@ -21,6 +21,14 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  ListItemButton,
+  Menu,
+  MenuItem,
+  Snackbar,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -38,6 +46,12 @@ import {
   Wc as GenderIcon,
   Category as ElementIcon,
   TableChart as TableIcon,
+  Save as SaveIcon,
+  FolderOpen as LoadIcon,
+  CloudDownload as CloudDownloadIcon,
+  MoreVert as MoreVertIcon,
+  Psychology as SmartAIIcon,
+  ViewModule as TemplateAIIcon,
 } from '@mui/icons-material'
 import { useAuth } from '@/contexts/AuthContext'
 import { useTheme } from '@mui/material/styles'
@@ -75,6 +89,17 @@ export default function CustomDashboardPage() {
   const [currentMessage, setCurrentMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  const [useSmartAI, setUseSmartAI] = useState(true) // Toggle between smart AI and template AI
+  
+  // Save/Load functionality state
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+  const [loadDialogOpen, setLoadDialogOpen] = useState(false)
+  const [dashboardName, setDashboardName] = useState('')
+  const [savedDashboards, setSavedDashboards] = useState<any[]>([])
+  const [loadingSave, setLoadingSave] = useState(false)
+  const [loadingList, setLoadingList] = useState(false)
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' })
+  const [currentDashboardName, setCurrentDashboardName] = useState('Untitled Dashboard')
 
   // Preset commands for quick admin actions
   const presetCommands = [
@@ -161,43 +186,129 @@ export default function CustomDashboardPage() {
     setIsLoading(true)
 
     try {
-      // Call AI service directly (works in both development and production)
-      const result = await aiService.generateDashboardCard({
-        userPrompt: prompt,
-        availableData: [
-          'kd_users', 'kd_identity', 'kd_user_details', 
-          'kd_conversations', 'kd_messages', 'kd_analytics'
-        ],
-        currentDashboard: dashboardCards
-      })
+      let result, cardConfig, aiResponse
 
-      // Parse the AI response
-      let cardConfig
-      try {
-        cardConfig = JSON.parse(result.content)
-      } catch (e) {
-        // Fallback if JSON parsing fails
-        throw new Error('Invalid AI response format')
+      if (useSmartAI) {
+        // 🚀 NEW: Use Smart AI with dynamic SQL generation + Template AI fallback
+        console.log('🧠 Using SMART AI service...')
+        
+        try {
+          const response = await fetch('/api/ai/smart-generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userPrompt: prompt,
+              userId: user?.id
+            })
+          })
+
+          const smartResult = await response.json()
+          
+          if (!response.ok) {
+            throw new Error(smartResult.error || 'Smart AI request failed')
+          }
+
+          cardConfig = smartResult.cardConfig
+
+          // Create new dashboard card from Smart AI response
+          const newCard: DashboardCard = {
+            id: Date.now().toString(),
+            title: cardConfig.basic.title,
+            type: cardConfig.basic.type,
+            position: cardConfig.position,
+            size: { width: cardConfig.position.width, height: cardConfig.position.height },
+            content: cardConfig
+          }
+
+          setDashboardCards(prev => [...prev, newCard])
+
+          aiResponse = {
+            id: (Date.now() + 1).toString(),
+            type: 'assistant' as const,
+            content: `✅ Smart AI Analysis Complete! I've created a "${cardConfig.basic.title}" card for you.\n\n📊 **Card Details:**\n• Type: ${cardConfig.basic.type}\n• Description: ${cardConfig.basic.description}\n\n🧠 **Smart AI Info:**\n• Generated SQL: ${smartResult.sqlQuery}\n• Processing time: ${smartResult.processingTimeMs}ms\n• Provider: ${smartResult.provider}\n\n💡 **Explanation:** ${smartResult.explanation}\n\nThe card has been added to your dashboard with real-time data!`,
+            timestamp: new Date()
+          }
+
+        } catch (smartAIError) {
+          // 🔄 FALLBACK: Smart AI failed, automatically use Template AI
+          console.warn('⚠️ Smart AI failed, falling back to Template AI:', smartAIError)
+          
+          result = await aiService.generateDashboardCard({
+            userPrompt: prompt,
+            availableData: [
+              'kd_users', 'kd_identity', 'kd_user_details', 
+              'kd_conversations', 'kd_messages', 'kd_analytics'
+            ],
+            currentDashboard: dashboardCards
+          })
+
+          // Parse the AI response
+          try {
+            cardConfig = JSON.parse(result.content)
+          } catch (e) {
+            throw new Error('Invalid AI response format')
+          }
+
+          // Create new dashboard card from Template AI response
+          const newCard: DashboardCard = {
+            id: Date.now().toString(),
+            title: cardConfig.basic.title,
+            type: cardConfig.basic.type,
+            position: cardConfig.position,
+            size: { width: cardConfig.position.width, height: cardConfig.position.height },
+            content: cardConfig
+          }
+
+          setDashboardCards(prev => [...prev, newCard])
+
+          aiResponse = {
+            id: (Date.now() + 1).toString(),
+            type: 'assistant' as const,
+            content: `⚠️ Smart AI encountered an issue, so I used Template AI instead.\n\n✅ I've created a "${cardConfig.basic.title}" card for you.\n\n📊 **Card Details:**\n• Type: ${cardConfig.basic.type}\n• Description: ${cardConfig.basic.description}\n\n🤖 **Template AI Info:**\n• Provider: ${result.provider}\n• Processing time: ${result.processingTimeMs}ms\n• Cost: $${result.tokenUsage.estimatedCost.toFixed(6)}\n\n💡 **Note:** The card has been added using predefined templates with real data. Smart AI will be available once API issues are resolved!`,
+            timestamp: new Date()
+          }
+        }
+
+      } else {
+        // 📋 OLD: Use Template-based AI (fallback)
+        console.log('📋 Using template-based AI service...')
+        
+        result = await aiService.generateDashboardCard({
+          userPrompt: prompt,
+          availableData: [
+            'kd_users', 'kd_identity', 'kd_user_details', 
+            'kd_conversations', 'kd_messages', 'kd_analytics'
+          ],
+          currentDashboard: dashboardCards
+        })
+
+        // Parse the AI response
+        try {
+          cardConfig = JSON.parse(result.content)
+        } catch (e) {
+          throw new Error('Invalid AI response format')
+        }
+
+        // Create new dashboard card from AI response
+        const newCard: DashboardCard = {
+          id: Date.now().toString(),
+          title: cardConfig.basic.title,
+          type: cardConfig.basic.type,
+          position: cardConfig.position,
+          size: { width: cardConfig.position.width, height: cardConfig.position.height },
+          content: cardConfig
+        }
+
+        setDashboardCards(prev => [...prev, newCard])
+
+                 aiResponse = {
+           id: (Date.now() + 1).toString(),
+           type: 'assistant' as const,
+           content: `✅ Perfect! I've created a "${cardConfig.basic.title}" card for you.\n\n📊 **Card Details:**\n• Type: ${cardConfig.basic.type}\n• Description: ${cardConfig.basic.description}\n\n🤖 **AI Info:**\n• Provider: ${result.provider}\n• Processing time: ${result.processingTimeMs}ms\n• Cost: $${result.tokenUsage.estimatedCost.toFixed(6)}\n\nThe card has been added to your dashboard!`,
+           timestamp: new Date()
+         }
       }
 
-      // Create new dashboard card from AI response
-      const newCard: DashboardCard = {
-        id: Date.now().toString(),
-        title: cardConfig.basic.title,
-        type: cardConfig.basic.type,
-        position: cardConfig.position,
-        size: { width: cardConfig.position.width, height: cardConfig.position.height },
-        content: cardConfig
-      }
-
-      setDashboardCards(prev => [...prev, newCard])
-
-      const aiResponse: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: `✅ Perfect! I've created a "${cardConfig.basic.title}" card for you.\n\n📊 **Card Details:**\n• Type: ${cardConfig.basic.type}\n• Description: ${cardConfig.basic.description}\n\n🤖 **AI Info:**\n• Provider: ${result.provider}\n• Processing time: ${result.processingTimeMs}ms\n• Cost: $${result.tokenUsage.estimatedCost.toFixed(6)}\n\nThe card has been added to your dashboard!`,
-        timestamp: new Date()
-      }
       setChatMessages(prev => [...prev, aiResponse])
 
     } catch (error) {
@@ -323,6 +434,184 @@ export default function CustomDashboardPage() {
     setChatMessages(prev => [...prev, resizeMessage])
   }
 
+  // Save dashboard functionality
+  const handleSaveDashboard = async () => {
+    if (!dashboardName.trim()) {
+      setSnackbar({ open: true, message: 'Please enter a dashboard name', severity: 'error' })
+      return
+    }
+
+    setLoadingSave(true)
+    try {
+      const response = await fetch('/api/dashboard/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save',
+          userId: user?.id,
+          dashboardName: dashboardName.trim(),
+          dashboardConfig: {
+            cards: dashboardCards,
+            metadata: {
+              savedAt: new Date().toISOString(),
+              cardCount: dashboardCards.length,
+              version: '1.0'
+            }
+          }
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        setCurrentDashboardName(dashboardName.trim())
+        setSaveDialogOpen(false)
+        setDashboardName('')
+        setSnackbar({ open: true, message: `Dashboard "${dashboardName.trim()}" saved successfully!`, severity: 'success' })
+        
+        // Add confirmation to chat
+        const saveMessage: ChatMessage = {
+          id: Date.now().toString(),
+          type: 'assistant',
+          content: `💾 Dashboard "${dashboardName.trim()}" saved successfully! You can load it anytime from the Load Dashboard menu.`,
+          timestamp: new Date()
+        }
+        setChatMessages(prev => [...prev, saveMessage])
+      } else {
+        throw new Error(result.error || 'Failed to save dashboard')
+      }
+    } catch (error) {
+      console.error('Save error:', error)
+      setSnackbar({ open: true, message: 'Failed to save dashboard', severity: 'error' })
+    } finally {
+      setLoadingSave(false)
+    }
+  }
+
+  // Load saved dashboards list
+  const loadDashboardsList = async () => {
+    setLoadingList(true)
+    try {
+      const response = await fetch('/api/dashboard/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'list',
+          userId: user?.id
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        setSavedDashboards(result.data || [])
+      } else {
+        throw new Error(result.error || 'Failed to load dashboards')
+      }
+    } catch (error) {
+      console.error('Load list error:', error)
+      setSnackbar({ open: true, message: 'Failed to load dashboards list', severity: 'error' })
+    } finally {
+      setLoadingList(false)
+    }
+  }
+
+  // Load specific dashboard
+  const handleLoadDashboard = async (name: string) => {
+    try {
+      const response = await fetch('/api/dashboard/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'load',
+          userId: user?.id,
+          dashboardName: name
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success && result.data) {
+        setDashboardCards(result.data.cards || [])
+        setCurrentDashboardName(name)
+        setLoadDialogOpen(false)
+        setSnackbar({ open: true, message: `Dashboard "${name}" loaded successfully!`, severity: 'success' })
+        
+        // Add confirmation to chat
+        const loadMessage: ChatMessage = {
+          id: Date.now().toString(),
+          type: 'assistant',
+          content: `📂 Dashboard "${name}" loaded successfully! ${result.data.cards?.length || 0} cards restored.`,
+          timestamp: new Date()
+        }
+        setChatMessages(prev => [...prev, loadMessage])
+      } else {
+        throw new Error(result.message || 'Failed to load dashboard')
+      }
+    } catch (error) {
+      console.error('Load dashboard error:', error)
+      setSnackbar({ open: true, message: `Failed to load dashboard "${name}"`, severity: 'error' })
+    }
+  }
+
+  // Delete dashboard
+  const handleDeleteDashboard = async (name: string) => {
+    try {
+      const response = await fetch('/api/dashboard/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete',
+          userId: user?.id,
+          dashboardName: name
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        await loadDashboardsList() // Refresh the list
+        setSnackbar({ open: true, message: `Dashboard "${name}" deleted successfully!`, severity: 'success' })
+      } else {
+        throw new Error(result.message || 'Failed to delete dashboard')
+      }
+    } catch (error) {
+      console.error('Delete dashboard error:', error)
+      setSnackbar({ open: true, message: `Failed to delete dashboard "${name}"`, severity: 'error' })
+    }
+  }
+
+  // Auto-load default dashboard on mount
+  useEffect(() => {
+    const autoLoadDashboard = async () => {
+      try {
+        const response = await fetch('/api/dashboard/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'load',
+            userId: user?.id,
+            dashboardName: 'My Dashboard' // Default dashboard name
+          })
+        })
+
+        const result = await response.json()
+        
+        if (result.success && result.data) {
+          setDashboardCards(result.data.cards || [])
+          setCurrentDashboardName('My Dashboard')
+          console.log('✅ Auto-loaded default dashboard')
+        }
+      } catch (error) {
+        console.log('ℹ️ No default dashboard found - starting fresh')
+      }
+    }
+
+    if (user?.id) {
+      autoLoadDashboard()
+    }
+  }, [user?.id])
+
   if (!isAdmin) {
     return (
       <Box sx={{ p: 3 }}>
@@ -345,8 +634,16 @@ export default function CustomDashboardPage() {
           <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
             Create your personalized dashboard with AI assistance
           </Typography>
+          <Chip 
+            label={currentDashboardName} 
+            size="small" 
+            sx={{ mt: 1 }} 
+            icon={<DashboardIcon />}
+            color="primary"
+            variant="outlined"
+          />
         </Box>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <Button
             variant="outlined"
             startIcon={<ChatIcon />}
@@ -354,6 +651,34 @@ export default function CustomDashboardPage() {
           >
             AI Assistant
           </Button>
+          
+          {/* Save Dashboard Button */}
+          {dashboardCards.length > 0 && (
+            <Button
+              variant="contained"
+              startIcon={<SaveIcon />}
+              onClick={() => {
+                setDashboardName(currentDashboardName === 'Untitled Dashboard' ? '' : currentDashboardName)
+                setSaveDialogOpen(true)
+              }}
+              color="success"
+            >
+              Save Dashboard
+            </Button>
+          )}
+          
+          {/* Load Dashboard Button */}
+          <Button
+            variant="outlined"
+            startIcon={<LoadIcon />}
+            onClick={() => {
+              setLoadDialogOpen(true)
+              loadDashboardsList()
+            }}
+          >
+            Load Dashboard
+          </Button>
+          
           {dashboardCards.length > 0 && (
             <Button
               variant="outlined"
@@ -361,6 +686,7 @@ export default function CustomDashboardPage() {
               startIcon={<DeleteIcon />}
               onClick={() => {
                 setDashboardCards([])
+                setCurrentDashboardName('Untitled Dashboard')
                 const clearMessage: ChatMessage = {
                   id: Date.now().toString(),
                   type: 'assistant',
@@ -373,13 +699,6 @@ export default function CustomDashboardPage() {
               Clear All Cards
             </Button>
           )}
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            disabled
-          >
-            Add Card (Coming Soon)
-          </Button>
         </Box>
       </Box>
 
@@ -454,6 +773,19 @@ export default function CustomDashboardPage() {
           <BotIcon color="primary" />
           AI Dashboard Assistant
           <Box sx={{ flexGrow: 1 }} />
+          
+          {/* AI Mode Toggle */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
+            <Chip
+              icon={useSmartAI ? <SmartAIIcon /> : <TemplateAIIcon />}
+              label={useSmartAI ? "Smart AI" : "Template AI"}
+              color={useSmartAI ? "success" : "default"}
+              size="small"
+              onClick={() => setUseSmartAI(!useSmartAI)}
+              sx={{ cursor: 'pointer' }}
+            />
+          </Box>
+          
           <IconButton onClick={() => setChatOpen(false)}>
             <CloseIcon />
           </IconButton>
@@ -637,6 +969,145 @@ export default function CustomDashboardPage() {
           <ChatIcon />
         </Fab>
       )}
+
+      {/* Save Dashboard Dialog */}
+      <Dialog
+        open={saveDialogOpen}
+        onClose={() => setSaveDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <SaveIcon color="success" />
+          Save Dashboard
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Save your current dashboard layout and all cards to access them later.
+          </Typography>
+          <TextField
+            fullWidth
+            label="Dashboard Name"
+            placeholder="e.g., My Analytics, Daily Overview, Weekly Report"
+            value={dashboardName}
+            onChange={(e) => setDashboardName(e.target.value)}
+            autoFocus
+            sx={{ mb: 2 }}
+          />
+          <Typography variant="caption" color="text.secondary">
+            💾 {dashboardCards.length} cards will be saved
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSaveDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveDashboard}
+            variant="contained"
+            color="success"
+            disabled={!dashboardName.trim() || loadingSave}
+            startIcon={loadingSave ? <CircularProgress size={16} /> : <SaveIcon />}
+          >
+            {loadingSave ? 'Saving...' : 'Save Dashboard'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Load Dashboard Dialog */}
+      <Dialog
+        open={loadDialogOpen}
+        onClose={() => setLoadDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <LoadIcon color="primary" />
+          Load Dashboard
+          <Box sx={{ flexGrow: 1 }} />
+          <IconButton onClick={() => setLoadDialogOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent>
+          {loadingList ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : savedDashboards.length === 0 ? (
+            <Box sx={{ textAlign: 'center', p: 3 }}>
+              <CloudDownloadIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary">
+                No Saved Dashboards
+              </Typography>
+              <Typography variant="body2" color="text.disabled">
+                Create some dashboard cards and save them to see them here.
+              </Typography>
+            </Box>
+          ) : (
+            <List>
+              {savedDashboards.map((dashboard, index) => (
+                <ListItem
+                  key={index}
+                  secondaryAction={
+                    <IconButton
+                      edge="end"
+                      onClick={() => handleDeleteDashboard(dashboard.name)}
+                      color="error"
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  }
+                >
+                  <ListItemButton
+                    onClick={() => handleLoadDashboard(dashboard.name)}
+                    sx={{ borderRadius: 1 }}
+                  >
+                    <ListItemIcon>
+                      <DashboardIcon color="primary" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={dashboard.name}
+                      secondary={
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Last updated: {new Date(dashboard.updated_at).toLocaleDateString()}
+                          </Typography>
+                          <br />
+                          <Typography variant="caption" color="text.secondary">
+                            Created: {new Date(dashboard.created_at).toLocaleDateString()}
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLoadDialogOpen(false)}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 } 

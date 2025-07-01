@@ -94,6 +94,14 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
       console.log('🔍 Fetching data for card:', card.title, card.type)
       console.log('🔍 Card content:', card.content)
       
+      // Check if this is a smart AI generated card with embedded data
+      if (card.content?.smartData) {
+        console.log('🧠 Smart AI card detected, using embedded data')
+        setData(card.content.smartData)
+        setLoading(false)
+        return
+      }
+
       // Enhanced data type detection based on AI-generated card configuration
       let dataType = 'user_count' // default
       let processing = card.content?.data?.processing || null
@@ -200,104 +208,14 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
       console.error('❌ Real data fetch failed:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch data')
       
-      // Only use mock data as last resort
-      generateMockData()
+      // NO MOCK DATA - Show proper error state only
+      setData(null)
     } finally {
       setLoading(false)
     }
   }
 
-  // Generate mock data for demonstration
-  const generateMockData = () => {
-    // Use card ID as seed for consistent data
-    const seed = card.id.split('').reduce((a, b) => a + b.charCodeAt(0), 0)
-    const seededRandom = (min: number, max: number) => {
-      const x = Math.sin(seed) * 10000
-      return Math.floor((x - Math.floor(x)) * (max - min + 1)) + min
-    }
 
-    // Determine data type from card analysis
-    const titleLower = card.title.toLowerCase()
-    const descriptionLower = card.content?.basic?.description?.toLowerCase() || ''
-
-    console.log('🔄 Generating smart mock data for:', titleLower)
-
-    if (card.type === 'stat') {
-      setData([{ count: seededRandom(1000, 10000) }])
-    } else if (card.type === 'chart') {
-      // Smart mock data generation based on chart content
-      if (titleLower.includes('age') || descriptionLower.includes('age') || card.content?.data?.processing === 'smart_age_analysis') {
-        // Generate age group data
-        const ageGroups = [
-          { category: 'Under 18', value: seededRandom(50, 150) },
-          { category: '18-24', value: seededRandom(200, 400) },
-          { category: '25-34', value: seededRandom(300, 600) },
-          { category: '35-44', value: seededRandom(200, 500) },
-          { category: '45-54', value: seededRandom(150, 350) },
-          { category: '55-64', value: seededRandom(100, 250) },
-          { category: '65+', value: seededRandom(50, 150) }
-        ]
-        console.log('📊 Generated AGE GROUP mock data:', ageGroups)
-        setData(ageGroups)
-      } else if (titleLower.includes('country') || titleLower.includes('geographic')) {
-        // Generate country data
-        const countries = [
-          { category: 'United States', value: seededRandom(200, 500) },
-          { category: 'United Kingdom', value: seededRandom(150, 300) },
-          { category: 'Canada', value: seededRandom(100, 250) },
-          { category: 'Australia', value: seededRandom(80, 200) },
-          { category: 'Germany', value: seededRandom(70, 180) },
-          { category: 'France', value: seededRandom(60, 150) }
-        ]
-        console.log('🌍 Generated COUNTRY mock data:', countries)
-        setData(countries)
-      } else if (titleLower.includes('gender')) {
-        // Generate gender data
-        const genderData = [
-          { category: 'Female', value: seededRandom(400, 600) },
-          { category: 'Male', value: seededRandom(350, 550) },
-          { category: 'Not Specified', value: seededRandom(50, 100) }
-        ]
-        console.log('👫 Generated GENDER mock data:', genderData)
-        setData(genderData)
-      } else if (titleLower.includes('element')) {
-        // Generate element data
-        const elementData = Array.from({ length: 9 }, (_, i) => ({
-          category: `Element ${i + 1}`,
-          value: seededRandom(80, 200)
-        }))
-        console.log('🔥 Generated ELEMENT mock data:', elementData)
-        setData(elementData)
-      } else if (titleLower.includes('growth') || titleLower.includes('trend')) {
-        // Generate time series data
-        const mockData = Array.from({ length: 12 }, (_, i) => ({
-          month: `2024-${String(i + 1).padStart(2, '0')}`,
-          value: seededRandom(100, 1000) + i * 10
-        }))
-        console.log('📈 Generated GROWTH mock data:', mockData)
-        setData(mockData)
-      } else {
-        // Default chart data
-        const mockData = Array.from({ length: 8 }, (_, i) => ({
-          category: `Category ${i + 1}`,
-          value: seededRandom(100, 500)
-        }))
-        console.log('📊 Generated DEFAULT mock data:', mockData)
-        setData(mockData)
-      }
-    } else if (card.type === 'table') {
-      const mockData = Array.from({ length: 10 }, (_, i) => ({
-        id: i + 1,
-        username: `user_${i + 1}`,
-        email: `user${i + 1}@kenal.com`,
-        created_at: new Date(Date.now() - (i + 1) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        is_active: i % 3 !== 0
-      }))
-      console.log('📋 Generated TABLE mock data:', mockData.slice(0, 3))
-      setData(mockData)
-    }
-    setError(null)
-  }
 
   useEffect(() => {
     fetchData()
@@ -333,11 +251,12 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
 
     if (error) {
       return (
-        <Alert severity="warning" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <Typography variant="body2" fontWeight="bold">Real Data Only</Typography>
           {error}
-          <Button size="small" onClick={generateMockData} sx={{ ml: 1 }}>
-            Show Demo Data
-          </Button>
+          <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+            Unable to fetch real data from KENAL database. Please check your connection or try refreshing the card.
+          </Typography>
         </Alert>
       )
     }
@@ -365,19 +284,32 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
         )
 
       case 'chart':
-        const chartData = {
-          labels: data.map((item: any) => item.month || item.category || item.date || item.label || item.name),
-          datasets: [{
-            label: card.title,
-            data: data.map((item: any) => item.value || item.count || item.total),
-            borderColor: card.content?.chart?.colors?.[0] || '#1976d2',
-            backgroundColor: card.content?.chart?.colors?.[0] + '20' || '#1976d220',
-            tension: 0.1,
-            // Enhanced styling for different chart types
-            borderWidth: 2,
-            hoverBackgroundColor: card.content?.chart?.colors?.[0] + '40' || '#1976d240',
-            hoverBorderColor: card.content?.chart?.colors?.[0] || '#1976d2',
-          }]
+        // Handle cross-analysis data format (datasets + labels) vs regular array format
+        let chartData
+        
+        if (data?.datasets && data?.labels) {
+          // Cross-analysis format from API (age+gender, country+age, etc.)
+          console.log('📊 Cross-analysis data detected:', data)
+          chartData = {
+            labels: data.labels,
+            datasets: data.datasets
+          }
+        } else {
+          // Standard array format
+          chartData = {
+            labels: data.map((item: any) => item.month || item.category || item.date || item.label || item.name),
+            datasets: [{
+              label: card.title,
+              data: data.map((item: any) => item.value || item.count || item.total),
+              borderColor: card.content?.chart?.colors?.[0] || '#1976d2',
+              backgroundColor: card.content?.chart?.colors?.[0] + '20' || '#1976d220',
+              tension: 0.1,
+              // Enhanced styling for different chart types
+              borderWidth: 2,
+              hoverBackgroundColor: card.content?.chart?.colors?.[0] + '40' || '#1976d240',
+              hoverBorderColor: card.content?.chart?.colors?.[0] || '#1976d2',
+            }]
+          }
         }
 
         // Enhanced chart options with better formatting
@@ -432,10 +364,31 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
         // Smart chart type selection based on data characteristics
         let selectedChartType = card.content?.chart?.type || 'line'
         
-        // Auto-detect better chart type based on data
-        const hasTimeData = data.some((item: any) => item.month || item.date)
-        const hasCategoricalData = data.some((item: any) => item.category)
-        const dataLength = data.length
+        // Auto-detect better chart type based on data - handle both formats
+        let hasTimeData = false
+        let hasCategoricalData = false
+        let dataLength = 0
+        
+        if (data?.datasets && data?.labels) {
+          // Cross-analysis format - check labels for patterns
+          const labels = data.labels || []
+          dataLength = labels.length
+          hasTimeData = labels.some((label: string) => 
+            typeof label === 'string' && (label.includes('-') || label.includes('Q') || label.match(/\d{4}/))
+          )
+          hasCategoricalData = labels.some((label: string) => 
+            typeof label === 'string' && (
+              label.includes('age') || label.includes('Under') || label.includes('Over') ||
+              label.includes('male') || label.includes('female') ||
+              label.includes('country') || label.includes('element')
+            )
+          ) || labels.length <= 10 // Small number of categories suggests categorical data
+        } else if (Array.isArray(data)) {
+          // Standard array format
+          hasTimeData = data.some((item: any) => item.month || item.date)
+          hasCategoricalData = data.some((item: any) => item.category)
+          dataLength = data.length
+        }
         
         console.log('📊 Chart data analysis:', {
           selectedChartType,

@@ -95,8 +95,10 @@ export class AIService {
 
       // Try primary provider first
       if (this.primaryProvider === 'anthropic' && this.anthropicApiKey) {
+        console.log('🤖 REAL AI: Using Anthropic API for prompt:', request.userPrompt)
         return await this.callAnthropic(request, startTime)
       } else if (this.primaryProvider === 'openai' && this.openaiApiKey) {
+        console.log('🤖 REAL AI: Using OpenAI API for prompt:', request.userPrompt)
         return await this.callOpenAI(request, startTime)
       }
       
@@ -123,14 +125,42 @@ export class AIService {
     const prompt = request.userPrompt.toLowerCase()
     let cardConfig
 
-    // SMART KENAL-SPECIFIC INTENT DETECTION - ORDER MATTERS!
-    if (prompt.includes('identity') && (prompt.includes('total') || prompt.includes('count') || prompt.includes('how many'))) {
-      // User wants identity count, not user count
-      cardConfig = this.getIdentityCountCard(request.userPrompt)
-    } else if (prompt.includes('identity') && prompt.includes('distribution')) {
-      // User wants identity type distribution
-      cardConfig = this.getIdentityTypeCard(request.userPrompt)
-    } else if (prompt.includes('age') || prompt.includes('demographic')) {
+    console.log('🤖 MOCK AI: Processing prompt:', prompt)
+
+    // 🧠 ENHANCED MULTI-DIMENSIONAL ANALYSIS DETECTION - Smart Cross-Analysis!
+    console.log('🔍 Analyzing prompt for multi-dimensional requests:', prompt)
+    
+    // PRIORITY 1: Multi-dimensional analysis (age + gender, country + element, etc.)
+    if ((prompt.includes('age') && prompt.includes('gender')) || 
+        (prompt.includes('between') && prompt.includes('age') && prompt.includes('gender')) ||
+        (prompt.includes('age') && prompt.includes('by gender')) ||
+        (prompt.includes('gender') && prompt.includes('by age'))) {
+      console.log('🎯 DETECTED: Age + Gender Cross-Analysis!')
+      cardConfig = this.getAgeGenderCrossAnalysisCard(request.userPrompt)
+    } else if ((prompt.includes('country') && prompt.includes('age')) || 
+               (prompt.includes('geographic') && prompt.includes('demographic'))) {
+      console.log('🎯 DETECTED: Country + Age Cross-Analysis!')
+      cardConfig = this.getCountryAgeCrossAnalysisCard(request.userPrompt)
+    } else if ((prompt.includes('element') && prompt.includes('gender')) || 
+               (prompt.includes('element') && prompt.includes('by gender'))) {
+      console.log('🎯 DETECTED: Element + Gender Cross-Analysis!')
+      cardConfig = this.getElementGenderCrossAnalysisCard(request.userPrompt)
+    } else if ((prompt.includes('age') && prompt.includes('element')) || 
+               (prompt.includes('demographic') && prompt.includes('element'))) {
+      console.log('🎯 DETECTED: Age + Element Cross-Analysis!')
+      cardConfig = this.getAgeElementCrossAnalysisCard(request.userPrompt)
+    } 
+    // PRIORITY 2: Identity-specific analysis
+    else if (prompt.includes('identity') || prompt.includes('identities')) {
+      if (prompt.includes('distribution') || prompt.includes('type')) {
+        cardConfig = this.getIdentityTypeCard(request.userPrompt)
+      } else {
+        console.log('🧠 MOCK: Detected IDENTITY query, generating Identity Count card')
+        cardConfig = this.getIdentityCountCard(request.userPrompt)
+      }
+    } 
+    // PRIORITY 3: Single-dimension analysis
+    else if (prompt.includes('age') || prompt.includes('demographic')) {
       cardConfig = this.getAgeDistributionCard(request.userPrompt)
     } else if (prompt.includes('country') || prompt.includes('geographic') || prompt.includes('location')) {
       cardConfig = this.getGeographicCard(request.userPrompt)
@@ -145,10 +175,8 @@ export class AIService {
     } else if (prompt.includes('active') && prompt.includes('user')) {
       cardConfig = this.getActiveUsersCard(request.userPrompt)
     } else if (prompt.includes('total') || prompt.includes('count')) {
-      // Generic count - assume they want total users
       cardConfig = this.getUserCountCard(request.userPrompt)
     } else {
-      // Default to user count for unclear prompts
       cardConfig = this.getUserCountCard(request.userPrompt)
     }
 
@@ -266,27 +294,6 @@ export class AIService {
   }
 
   // Mock card generators for fallback
-  private getIdentityCard(prompt: string) {
-    return {
-      "basic": {
-        "type": "stat",
-        "title": "Users with Identity",
-        "description": "Total number of users who have completed their identity assessment"
-      },
-      "position": {"x": 0, "y": 0, "width": 4, "height": 3},
-      "data": {
-        "source": "kd_identity",
-        "query": "SELECT COUNT(DISTINCT user_id) as count FROM kd_identity",
-        "refresh_interval": 300
-      },
-      "chart": {"type": "stat", "options": {}, "colors": ["#9c27b0"]},
-      "ai": {
-        "prompt": prompt,
-        "insights": "Shows the number of users who have completed their personality identity assessment",
-        "visualization_reasoning": "Stat card chosen for single identity count value display"
-      }
-    }
-  }
 
   private getAgeDistributionCard(prompt: string) {
     return {
@@ -525,8 +532,12 @@ KENAL is a personality assessment and matching platform. Here's what each table 
 📋 **CRITICAL DISTINCTIONS:**
 - **kd_users** = ALL registered users (may or may not have completed assessment)
 - **kd_identity** = Users who COMPLETED personality assessment (subset of kd_users)
-- When user asks "total identity" or "identity count" = COUNT of kd_identity (completed assessments)
-- When user asks "total users" = COUNT of kd_users (all registrations)
+
+🚨 **IDENTITY vs USER DETECTION RULES:**
+- "identity", "identities", "personality assessment", "completed assessment" = kd_identity table
+- "total identity", "identity count", "how many identities" = COUNT of kd_identity 
+- "total users", "user count", "registered users" = COUNT of kd_users
+- If user says "identity" in ANY form = they want kd_identity data, NOT kd_users data!
 
 🗄️ **DATABASE STRUCTURE:**
 - **kd_users** (1,400+ users): Basic registration data
@@ -543,11 +554,29 @@ KENAL is a personality assessment and matching platform. Here's what each table 
 - **kd_problem_updates**: Feedback and support requests
 
 🎯 **SMART INTENT DETECTION:**
-- "total identity/identities" → COUNT(DISTINCT user_id) FROM kd_identity
+- "How many identities do we have?" → COUNT(DISTINCT user_id) FROM kd_identity (Title: "Total Identities")
+- "total identity/identities" → COUNT(DISTINCT user_id) FROM kd_identity (Title: "Total Identities")
 - "identity distribution" → GROUP BY identity_type FROM kd_identity  
-- "total users" → COUNT(*) FROM kd_users
+- "total users" → COUNT(*) FROM kd_users (Title: "Total Users")
 - "active users" → Users with both registration AND identity
 - "conversion rate" → (kd_identity count / kd_users count) * 100
+
+🎯 **MULTI-DIMENSIONAL ANALYSIS PATTERNS:**
+- "age and gender" / "between age and gender" → Cross-analysis with age groups by gender
+- "country by age" / "geographic demographics" → Country distribution with age breakdown
+- "element by gender" / "personality by gender" → Element preferences by gender
+- "age vs elements" / "generational preferences" → Age groups with element distribution
+
+🚨 **CROSS-ANALYSIS DETECTION RULES:**
+- If user mentions TWO dimensions (age+gender, country+age, etc.) = Cross-analysis chart
+- Use processing parameter: "age_gender_cross_analysis", "country_age_cross_analysis", etc.
+- Chart type should be "bar" (grouped/stacked) for cross-analysis
+- Title format: "Dimension A vs Dimension B Analysis"
+
+🚨 **EXAMPLE USER QUERIES:**
+- "How many identities do we have?" = kd_identity count, title "Total Identities"
+- "Show me identity count" = kd_identity count, title "Total Identities"
+- "How many users are registered?" = kd_users count, title "Total Users"
 
 🔍 **KEY METRICS:**
 - **Registration vs Completion**: Not all registered users complete assessment
@@ -557,6 +586,12 @@ KENAL is a personality assessment and matching platform. Here's what each table 
 - **Element Distribution**: Personality element categories (1-9)
 
 IMPORTANT: Respond with ONLY a valid JSON object. No explanations, no markdown formatting, no additional text.
+
+🚨 **CRITICAL RULE:**
+- If user mentions "identity" or "identities" ANYWHERE in their request = use kd_identity table
+- Title should be "Total Identities" (NOT "Total Users") 
+- Data source should be "kd_identity" (NOT "kd_users")
+- Query should be "SELECT COUNT(DISTINCT user_id) as count FROM kd_identity"
 
 When the user asks about "identity" - they want kd_identity table data (completed assessments), NOT kd_users data (registrations).
 
@@ -656,6 +691,180 @@ Choose the most appropriate template and customize it based on the specific user
         "prompt": prompt,
         "insights": "Shows users who are actively using KENAL (have identity)",
         "visualization_reasoning": "Stat card for active user count"
+      }
+    }
+  }
+
+  // 🎯 NEW: Multi-dimensional cross-analysis card generators
+  private getAgeGenderCrossAnalysisCard(prompt: string) {
+    return {
+      "basic": {
+        "type": "chart",
+        "title": "Age vs Gender Distribution",
+        "description": "Cross-analysis showing age groups broken down by gender"
+      },
+      "position": {"x": 0, "y": 0, "width": 8, "height": 6},
+      "data": {
+        "source": "kd_users",
+        "query": "SELECT birth_date, gender, created_at FROM kd_users WHERE birth_date IS NOT NULL AND gender IS NOT NULL ORDER BY created_at ASC",
+        "refresh_interval": 300,
+        "processing": "age_gender_cross_analysis"
+      },
+      "chart": {
+        "type": "bar", 
+        "options": {
+          "responsive": true, 
+          "maintainAspectRatio": false,
+          "indexAxis": "x",
+          "plugins": {
+            "legend": {"display": true, "position": "top"},
+            "tooltip": {
+              "mode": "index",
+              "intersect": false,
+              "callbacks": {
+                "title": "function(context) { return context[0].label + ' Age Group'; }",
+                "label": "function(context) { return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' users'; }"
+              }
+            }
+          },
+          "scales": {
+            "y": {"beginAtZero": true, "title": {"display": true, "text": "Number of Users"}, "stacked": false},
+            "x": {"title": {"display": true, "text": "Age Groups"}}
+          }
+        }, 
+        "colors": ["#1976d2", "#dc004e", "#ff9800", "#4caf50"]
+      },
+      "ai": {
+        "prompt": prompt,
+        "insights": "Multi-dimensional analysis showing age distribution broken down by gender, revealing demographic patterns and gender distribution across age groups",
+        "visualization_reasoning": "Grouped bar chart chosen to compare gender distribution within each age group, allowing cross-dimensional analysis"
+      }
+    }
+  }
+
+  private getCountryAgeCrossAnalysisCard(prompt: string) {
+    return {
+      "basic": {
+        "type": "chart",
+        "title": "Country vs Age Analysis",
+        "description": "Geographic distribution with age demographics"
+      },
+      "position": {"x": 0, "y": 0, "width": 8, "height": 6},
+      "data": {
+        "source": "kd_users",
+        "query": "SELECT registration_country, birth_date, created_at FROM kd_users WHERE registration_country IS NOT NULL AND birth_date IS NOT NULL ORDER BY created_at ASC",
+        "refresh_interval": 300,
+        "processing": "country_age_cross_analysis"
+      },
+      "chart": {
+        "type": "bar", 
+        "options": {
+          "responsive": true, 
+          "maintainAspectRatio": false,
+          "indexAxis": "y",
+          "plugins": {
+            "legend": {"display": true, "position": "top"},
+            "tooltip": {
+              "mode": "index",
+              "intersect": false
+            }
+          },
+          "scales": {
+            "x": {"beginAtZero": true, "title": {"display": true, "text": "Number of Users"}},
+            "y": {"title": {"display": true, "text": "Countries"}}
+          }
+        }, 
+        "colors": ["#1976d2", "#dc004e", "#ff9800", "#4caf50", "#9c27b0", "#f44336", "#607d8b"]
+      },
+      "ai": {
+        "prompt": prompt,
+        "insights": "Cross-analysis of geographic distribution with age demographics, showing which countries have younger vs older user bases",
+        "visualization_reasoning": "Horizontal stacked bar chart to show age distribution within each country"
+      }
+    }
+  }
+
+  private getElementGenderCrossAnalysisCard(prompt: string) {
+    return {
+      "basic": {
+        "type": "chart",
+        "title": "Element vs Gender Analysis",
+        "description": "Element preferences broken down by gender"
+      },
+      "position": {"x": 0, "y": 0, "width": 8, "height": 6},
+      "data": {
+        "source": "kd_users",
+        "query": "SELECT element_number, gender FROM kd_users WHERE element_number IS NOT NULL AND gender IS NOT NULL",
+        "refresh_interval": 300,
+        "processing": "element_gender_cross_analysis"
+      },
+      "chart": {
+        "type": "bar", 
+        "options": {
+          "responsive": true, 
+          "maintainAspectRatio": false,
+          "plugins": {
+            "legend": {"display": true, "position": "top"},
+            "tooltip": {
+              "mode": "index",
+              "intersect": false
+            }
+          },
+          "scales": {
+            "y": {"beginAtZero": true, "title": {"display": true, "text": "Number of Users"}},
+            "x": {"title": {"display": true, "text": "Element Types"}}
+          }
+        }, 
+        "colors": ["#1976d2", "#dc004e", "#ff9800"]
+      },
+      "ai": {
+        "prompt": prompt,
+        "insights": "Cross-analysis showing element type preferences by gender, revealing personality trait patterns across gender lines",
+        "visualization_reasoning": "Grouped bar chart to compare gender distribution within each element type"
+      }
+    }
+  }
+
+  private getAgeElementCrossAnalysisCard(prompt: string) {
+    return {
+      "basic": {
+        "type": "chart",
+        "title": "Age vs Element Analysis", 
+        "description": "Age groups and their element preferences"
+      },
+      "position": {"x": 0, "y": 0, "width": 8, "height": 6},
+      "data": {
+        "source": "kd_users",
+        "query": "SELECT birth_date, element_number, created_at FROM kd_users WHERE birth_date IS NOT NULL AND element_number IS NOT NULL ORDER BY created_at ASC",
+        "refresh_interval": 300,
+        "processing": "age_element_cross_analysis"
+      },
+      "chart": {
+        "type": "line", 
+        "options": {
+          "responsive": true, 
+          "maintainAspectRatio": false,
+          "plugins": {
+            "legend": {"display": true, "position": "top"},
+            "tooltip": {
+              "mode": "index",
+              "intersect": false
+            }
+          },
+          "scales": {
+            "y": {"beginAtZero": true, "title": {"display": true, "text": "Number of Users"}},
+            "x": {"title": {"display": true, "text": "Age Groups"}}
+          },
+          "elements": {
+            "point": {"radius": 3, "hoverRadius": 5}
+          }
+        }, 
+        "colors": ["#f44336", "#e91e63", "#9c27b0", "#673ab7", "#3f51b5", "#2196f3", "#03a9f4", "#00bcd4", "#009688"]
+      },
+      "ai": {
+        "prompt": prompt,
+        "insights": "Multi-line analysis showing how element preferences change across age groups, revealing generational personality patterns",
+        "visualization_reasoning": "Multi-line chart to show element distribution trends across age demographics"
       }
     }
   }

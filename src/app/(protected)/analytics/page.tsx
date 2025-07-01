@@ -551,11 +551,12 @@ export default function AnalyticsPage() {
       const advancedForecast = generateAdvancedGrowthForecast(currentTotalUsers, dailyTrends)
 
       // Update the analytics data with new totals and both forecast methods
+      // Preserve the real identity count from loadAnalyticsData (don't overwrite it)
       setAnalyticsData(prev => ({
         ...prev,
         totalDirectRegistrations,
         totalInvitedRegistrations,
-        totalIdentities: finalIdentitiesCount, // Use the accurate count
+        // totalIdentities: preserve the real count from our working API
         registrationTrends: dailyTrends,
         advancedGrowthForecast: advancedForecast
       }))
@@ -808,6 +809,22 @@ export default function AnalyticsPage() {
         return forecasts
       }
 
+      // Get real identity count using our working API endpoint
+      let realIdentityCount = 0
+      try {
+        const identityCountResponse = await fetch('/api/dashboard/real-data/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'identity_count', cardType: 'stat' })
+        })
+        const identityCountData = await identityCountResponse.json()
+        realIdentityCount = identityCountData.data?.count || 0  // ✅ FIXED: Access data.count
+        console.log('🧠 Analytics: Real identity count from API:', realIdentityCount)
+        console.log('🧠 Analytics: Full API response:', identityCountData)
+      } catch (error) {
+        console.error('❌ Analytics: Error fetching identity count:', error)
+      }
+
       // Calculate test completion statistics
       const { data: identityData } = await supabase
         .from('kd_identity')
@@ -855,7 +872,7 @@ export default function AnalyticsPage() {
         todayRegistrations: todayRegistrations || 0,
         monthlyGrowthRate: Math.round(monthlyGrowthRate * 10) / 10,
         avgDailyRegistrations: Math.round((recentUsers?.length || 0) / 30),
-        totalIdentities: 0, // Will be updated by loadChartData
+        totalIdentities: realIdentityCount, // Real count from our working API
         usersByElement,
         usersByCountry,
         usersByGender,
@@ -2634,13 +2651,13 @@ export default function AnalyticsPage() {
                   <Grid item xs={6} sm={3}>
                     <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'primary.light', borderRadius: 2 }}>
                       <Typography variant="h4" fontWeight="bold" color="primary.dark">
-                        2,660
+                        {analyticsData.totalIdentities.toLocaleString()}
                       </Typography>
                       <Typography variant="body2" fontWeight="bold">
                         Total Identities
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Across all users
+                        From kd_identity table
                       </Typography>
                     </Box>
                   </Grid>

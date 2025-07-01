@@ -163,6 +163,37 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         <ListItem disablePadding>
           <ListItemButton 
+            onClick={() => router.push('/custom-dashboard')}
+            selected={pathname === '/custom-dashboard'}
+            sx={{
+              color: 'text.secondary',
+              '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
+              '&.Mui-selected': {
+                color: 'primary.main',
+                '& .MuiListItemIcon-root': { color: 'primary.main' },
+              },
+            }}
+          >
+            <ListItemIcon>
+              <AutoAwesome fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Custom Dashboard" />
+            <Chip 
+              label="AI" 
+              size="small" 
+              color="primary" 
+              variant="outlined"
+              sx={{ 
+                height: 18, 
+                fontSize: '0.6rem',
+                '& .MuiChip-label': { px: 0.5 }
+              }} 
+            />
+          </ListItemButton>
+        </ListItem>
+
+        <ListItem disablePadding>
+          <ListItemButton 
             onClick={() => setOpenUsers(!openUsers)}
             sx={{
               color: 'text.secondary',
@@ -240,37 +271,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </ListItemButton>
           </List>
         </Collapse>
-
-        <ListItem disablePadding>
-          <ListItemButton 
-            onClick={() => router.push('/custom-dashboard')}
-            selected={pathname === '/custom-dashboard'}
-            sx={{
-              color: 'text.secondary',
-              '& .MuiListItemIcon-root': { color: 'text.secondary', minWidth: 40 },
-              '&.Mui-selected': {
-                color: 'primary.main',
-                '& .MuiListItemIcon-root': { color: 'primary.main' },
-              },
-            }}
-          >
-            <ListItemIcon>
-              <AutoAwesome fontSize="small" />
-            </ListItemIcon>
-            <ListItemText primary="Custom Dashboard" />
-            <Chip 
-              label="AI" 
-              size="small" 
-              color="primary" 
-              variant="outlined"
-              sx={{ 
-                height: 18, 
-                fontSize: '0.6rem',
-                '& .MuiChip-label': { px: 0.5 }
-              }} 
-            />
-          </ListItemButton>
-        </ListItem>
 
         <ListItem disablePadding>
           <ListItemButton 
