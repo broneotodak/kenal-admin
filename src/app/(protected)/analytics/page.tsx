@@ -981,37 +981,37 @@ export default function AnalyticsPage() {
       <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', height: '100%' }}>
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 120 }}>
-            <Box>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                {title}
-              </Typography>
+          <Box>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              {title}
+            </Typography>
               <Typography variant="h4" fontWeight="bold" sx={{ mb: 1 }}>
-                {typeof value === 'number' ? value.toLocaleString() : value}
-              </Typography>
+              {typeof value === 'number' ? value.toLocaleString() : value}
+            </Typography>
             </Box>
             
             <Box sx={{ minHeight: 40, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-              {subtitle && (
+            {subtitle && (
                 <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-                  {subtitle}
-                </Typography>
-              )}
-              {growth !== null && growth !== undefined && (
+                {subtitle}
+              </Typography>
+            )}
+            {growth !== null && growth !== undefined && (
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  {growth.startsWith('+') ? (
-                    <TrendingUp sx={{ color: 'success.main', fontSize: 16, mr: 0.5 }} />
-                  ) : (
-                    <TrendingDown sx={{ color: 'error.main', fontSize: 16, mr: 0.5 }} />
-                  )}
-                  <Typography 
-                    variant="body2" 
-                    color={growth.startsWith('+') ? 'success.main' : 'error.main'}
-                  >
-                    {growth}% vs last month
-                  </Typography>
-                </Box>
-              )}
-            </Box>
+                {growth.startsWith('+') ? (
+                  <TrendingUp sx={{ color: 'success.main', fontSize: 16, mr: 0.5 }} />
+                ) : (
+                  <TrendingDown sx={{ color: 'error.main', fontSize: 16, mr: 0.5 }} />
+                )}
+                <Typography 
+                  variant="body2" 
+                  color={growth.startsWith('+') ? 'success.main' : 'error.main'}
+                >
+                  {growth}% vs last month
+                </Typography>
+              </Box>
+            )}
+          </Box>
           </Box>
           
           <Avatar sx={{ bgcolor: `${color}.main`, width: 56, height: 56, ml: 2 }}>
@@ -1511,11 +1511,11 @@ export default function AnalyticsPage() {
                        const rank = index + 1
                        const isTop3 = rank <= 3
                        
-                       return (
+                      return (
                          <Grid item xs={12} sm={6} md={4} key={element}>
                            <Card 
                              variant="outlined" 
-                             sx={{ 
+                          sx={{ 
                                bgcolor: alpha(info?.color || '#9E9E9E', 0.05),
                                border: `2px solid ${alpha(info?.color || '#9E9E9E', isTop3 ? 0.6 : 0.3)}`,
                                height: '100%',
@@ -1533,8 +1533,8 @@ export default function AnalyticsPage() {
                                borderRadius: '50%',
                                bgcolor: isTop3 ? 'gold' : 'rgba(255,255,255,0.9)',
                                color: isTop3 ? '#000' : '#666',
-                               display: 'flex',
-                               alignItems: 'center',
+                            display: 'flex', 
+                            alignItems: 'center',
                                justifyContent: 'center',
                                fontSize: '0.8rem',
                                fontWeight: 'bold',
@@ -1595,7 +1595,7 @@ export default function AnalyticsPage() {
                                         }
                                       }}
                                     />
-                                  </Box>
+                          </Box>
                                   <Typography variant="body2" sx={{ minWidth: 40, textAlign: 'right', fontWeight: 'bold' }}>
                                     {data.male}
                                   </Typography>
@@ -1627,11 +1627,11 @@ export default function AnalyticsPage() {
                               </Box>
                               
                               {/* Dominance Indicator */}
-                              <Chip
+                          <Chip 
                                 label={`${dominantGender === 'male' ? '👨' : '👩'} ${dominantGender.charAt(0).toUpperCase() + dominantGender.slice(1)} Dominated (${dominantPercentage.toFixed(1)}%)`}
                                 color={dominantGender === 'male' ? 'primary' : 'secondary'}
-                                size="small"
-                                sx={{ 
+                            size="small" 
+                            sx={{ 
                                   fontWeight: 'bold',
                                   fontSize: '0.7rem'
                                 }}
@@ -1801,7 +1801,7 @@ export default function AnalyticsPage() {
                 <CardContent>
                   <Typography variant="h6" fontWeight="bold" gutterBottom>
                     🎯 User Engagement Journey Funnel
-                  </Typography>
+                    </Typography>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     How users progress through kenal.com features
                   </Typography>
@@ -1839,8 +1839,8 @@ export default function AnalyticsPage() {
                         }}>
                           →
                         </Box>
-                      </Box>
-                    </Grid>
+                        </Box>
+                      </Grid>
 
                     {/* Stage 2: Identity Creation */}
                     <Grid item xs={12} md={2.4}>
@@ -1872,8 +1872,8 @@ export default function AnalyticsPage() {
                         }}>
                           →
                         </Box>
-                      </Box>
-                    </Grid>
+                        </Box>
+                      </Grid>
 
                     {/* Stage 3: Take Tests */}
                     <Grid item xs={12} md={2.4}>
@@ -1905,8 +1905,8 @@ export default function AnalyticsPage() {
                         }}>
                           →
                         </Box>
-                      </Box>
-                    </Grid>
+                        </Box>
+                      </Grid>
 
                     {/* Stage 4: Create Groups */}
                     <Grid item xs={12} md={2.4}>
@@ -1938,8 +1938,8 @@ export default function AnalyticsPage() {
                         }}>
                           →
                         </Box>
-                      </Box>
-                    </Grid>
+                        </Box>
+                      </Grid>
 
                     {/* Stage 5: Advanced Features */}
                     <Grid item xs={12} md={2.4}>
@@ -1960,9 +1960,9 @@ export default function AnalyticsPage() {
                             8.3%
                           </Typography>
                         </Box>
-                      </Box>
+                        </Box>
+                      </Grid>
                     </Grid>
-                  </Grid>
 
                   {/* Funnel Insights */}
                   <Box sx={{ mt: 3, p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
@@ -2006,7 +2006,7 @@ export default function AnalyticsPage() {
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     Distribution of users by engagement level
                   </Typography>
-
+                  
                   <Stack spacing={2} sx={{ mt: 3 }}>
                     {/* Passive Users */}
                     <Box sx={{ position: 'relative' }}>
@@ -2043,8 +2043,8 @@ export default function AnalyticsPage() {
                           </Typography>
                         </Box>
                       </Box>
-                    </Box>
-
+                      </Box>
+                      
                     {/* Explorers */}
                     <Box sx={{ position: 'relative' }}>
                       <Box sx={{ 
@@ -2080,8 +2080,8 @@ export default function AnalyticsPage() {
                           </Typography>
                         </Box>
                       </Box>
-                    </Box>
-
+                      </Box>
+                      
                     {/* Regular Users */}
                     <Box sx={{ position: 'relative' }}>
                       <Box sx={{ 
@@ -2117,8 +2117,8 @@ export default function AnalyticsPage() {
                           </Typography>
                         </Box>
                       </Box>
-                    </Box>
-
+                      </Box>
+                      
                     {/* Engaged Users */}
                     <Box sx={{ position: 'relative' }}>
                       <Box sx={{ 
@@ -2191,8 +2191,8 @@ export default function AnalyticsPage() {
                           </Typography>
                         </Box>
                       </Box>
-                    </Box>
-                  </Stack>
+                      </Box>
+                    </Stack>
                 </CardContent>
               </Card>
             </Grid>
@@ -2207,7 +2207,7 @@ export default function AnalyticsPage() {
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     How users engage with different platform features
                   </Typography>
-
+                  
                   <Box sx={{ mt: 3 }}>
                     <Box sx={{ height: 300 }}>
                       <Chart 
@@ -2278,7 +2278,7 @@ export default function AnalyticsPage() {
                       <Box sx={{ 
                         height: 50,
                         bgcolor: alpha('#4CAF50', 0.15),
-                        borderRadius: 2,
+                            borderRadius: 2,
                         border: `2px solid ${alpha('#4CAF50', 0.3)}`,
                         position: 'relative',
                         overflow: 'hidden'
@@ -2306,8 +2306,8 @@ export default function AnalyticsPage() {
                           <Typography variant="h6" fontWeight="bold">
                             {analyticsData.testCompletionStats.anyTestPercentage}%
                           </Typography>
-                        </Box>
-                      </Box>
+                            </Box>
+                          </Box>
                     </Box>
 
                     {/* Multiple Tests */}
@@ -2420,13 +2420,13 @@ export default function AnalyticsPage() {
                         </Box>
                       </Box>
                     </Box>
-                  </Stack>
+                    </Stack>
 
                   <Box sx={{ mt: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
                     <Typography variant="caption" color="text.secondary">
                       <strong>Test Engagement:</strong> Each identity represents a completed personality test. {analyticsData.testCompletionStats.anyTestPercentage}% of users engage with testing features, with {analyticsData.testCompletionStats.anyTestCompleted} users completing at least one test.
-                    </Typography>
-                  </Box>
+                      </Typography>
+                    </Box>
                 </CardContent>
               </Card>
             </Grid>
@@ -2441,7 +2441,7 @@ export default function AnalyticsPage() {
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     User distribution and engagement by country
                   </Typography>
-
+                  
                   <Stack spacing={2} sx={{ mt: 3 }}>
                     <Box sx={{ 
                       display: 'flex', 
@@ -2460,8 +2460,8 @@ export default function AnalyticsPage() {
                         <Typography variant="h6" fontWeight="bold">699</Typography>
                         <Typography variant="caption">64.9%</Typography>
                       </Box>
-                    </Box>
-
+                      </Box>
+                      
                     <Box sx={{ 
                       display: 'flex', 
                       justifyContent: 'space-between', 
@@ -2498,8 +2498,8 @@ export default function AnalyticsPage() {
                         <Typography variant="h6" fontWeight="bold">25</Typography>
                         <Typography variant="caption">2.3%</Typography>
                       </Box>
-                    </Box>
-                  </Stack>
+                      </Box>
+                    </Stack>
 
                   <Box sx={{ mt: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
                     <Typography variant="caption" color="text.secondary">
@@ -2520,7 +2520,7 @@ export default function AnalyticsPage() {
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     How quickly users engage with platform features
                   </Typography>
-
+                  
                   <Grid container spacing={3} sx={{ mt: 2 }}>
                     <Grid item xs={6}>
                       <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'success.light', borderRadius: 2 }}>
@@ -2533,7 +2533,7 @@ export default function AnalyticsPage() {
                         <Typography variant="caption" color="text.secondary">
                           Average time from registration
                         </Typography>
-                      </Box>
+                    </Box>
                     </Grid>
                     <Grid item xs={6}>
                       <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'info.light', borderRadius: 2 }}>
@@ -2729,11 +2729,11 @@ export default function AnalyticsPage() {
                       }}>
                         <Typography variant="body2" fontWeight="bold">
                           🎯 Single Identity Users
-                        </Typography>
-                        <Typography variant="h6" fontWeight="bold">
+                  </Typography>
+                  <Typography variant="h6" fontWeight="bold">
                           105 (25.9%)
-                        </Typography>
-                      </Box>
+                  </Typography>
+                </Box>
                     </Box>
                   </Box>
 
@@ -2766,8 +2766,8 @@ export default function AnalyticsPage() {
                       }}>
                         <Typography variant="body2" fontWeight="bold">
                           🕸️ Multi-Identity Network (2+ identities)
-                        </Typography>
-                        <Typography variant="h6" fontWeight="bold">
+                  </Typography>
+                  <Typography variant="h6" fontWeight="bold">
                           301 (74.1%)
                         </Typography>
                       </Box>
@@ -3107,7 +3107,7 @@ export default function AnalyticsPage() {
                 </Typography>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   How users invite others to create identities
-                </Typography>
+                  </Typography>
 
                 <Grid container spacing={3} sx={{ mt: 2 }}>
                   <Grid item xs={6}>

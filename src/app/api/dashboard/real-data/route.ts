@@ -164,6 +164,67 @@ export async function POST(request: NextRequest) {
       
       result = { count: count || 0 }
       
+    } else if (type === 'identity_count' || type.includes('identity')) {
+      // Get real identity count from kd_identity table
+      console.log('🧠 Fetching real identity count from server...')
+      
+      const { count, error } = await supabase
+        .from('kd_identity')
+        .select('*', { count: 'exact', head: true })
+      
+      console.log('🧠 Identity server result:', { count, error })
+      
+      if (error) {
+        console.error('❌ Identity server error:', error)
+        throw error
+      }
+      
+      result = { count: count || 0 }
+      
+    } else if (type === 'identity_distribution' || type.includes('identity_type')) {
+      // Get identity type distribution
+      console.log('🧠 Fetching identity type distribution...')
+      
+      const { data: identities, error } = await supabase
+        .from('kd_identity')
+        .select('identity_type')
+      
+      if (error) throw error
+      
+      const typeDistribution = identities?.reduce((acc: any, identity: any) => {
+        const type = identity.identity_type || 'Unknown'
+        acc[type] = (acc[type] || 0) + 1
+        return acc
+      }, {})
+      
+      result = Object.entries(typeDistribution || {})
+        .map(([type, count]) => ({ category: type, value: count }))
+        .sort((a, b) => (b.value as number) - (a.value as number))
+        
+    } else if (type === 'active_users' || type.includes('active')) {
+      // Get users who have both registration AND identity (truly active)
+      console.log('🎯 Fetching active users (with identity)...')
+      
+      const { count, error } = await supabase
+        .from('kd_identity')
+        .select('user_id', { count: 'exact', head: true })
+      
+      if (error) throw error
+      
+      result = { count: count || 0 }
+      
+    } else if (type === 'conversation_count' || type.includes('conversation')) {
+      // Get conversation count
+      console.log('💬 Fetching conversation count...')
+      
+      const { count, error } = await supabase
+        .from('kd_conversations')
+        .select('*', { count: 'exact', head: true })
+      
+      if (error) throw error
+      
+      result = { count: count || 0 }
+      
     } else if (type === 'user_growth' || cardType === 'chart') {
       // Get real user growth - ALL USERS, no limit
       console.log('📈 Fetching ALL user growth data from server...')

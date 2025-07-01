@@ -113,6 +113,30 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
           queryLower.includes('age')) {
         dataType = 'user_age'
         console.log('🎯 Detected AGE ANALYSIS request')
+      } else if (titleLower.includes('identity') || 
+                 titleLower.includes('identities') ||
+                 descriptionLower.includes('identity') ||
+                 aiInsights.includes('identity') ||
+                 queryLower.includes('kd_identity') ||
+                 queryLower.includes('identity_assessment') ||
+                 titleLower.includes('personality') ||
+                 descriptionLower.includes('assessment')) {
+        if (titleLower.includes('distribution') || titleLower.includes('type')) {
+          dataType = 'identity_distribution'
+          console.log('🧠 Detected IDENTITY DISTRIBUTION request')
+        } else {
+          dataType = 'identity_count'
+          console.log('🧠 Detected IDENTITY COUNT request')
+        }
+      } else if (titleLower.includes('active') && titleLower.includes('user')) {
+        dataType = 'active_users'
+        console.log('🎯 Detected ACTIVE USERS request')
+      } else if (titleLower.includes('conversation') || 
+                 titleLower.includes('chat') || 
+                 titleLower.includes('message') ||
+                 queryLower.includes('kd_conversation')) {
+        dataType = 'conversation_count'
+        console.log('💬 Detected CONVERSATION request')
       } else if (titleLower.includes('country') || 
                  titleLower.includes('geographic') || 
                  titleLower.includes('location') ||
