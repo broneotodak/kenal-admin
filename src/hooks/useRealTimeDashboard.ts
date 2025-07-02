@@ -94,6 +94,9 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
   const subscriptionsActiveRef = useRef(false)
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Stable refetch function that doesn't change when timeRange changes
+  const stableRefetch = useRef<() => void>()
+
   // Fetch dashboard data - no dependencies to prevent recreation
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -338,6 +341,11 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
     }
   }, [timeRange])
 
+  // Update the stable refetch reference whenever fetchDashboardData changes
+  useEffect(() => {
+    stableRefetch.current = fetchDashboardData
+  }, [fetchDashboardData])
+
   // Cleanup subscriptions function
   const cleanupSubscriptions = useCallback(() => {
     console.log('🧹 Cleaning up real-time subscriptions...')
@@ -362,7 +370,7 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
     subscriptionsActiveRef.current = false
   }, [])
 
-  // Set up real-time subscriptions - stable function with no dependencies
+  // Set up real-time subscriptions - completely stable function with NO dependencies on data fetching
   const setupRealtimeSubscriptions = useCallback(() => {
     // Prevent multiple simultaneous setups
     if (subscriptionsActiveRef.current) {
@@ -398,8 +406,9 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
           table: 'kd_users'
         }, (payload) => {
           console.log('📢 Users table change detected:', payload.eventType)
-          if (isMountedRef.current) {
-            fetchDashboardData()
+          if (isMountedRef.current && stableRefetch.current) {
+            // Use stable refetch to avoid dependency issues
+            stableRefetch.current()
           }
         })
         .subscribe((status) => {
@@ -425,8 +434,9 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
           table: 'kd_identity'
         }, (payload) => {
           console.log('📢 Identity table change detected:', payload.eventType)
-          if (isMountedRef.current) {
-            fetchDashboardData()
+          if (isMountedRef.current && stableRefetch.current) {
+            // Use stable refetch to avoid dependency issues
+            stableRefetch.current()
           }
         })
         .subscribe((status) => {
@@ -456,9 +466,9 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
         }, 10000) // 10 second delay
       }
     }
-  }, [cleanupSubscriptions, fetchDashboardData])
+  }, [cleanupSubscriptions]) // ONLY depend on cleanupSubscriptions
 
-  // Load data and set up subscriptions on mount
+  // Load data and set up subscriptions on mount - ONE TIME ONLY
   useEffect(() => {
     isMountedRef.current = true
     
@@ -478,11 +488,12 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
       clearTimeout(setupTimeout)
       cleanupSubscriptions()
     }
-  }, []) // Empty dependency array to prevent recreation
+  }, []) // EMPTY dependency array - run only once on mount
 
-  // Re-setup subscriptions only when timeRange changes
+  // ONLY refetch data when timeRange changes - do NOT re-setup subscriptions
   useEffect(() => {
     if (isMountedRef.current) {
+      console.log('📊 Time range changed, refetching data only (keeping existing subscriptions)')
       fetchDashboardData()
     }
   }, [timeRange, fetchDashboardData])
