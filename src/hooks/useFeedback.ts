@@ -231,6 +231,9 @@ export function useFeedback() {
     try {
       console.log('🔄 Updating problem status:', { problemId, status })
       
+      // Get the problem details before updating for notification
+      const problem = problems.find(p => p.id === problemId)
+      
       const { error } = await supabase
         .from('kd_problem_updates')
         .update({ 
@@ -246,13 +249,27 @@ export function useFeedback() {
       }
 
       console.log('✅ Status updated successfully')
+      
+      // Emit feedback status change event for notifications
+      if (problem) {
+        window.dispatchEvent(new CustomEvent('feedbackStatusChanged', {
+          detail: { 
+            problemId, 
+            newStatus: status, 
+            title: problem.title,
+            type: problem.type,
+            timestamp: new Date().toISOString() 
+          }
+        }))
+      }
+      
       await fetchProblems()
       return true
     } catch (error) {
       console.error('Error updating problem status:', error)
       return false
     }
-  }, [user, fetchProblems])
+  }, [user, fetchProblems, problems])
 
   // Delete problem (admin only)
   const deleteProblem = useCallback(async (problemId: string): Promise<boolean> => {

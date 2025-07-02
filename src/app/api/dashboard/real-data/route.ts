@@ -1,50 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabase-server'
 
+interface DataRequest {
+  query: string
+  processing?: string
+  source: string
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { type, cardType, processing } = await request.json()
+    const { query, processing, source }: DataRequest = await request.json()
     
-    console.log('🔍 Real data request:', { type, cardType, processing })
+    console.log('📊 Real Data Request:', { query, processing, source })
     
-    // Create admin client with service role key
     const supabase = createSupabaseAdmin()
     
-    let result = null
+    // Execute the query based on source and processing type
+    let data: any[] = []
     
-    // Handle multi-dimensional cross-analysis processing first (highest priority)
+    // CROSS-ANALYSIS HANDLERS (Multi-dimensional)
     if (processing === 'age_gender_cross_analysis') {
-      console.log('🎯 [CROSS-ANALYSIS] Age vs Gender Distribution...')
+      console.log('🎯 Processing age + gender cross-analysis')
       
       const { data: users, error } = await supabase
         .from('kd_users')
         .select('birth_date, gender, created_at')
         .not('birth_date', 'is', null)
         .not('gender', 'is', null)
-        .order('created_at', { ascending: true })
       
       if (error) throw error
       
-      console.log(`👥 Retrieved ${users?.length || 0} users for age-gender cross-analysis`)
-      
-      // Build age groups by gender
+      // Build cross-analysis data
       const crossAnalysis: any = {}
-      const genderColors: any = { Male: '#1976d2', Female: '#dc004e', Other: '#ff9800', 'Not Specified': '#4caf50' }
+      const genderColors: any = { Male: '#1976d2', Female: '#dc004e', Other: '#ff9800' }
       
       users?.forEach((user: any) => {
         if (user.birth_date && user.gender) {
-          const birthDate = new Date(user.birth_date)
-          const age = new Date().getFullYear() - birthDate.getFullYear()
+          const age = new Date().getFullYear() - new Date(user.birth_date).getFullYear()
           
-          if (age >= 0 && age <= 120) {
-            const ageGroup = age < 18 ? 'Under 18' :
-                            age < 25 ? '18-24' :
+          if (age >= 18 && age <= 65) {
+            const ageGroup = age < 25 ? '18-24' :
                             age < 35 ? '25-34' :
                             age < 45 ? '35-44' :
-                            age < 55 ? '45-54' :
-                            age < 65 ? '55-64' : '65+'
+                            age < 55 ? '45-54' : '55-65'
             
-            const gender = user.gender || 'Not Specified'
+            const gender = user.gender
             
             if (!crossAnalysis[gender]) {
               crossAnalysis[gender] = {}
@@ -54,39 +54,55 @@ export async function POST(request: NextRequest) {
         }
       })
       
-      // Convert to chart-ready format with datasets per gender
-      const ageGroups = ['Under 18', '18-24', '25-34', '35-44', '45-54', '55-64', '65+']
-      const datasets = Object.entries(crossAnalysis).map(([gender, ageData]: [string, any]) => ({
-        label: gender,
-        data: ageGroups.map(group => ageData[group] || 0),
-        backgroundColor: genderColors[gender] || '#607d8b',
-        borderColor: genderColors[gender] || '#607d8b',
-        borderWidth: 1
-      }))
+      // Convert to chart-ready format - flatten for cross-analysis
+      const ageGroups = ['18-24', '25-34', '35-44', '45-54', '55-65']
+      const flatData: any[] = []
       
-      result = { labels: ageGroups, datasets }
+      // Add cross-analysis metadata
+      flatData.push({ 
+        _chartType: 'cross-analysis',
+        _labels: ageGroups,
+        _datasets: Object.entries(crossAnalysis).map(([gender, ageData]: [string, any]) => ({
+          label: gender,
+          data: ageGroups.map(group => ageData[group] || 0),
+          backgroundColor: genderColors[gender] || '#607d8b'
+        }))
+      })
+      
+      // Add regular data points for fallback
+      Object.entries(crossAnalysis).forEach(([gender, ageData]: [string, any]) => {
+        ageGroups.forEach(ageGroup => {
+          flatData.push({
+            category: `${gender} (${ageGroup})`,
+            value: ageData[ageGroup] || 0,
+            gender,
+            ageGroup
+          })
+        })
+      })
+      
+      data = flatData
       
     } else if (processing === 'country_age_cross_analysis') {
-      console.log('🎯 [CROSS-ANALYSIS] Country vs Age Distribution...')
+      console.log('🎯 Processing country + age cross-analysis')
       
       const { data: users, error } = await supabase
         .from('kd_users')
         .select('birth_date, registration_country, created_at')
         .not('birth_date', 'is', null)
         .not('registration_country', 'is', null)
-        .order('created_at', { ascending: true })
+        .limit(1000) // Limit for performance
       
       if (error) throw error
       
-      // Build country-age cross analysis (top 5 countries only)
+      // Build country-age cross analysis (top 5 countries)
       const crossAnalysis: any = {}
       
       users?.forEach((user: any) => {
         if (user.birth_date && user.registration_country) {
-          const birthDate = new Date(user.birth_date)
-          const age = new Date().getFullYear() - birthDate.getFullYear()
+          const age = new Date().getFullYear() - new Date(user.birth_date).getFullYear()
           
-          if (age >= 0 && age <= 120) {
+          if (age >= 18 && age <= 65) {
             const ageGroup = age < 25 ? 'Under 25' :
                             age < 35 ? '25-34' :
                             age < 45 ? '35-44' :
@@ -109,19 +125,35 @@ export async function POST(request: NextRequest) {
       })).sort((a, b) => b.total - a.total).slice(0, 5)
       
       const ageGroups = ['Under 25', '25-34', '35-44', '45-54', '55+']
-      const datasets = ageGroups.map((ageGroup, index) => ({
-        label: ageGroup,
-        data: countryTotals.map(({country}) => crossAnalysis[country][ageGroup] || 0),
-        backgroundColor: ['#1976d2', '#dc004e', '#ff9800', '#4caf50', '#9c27b0'][index]
-      }))
+      const flatData: any[] = []
       
-      result = { 
-        labels: countryTotals.map(({country}) => country),
-        datasets
-      }
+      // Add cross-analysis metadata
+      flatData.push({
+        _chartType: 'country-age-cross',
+        _labels: countryTotals.map(({country}) => country),
+        _datasets: ageGroups.map((ageGroup, index) => ({
+          label: ageGroup,
+          data: countryTotals.map(({country}) => crossAnalysis[country][ageGroup] || 0),
+          backgroundColor: ['#1976d2', '#dc004e', '#ff9800', '#4caf50', '#9c27b0'][index]
+        }))
+      })
+      
+      // Add fallback data points
+      countryTotals.forEach(({country}) => {
+        ageGroups.forEach(ageGroup => {
+          flatData.push({
+            category: `${country} (${ageGroup})`,
+            value: crossAnalysis[country][ageGroup] || 0,
+            country,
+            ageGroup
+          })
+        })
+      })
+      
+      data = flatData
       
     } else if (processing === 'element_gender_cross_analysis') {
-      console.log('🎯 [CROSS-ANALYSIS] Element vs Gender Distribution...')
+      console.log('🎯 Processing element + gender cross-analysis')
       
       const { data: users, error } = await supabase
         .from('kd_users')
@@ -148,345 +180,208 @@ export async function POST(request: NextRequest) {
       })
       
       const elements = Array.from({length: 9}, (_, i) => `Element ${i + 1}`)
-      const datasets = Object.entries(crossAnalysis).map(([gender, elementData]: [string, any]) => ({
-        label: gender,
-        data: elements.map(element => elementData[element] || 0),
-        backgroundColor: genderColors[gender] || '#607d8b'
-      }))
+      const flatData: any[] = []
       
-      result = { labels: elements, datasets }
+      // Add cross-analysis metadata
+      flatData.push({
+        _chartType: 'element-gender-cross',
+        _labels: elements,
+        _datasets: Object.entries(crossAnalysis).map(([gender, elementData]: [string, any]) => ({
+          label: gender,
+          data: elements.map(element => elementData[element] || 0),
+          backgroundColor: genderColors[gender] || '#607d8b'
+        }))
+      })
       
-    } else if (processing === 'age_element_cross_analysis') {
-      console.log('🎯 [CROSS-ANALYSIS] Age vs Element Distribution...')
+      // Add fallback data points
+      Object.entries(crossAnalysis).forEach(([gender, elementData]: [string, any]) => {
+        elements.forEach(element => {
+          flatData.push({
+            category: `${gender} (${element})`,
+            value: elementData[element] || 0,
+            gender,
+            element
+          })
+        })
+      })
       
+      data = flatData
+      
+    } else if (processing === 'smart_age_analysis') {
+      // Real age analysis
       const { data: users, error } = await supabase
         .from('kd_users')
-        .select('birth_date, element_number, created_at')
+        .select('birth_date, created_at')
         .not('birth_date', 'is', null)
-        .not('element_number', 'is', null)
-        .order('created_at', { ascending: true })
       
       if (error) throw error
       
-      // Build age-element cross analysis
-      const crossAnalysis: any = {}
-      const elementColors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688']
+      // Process age groups
+      const ageGroups = { '18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '56+': 0 }
       
-      users?.forEach((user: any) => {
-        if (user.birth_date && user.element_number) {
-          const birthDate = new Date(user.birth_date)
-          const age = new Date().getFullYear() - birthDate.getFullYear()
-          
-          if (age >= 0 && age <= 120) {
-            const ageGroup = age < 25 ? 'Under 25' :
-                            age < 35 ? '25-34' :
-                            age < 45 ? '35-44' :
-                            age < 55 ? '45-54' : '55+'
-            
-            const element = `Element ${user.element_number}`
-            
-            if (!crossAnalysis[element]) {
-              crossAnalysis[element] = {}
-            }
-            crossAnalysis[element][ageGroup] = (crossAnalysis[element][ageGroup] || 0) + 1
-          }
+      users?.forEach(user => {
+        if (user.birth_date) {
+          const age = new Date().getFullYear() - new Date(user.birth_date).getFullYear()
+          if (age >= 18 && age <= 25) ageGroups['18-25']++
+          else if (age >= 26 && age <= 35) ageGroups['26-35']++
+          else if (age >= 36 && age <= 45) ageGroups['36-45']++
+          else if (age >= 46 && age <= 55) ageGroups['46-55']++
+          else if (age >= 56) ageGroups['56+']++
         }
       })
       
-      const ageGroups = ['Under 25', '25-34', '35-44', '45-54', '55+']
-      const datasets = Object.entries(crossAnalysis).map(([element, ageData]: [string, any], index) => ({
-        label: element,
-        data: ageGroups.map(group => ageData[group] || 0),
-        borderColor: elementColors[index] || '#607d8b',
-        backgroundColor: elementColors[index] || '#607d8b',
-        fill: false,
-        tension: 0.1
-      }))
+      data = Object.entries(ageGroups).map(([category, value]) => ({ category, value }))
       
-      result = { labels: ageGroups, datasets }
-      
-    } 
-    // Handle smart age analysis processing (from AI-generated cards) 
-    else if (processing === 'smart_age_analysis' || type === 'user_age' || (cardType === 'chart' && type.includes('age'))) {
-      // Get real user age distribution
-      console.log('👥 [SMART AGE ANALYSIS] Fetching user age distribution...')
-      
-      const { data: users, error } = await supabase
+    } else if (source === 'kd_users' && query.includes('gender')) {
+      // Real gender distribution
+      const { data: genderData, error } = await supabase
         .from('kd_users')
-        .select('created_at, birth_date')
-        .order('created_at', { ascending: true })
+        .select('gender')
+        .not('gender', 'is', null)
       
       if (error) throw error
       
-      console.log(`👥 Retrieved ${users?.length || 0} users for smart age analysis`)
-      
-      // Enhanced smart age distribution with better categorization
-      const ageDistribution = users?.reduce((acc: any, user: any) => {
-        let userAge = null
-        let ageSource = 'unknown'
-        
-        // Method 1: Birth date calculation (most reliable since age column doesn't exist)
-        if (user.birth_date) {
-          try {
-            const birthDate = new Date(user.birth_date)
-            const today = new Date()
-            if (birthDate instanceof Date && !isNaN(birthDate.getTime())) {
-              userAge = today.getFullYear() - birthDate.getFullYear()
-              const monthDiff = today.getMonth() - birthDate.getMonth()
-              if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                userAge--
-              }
-              ageSource = 'birth_date_calculated'
-            }
-          } catch (e) {
-            console.log('Birth date parsing error:', e)
-          }
+      const genderCount = { Male: 0, Female: 0, Other: 0 }
+      genderData?.forEach(user => {
+        if (user.gender && genderCount.hasOwnProperty(user.gender)) {
+          genderCount[user.gender as keyof typeof genderCount]++
         }
+      })
+      
+      data = Object.entries(genderCount)
+        .filter(([_, count]) => count > 0)
+        .map(([category, value]) => ({ category, value }))
         
-        // Categorize by age groups (standard demographic categories)
-        if (userAge !== null && userAge >= 0 && userAge <= 120) {
-          const ageGroup = userAge < 18 ? 'Under 18' :
-                          userAge < 25 ? '18-24' :
-                          userAge < 35 ? '25-34' :
-                          userAge < 45 ? '35-44' :
-                          userAge < 55 ? '45-54' :
-                          userAge < 65 ? '55-64' :
-                          '65+'
-          acc[ageGroup] = (acc[ageGroup] || 0) + 1
-        } else {
-          // Fallback: Account tenure analysis (when age data is unavailable)
-          if (user.created_at) {
-            const accountMonths = Math.floor((Date.now() - new Date(user.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30))
-            const tenureGroup = accountMonths < 1 ? 'New Users (< 1 month)' :
-                               accountMonths < 6 ? 'Recent (1-6 months)' :
-                               accountMonths < 12 ? 'Regular (6-12 months)' :
-                               'Veteran (1+ years)'
-            acc[tenureGroup] = (acc[tenureGroup] || 0) + 1
-          }
-        }
-        return acc
-      }, {})
-      
-      console.log('👥 Smart age distribution result:', ageDistribution)
-      
-      result = Object.entries(ageDistribution || {})
-        .map(([ageGroup, count]) => ({ category: ageGroup, value: count }))
-        .sort((a, b) => {
-          // Sort age groups in logical order
-          const ageOrder = ['Under 18', '18-24', '25-34', '35-44', '45-54', '55-64', '65+', 
-                           'New Users (< 1 month)', 'Recent (1-6 months)', 'Regular (6-12 months)', 'Veteran (1+ years)']
-          return ageOrder.indexOf(a.category) - ageOrder.indexOf(b.category)
-        })
-    
-    } else if (type === 'user_geography' || type.includes('country') || type.includes('location')) {
-      // Geographic distribution analysis
-      console.log('🌍 Fetching geographic distribution...')
-      
-      const { data: users, error } = await supabase
+    } else if (source === 'kd_users' && query.includes('country')) {
+      // Real country distribution
+      const { data: countryData, error } = await supabase
         .from('kd_users')
         .select('registration_country')
         .not('registration_country', 'is', null)
+        .limit(500) // Limit for performance
       
       if (error) throw error
       
-      const countryDistribution = users?.reduce((acc: any, user: any) => {
-        const country = user.registration_country || 'Unknown'
-        acc[country] = (acc[country] || 0) + 1
-        return acc
-      }, {})
+      const countryCount: Record<string, number> = {}
+      countryData?.forEach(user => {
+        if (user.registration_country) {
+          countryCount[user.registration_country] = (countryCount[user.registration_country] || 0) + 1
+        }
+      })
       
-      result = Object.entries(countryDistribution || {})
-        .map(([country, count]) => ({ category: country, value: count }))
-        .sort((a, b) => (b.value as number) - (a.value as number))
-        .slice(0, 10) // Top 10 countries
-    
-    } else if (type === 'user_gender' || type.includes('gender')) {
-      // Gender distribution analysis
-      console.log('👫 Fetching gender distribution...')
-      
-      const { data: users, error } = await supabase
-        .from('kd_users')
-        .select('gender')
-      
-      if (error) throw error
-      
-      const genderDistribution = users?.reduce((acc: any, user: any) => {
-        const gender = user.gender || 'Not Specified'
-        acc[gender] = (acc[gender] || 0) + 1
-        return acc
-      }, {})
-      
-      result = Object.entries(genderDistribution || {})
-        .map(([gender, count]) => ({ category: gender, value: count }))
-        .sort((a, b) => (b.value as number) - (a.value as number))
-    
-    } else if (type === 'user_elements' || type.includes('element')) {
-      // Element distribution analysis
-      console.log('🔥 Fetching element distribution...')
-      
-      const { data: users, error } = await supabase
+      // Get top 10 countries
+      data = Object.entries(countryCount)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 10)
+        .map(([category, value]) => ({ category, value }))
+        
+    } else if (source === 'kd_users' && query.includes('element')) {
+      // Real element distribution
+      const { data: elementData, error } = await supabase
         .from('kd_users')
         .select('element_number')
         .not('element_number', 'is', null)
       
       if (error) throw error
       
-      const elementDistribution = users?.reduce((acc: any, user: any) => {
-        const element = `Element ${user.element_number || 'Unknown'}`
-        acc[element] = (acc[element] || 0) + 1
-        return acc
-      }, {})
+      const elementCount: Record<string, number> = {}
+      elementData?.forEach(user => {
+        if (user.element_number) {
+          const elementKey = `Element ${user.element_number}`
+          elementCount[elementKey] = (elementCount[elementKey] || 0) + 1
+        }
+      })
       
-      result = Object.entries(elementDistribution || {})
-        .map(([element, count]) => ({ category: element, value: count }))
-        .sort((a, b) => a.category.localeCompare(b.category))
-    
-    } else if (type === 'identity_count' || type.includes('identity')) {
-      // Get real identity count from kd_identity table (simple and clean)
-      console.log('🧠 Fetching real identity count from server...')
-      
-      // Get total count - just what we need!
-      const { count: totalCount, error: totalError } = await supabase
-        .from('kd_identity')
-        .select('*', { count: 'exact', head: true })
-      
-      console.log('🧠 Identity count result:', { totalCount, totalError })
-      
-      if (totalError) {
-        console.error('❌ Identity server error:', totalError)
-        throw totalError
-      }
-      
-      result = { count: totalCount || 0 }
-      
-    } else if (type === 'identity_distribution' || type.includes('identity_type')) {
-      // Get identity type distribution
-      console.log('🧠 Fetching identity type distribution...')
-      
-      const { data: identities, error } = await supabase
-        .from('kd_identity')
-        .select('identity_type')
-      
-      if (error) throw error
-      
-      const typeDistribution = identities?.reduce((acc: any, identity: any) => {
-        const type = identity.identity_type || 'Unknown'
-        acc[type] = (acc[type] || 0) + 1
-        return acc
-      }, {})
-      
-      result = Object.entries(typeDistribution || {})
-        .map(([type, count]) => ({ category: type, value: count }))
-        .sort((a, b) => (b.value as number) - (a.value as number))
+      data = Object.entries(elementCount)
+        .sort(([a], [b]) => parseInt(a.split(' ')[1]) - parseInt(b.split(' ')[1]))
+        .map(([category, value]) => ({ category, value }))
         
-    } else if (type === 'active_users' || type.includes('active')) {
-      // Get users who have both registration AND identity (truly active)
-      console.log('🎯 Fetching active users (with identity)...')
+    } else if (source === 'kd_users' && query.includes('COUNT(*)')) {
+      // Simple count queries
+      let countQuery = supabase.from('kd_users').select('id', { count: 'exact', head: true })
       
-      const { count, error } = await supabase
-        .from('kd_identity')
-        .select('user_id', { count: 'exact', head: true })
-      
-      if (error) throw error
-      
-      result = { count: count || 0 }
-      
-    } else if (type === 'user_count' || cardType === 'stat') {
-      // Get real user count (fallback for generic stat cards)
-      console.log('📊 Fetching real user count from server...')
-      
-      const { count, error } = await supabase
-        .from('kd_users')
-        .select('*', { count: 'exact', head: true })
-      
-      console.log('📊 Server result:', { count, error })
-      
-      if (error) {
-        console.error('❌ Server error:', error)
-        throw error
+      if (query.includes('is_active = true')) {
+        countQuery = countQuery.eq('is_active', true)
       }
       
-      result = { count: count || 0 }
+      if (query.includes('CURRENT_DATE - INTERVAL')) {
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        countQuery = countQuery.gte('created_at', thirtyDaysAgo.toISOString())
+      }
       
-    } else if (type === 'conversation_count' || type.includes('conversation')) {
-      // Get conversation count
-      console.log('💬 Fetching conversation count...')
-      
-      const { count, error } = await supabase
-        .from('kd_conversations')
-        .select('*', { count: 'exact', head: true })
-      
+      const { count, error } = await countQuery
       if (error) throw error
       
-      result = { count: count || 0 }
+      data = [{ count: count || 0 }]
       
-    } else if (type === 'user_growth' || cardType === 'chart') {
-      // Get real user growth - ALL USERS, no limit
-      console.log('📈 Fetching ALL user growth data from server...')
-      
-      const { data: users, error } = await supabase
+    } else if (source === 'kd_users' && query.includes('DATE_TRUNC')) {
+      // Growth trend over time
+      const { data: growthData, error } = await supabase
         .from('kd_users')
         .select('created_at')
         .order('created_at', { ascending: true })
       
       if (error) throw error
       
-      console.log(`📊 Retrieved ${users?.length || 0} users for growth analysis`)
+      // Group by month
+      const monthlyGrowth: Record<string, number> = {}
+      growthData?.forEach(user => {
+        const month = new Date(user.created_at).toISOString().slice(0, 7) // YYYY-MM
+        monthlyGrowth[month] = (monthlyGrowth[month] || 0) + 1
+      })
       
-      // Group by month with better date handling
-      const monthlyData = users?.reduce((acc: any, user: any) => {
-        if (user.created_at) {
-          const date = new Date(user.created_at)
-          const month = date.toISOString().substring(0, 7) // YYYY-MM format
-          acc[month] = (acc[month] || 0) + 1
-        }
-        return acc
-      }, {})
-      
-      console.log('📅 Monthly distribution:', monthlyData)
-      
-      result = Object.entries(monthlyData || {})
-        .map(([month, count]) => ({ month, value: count }))
-        .sort((a, b) => a.month.localeCompare(b.month))
-        .slice(-24) // Last 24 months instead of 12
-      
-    } else if (type === 'user_table' || cardType === 'table') {
-      // Get real user table
-      console.log('📋 Fetching real user table from server...')
-      
-      const { data: users, error } = await supabase
-        .from('kd_users')
-        .select('id, username, email, created_at, is_active, user_type')
-        .order('created_at', { ascending: false })
-        .limit(20)
+      data = Object.entries(monthlyGrowth)
+        .slice(-12) // Last 12 months
+        .map(([month, value]) => ({ 
+          category: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }), 
+          value 
+        }))
+        
+    } else if (source === 'kd_conversations') {
+      // Conversation data
+      const { count, error } = await supabase
+        .from('kd_conversations')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
       
       if (error) throw error
-      result = users
+      data = [{ count: count || 0 }]
       
     } else {
-      // Default to user count
+      // Default: Total user count
       const { count, error } = await supabase
         .from('kd_users')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
       
       if (error) throw error
-      result = { count: count || 0 }
+      data = [{ count: count || 0 }]
     }
     
-    console.log('✅ Server returning real data:', result)
+    console.log('✅ Real data fetched:', { 
+      source, 
+      processing, 
+      resultCount: data.length,
+      sampleData: data.slice(0, 3)
+    })
     
     return NextResponse.json({
       success: true,
-      data: result,
-      source: 'real_database',
-      timestamp: new Date().toISOString()
+      data,
+      metadata: {
+        source,
+        processing,
+        executedAt: new Date().toISOString(),
+        recordCount: data.length
+      }
     })
-
+    
   } catch (error) {
-    console.error('❌ Server API error:', error)
+    console.error('❌ Real data fetch error:', error)
     
     return NextResponse.json(
       { 
+        success: false,
         error: 'Failed to fetch real data',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

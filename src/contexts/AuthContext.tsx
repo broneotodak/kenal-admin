@@ -11,6 +11,8 @@ interface AuthContextType {
   isAdmin: boolean
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
+  refreshSession: () => Promise<void>
+  isSessionValid: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -19,8 +21,125 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isSessionValid, setIsSessionValid] = useState(true)
   const router = useRouter()
   const hasInitiallyChecked = useRef(false)
+  const sessionRefreshInterval = useRef<NodeJS.Timeout | null>(null)
+  const sessionCheckInterval = useRef<NodeJS.Timeout | null>(null)
+
+  // Global cleanup function for all real-time subscriptions
+  const globalCleanup = () => {
+    console.log('🧹 Performing global cleanup...')
+    
+    // Clear session intervals
+    if (sessionRefreshInterval.current) {
+      clearInterval(sessionRefreshInterval.current)
+      sessionRefreshInterval.current = null
+    }
+    
+    if (sessionCheckInterval.current) {
+      clearInterval(sessionCheckInterval.current)
+      sessionCheckInterval.current = null
+    }
+    
+    // Remove all Supabase channels
+    try {
+      const channels = supabase.getChannels()
+      channels.forEach(channel => {
+        console.log('🗑️ Removing channel:', channel.topic)
+        supabase.removeChannel(channel)
+      })
+      console.log(`✅ Cleaned up ${channels.length} real-time channels`)
+    } catch (error) {
+      console.warn('⚠️ Error during global cleanup:', error)
+    }
+  }
+
+  // Session refresh function
+  const refreshSession = async () => {
+    try {
+      console.log('🔄 Refreshing session...')
+      const { data, error } = await supabase.auth.refreshSession()
+      
+      if (error) {
+        console.error('❌ Session refresh failed:', error)
+        setIsSessionValid(false)
+        
+        // If refresh fails, user might need to re-login
+        if (error.message?.includes('refresh_token_not_found') || 
+            error.message?.includes('invalid_grant')) {
+          console.log('🚪 Session expired, logging out...')
+          await signOut()
+        }
+        return
+      }
+      
+      if (data.session) {
+        console.log('✅ Session refreshed successfully')
+        setIsSessionValid(true)
+        setUser(data.session.user)
+      }
+    } catch (error) {
+      console.error('❌ Session refresh error:', error)
+      setIsSessionValid(false)
+    }
+  }
+
+  // Session validity checker
+  const checkSessionValidity = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (error) {
+        console.error('❌ Session check error:', error)
+        setIsSessionValid(false)
+        return false
+      }
+      
+      if (!session) {
+        console.log('🚫 No active session found')
+        setIsSessionValid(false)
+        return false
+      }
+      
+      // Check if session is close to expiry (within 5 minutes)
+      const expiresAt = session.expires_at
+      if (expiresAt) {
+        const now = Math.floor(Date.now() / 1000)
+        const timeUntilExpiry = expiresAt - now
+        
+        if (timeUntilExpiry < 300) { // Less than 5 minutes
+          console.log('⏰ Session expiring soon, refreshing...')
+          await refreshSession()
+        } else {
+          setIsSessionValid(true)
+        }
+      } else {
+        setIsSessionValid(true)
+      }
+      
+      return true
+    } catch (error) {
+      console.error('❌ Session validity check failed:', error)
+      setIsSessionValid(false)
+      return false
+    }
+  }
+
+  // Setup session monitoring
+  const setupSessionMonitoring = () => {
+    // Check session validity every 2 minutes
+    sessionCheckInterval.current = setInterval(() => {
+      checkSessionValidity()
+    }, 120000) // 2 minutes
+    
+    // Refresh session every 30 minutes as backup
+    sessionRefreshInterval.current = setInterval(() => {
+      refreshSession()
+    }, 1800000) // 30 minutes
+    
+    console.log('✅ Session monitoring started')
+  }
 
   // Safety mechanism: Force stop loading after maximum timeout
   useEffect(() => {
@@ -118,11 +237,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           console.log('👤 Found existing session for:', session.user.email)
           setUser(session.user)
+          setIsSessionValid(true)
           
           // Check admin status with timeout protection
           try {
             const adminStatus = await checkAdminStatus(session.user.id)
             setIsAdmin(adminStatus)
+            
+            if (adminStatus) {
+              // Setup session monitoring for admin users
+              setupSessionMonitoring()
+            }
           } catch (adminError) {
             console.warn('⚠️ Admin check failed, defaulting to false:', adminError)
             setIsAdmin(false)
@@ -131,6 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('🚫 No existing session found')
           setUser(null)
           setIsAdmin(false)
+          setIsSessionValid(false)
         }
         
       } catch (e) {
@@ -138,6 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('🔓 Falling back to logged-out state')
         setUser(null)
         setIsAdmin(false)
+        setIsSessionValid(false)
       } finally {
         console.log('✅ Auth loading complete')
         setLoading(false)
@@ -153,17 +280,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === 'SIGNED_OUT' || !session?.user) {
         setUser(null)
         setIsAdmin(false)
+        setIsSessionValid(false)
+        globalCleanup()
         return
       }
 
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user)
+        setIsSessionValid(true)
         const adminStatus = await checkAdminStatus(session.user.id)
         setIsAdmin(adminStatus)
+        
+        if (adminStatus) {
+          setupSessionMonitoring()
+        }
+      }
+      
+      if (event === 'TOKEN_REFRESHED' && session?.user) {
+        console.log('🔄 Token refreshed for:', session.user.email)
+        setIsSessionValid(true)
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      globalCleanup()
+    }
   }, []) // Empty dependency array to run only once
 
   // Simplified signIn - no automatic redirects
@@ -206,6 +348,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('✅ Admin verification successful!')
         setUser(data.user) // Fix: Set the user object
         setIsAdmin(true)
+        setIsSessionValid(true)
+        
+        // Setup session monitoring for new login
+        setupSessionMonitoring()
       }
     } catch (e) {
       console.error('🚨 Login process failed:', e)
@@ -215,23 +361,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      console.log('🚪 Starting logout process...')
+      console.log('🚪 Starting enhanced logout process...')
       
-      const { error } = await supabase.auth.signOut()
-      if (error) {
-        console.error('❌ Supabase signOut error:', error)
-        throw error
-      }
+      // First, cleanup all real-time subscriptions and intervals
+      globalCleanup()
       
-      console.log('✅ Supabase signOut successful')
-      
-      // Clear local auth state
+      // Clear local auth state immediately
       setUser(null)
       setIsAdmin(false)
+      setIsSessionValid(false)
       
       console.log('✅ Local auth state cleared')
       
-      // Clear any cached auth data from browser storage
+      // Clear browser storage
       try {
         localStorage.removeItem('sb-etkuxatycjqwvfjjwxqm-auth-token')
         sessionStorage.clear()
@@ -240,15 +382,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn('⚠️ Could not clear storage:', storageError)
       }
       
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut()
+      if (error) {
+        console.error('❌ Supabase signOut error:', error)
+        // Don't throw - we've already cleaned up local state
+      } else {
+        console.log('✅ Supabase signOut successful')
+      }
+      
+      // Additional cleanup - force remove any remaining channels
+      setTimeout(() => {
+        globalCleanup()
+      }, 1000)
+      
       // Navigate to login
       router.push('/login')
-      console.log('✅ Redirected to login')
+      console.log('✅ Enhanced logout process completed')
       
     } catch (e) {
-      console.error('🚨 Complete logout process failed:', e)
-      // Even if signOut fails, clear local state and redirect
-      setUser(null)
-      setIsAdmin(false)
+      console.error('🚨 Logout process error:', e)
+      // Even if signOut fails, we've already cleaned up local state
+      globalCleanup()
       
       // Clear storage as fallback
       try {
@@ -268,7 +423,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     isAdmin,
     signIn,
-    signOut
+    signOut,
+    refreshSession,
+    isSessionValid
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

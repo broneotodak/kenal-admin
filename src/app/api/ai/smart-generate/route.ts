@@ -28,6 +28,8 @@ export async function POST(request: NextRequest) {
         sqlQuery: result.sqlQuery,
         explanation: result.explanation,
         processingTimeMs: result.processingTimeMs,
+        tokenUsage: result.tokenUsage,
+        realTimeStatus: result.realTimeStatus,
         provider: 'smart_ai',
         model: 'dynamic_sql_generator'
       })

@@ -90,6 +90,9 @@ export default function FeedbackForm({
         window.dispatchEvent(new CustomEvent('feedbackSubmitted', {
           detail: { 
             newFeedback: true,
+            title: formData.title,
+            type: formData.type,
+            project: formData.project,
             timestamp: new Date().toISOString() 
           }
         }))

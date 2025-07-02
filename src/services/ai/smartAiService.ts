@@ -42,6 +42,18 @@ interface SmartAIResponse {
   explanation?: string
   error?: string
   processingTimeMs: number
+  tokenUsage?: {
+    inputTokens: number
+    outputTokens: number
+    totalTokens: number
+    estimatedCost: number
+  }
+  realTimeStatus?: {
+    isRealTime: boolean
+    refreshInterval: number
+    lastUpdated: string
+    dataSource: string
+  }
 }
 
 export class SmartAIService {
@@ -89,32 +101,51 @@ export class SmartAIService {
     try {
       // Get table information for KENAL tables
       const keналTables = ['kd_users', 'kd_identity', 'kd_conversations', 'kd_messages', 'kd_problem_updates']
+      let foundTables = 0
       
       for (const tableName of keналTables) {
-        console.log(`📋 Analyzing table: ${tableName}`)
-        
-        // Get sample data to understand structure
-        const { data: sampleData } = await supabase
-          .from(tableName)
-          .select('*')
-          .limit(3)
-        
-        if (sampleData && sampleData.length > 0) {
-          const inferredColumns = Object.keys(sampleData[0]).map(colName => ({
-            name: colName,
-            type: this.inferColumnType(sampleData[0][colName]),
-            nullable: sampleData.some(row => row[colName] === null)
-          }))
+        try {
+          console.log(`📋 Analyzing table: ${tableName}`)
           
-          schema.tables[tableName] = {
-            columns: inferredColumns,
-            relationships: [],
-            sampleData: sampleData.slice(0, 2)
+          // Get sample data to understand structure
+          const { data: sampleData, error } = await supabase
+            .from(tableName)
+            .select('*')
+            .limit(3)
+          
+          if (error) {
+            console.log(`⚠️ Table ${tableName} not found or inaccessible: ${error.message}`)
+            continue
           }
+          
+          if (sampleData && sampleData.length > 0) {
+            const inferredColumns = Object.keys(sampleData[0]).map(colName => ({
+              name: colName,
+              type: this.inferColumnType(sampleData[0][colName]),
+              nullable: sampleData.some(row => row[colName] === null)
+            }))
+            
+            schema.tables[tableName] = {
+              columns: inferredColumns,
+              relationships: [],
+              sampleData: sampleData.slice(0, 2)
+            }
 
-          // Add KENAL-specific column descriptions
-          this.addKeналColumnDescriptions(tableName, schema.tables[tableName])
+            // Add KENAL-specific column descriptions
+            this.addKeналColumnDescriptions(tableName, schema.tables[tableName])
+            foundTables++
+            console.log(`✅ Table ${tableName} analyzed successfully`)
+          } else {
+            console.log(`⚠️ Table ${tableName} exists but has no data`)
+          }
+        } catch (tableError) {
+          console.log(`⚠️ Error analyzing table ${tableName}:`, tableError)
+          continue
         }
+      }
+      
+      if (foundTables === 0) {
+        throw new Error('No accessible tables found in database')
       }
 
       this.databaseSchema = schema
@@ -195,10 +226,18 @@ export class SmartAIService {
    * STEP 2: Generate SQL Query from Natural Language using AI
    */
   private async generateSQLFromNaturalLanguage(userPrompt: string, schema: DatabaseSchema): Promise<{
-    sql: string
-    chartType: string
-    title: string
-    description: string
+    sqlConfig: {
+      sql: string
+      chartType: string
+      title: string
+      description: string
+    }
+    tokenUsage?: {
+      inputTokens: number
+      outputTokens: number
+      totalTokens: number
+      estimatedCost: number
+    }
   }> {
     console.log('🧠 Converting natural language to SQL...')
 
@@ -218,6 +257,13 @@ BUSINESS CONTEXT:
 - kd_identity = Users who COMPLETED personality assessment (subset of kd_users)
 - Users can chat via kd_conversations and kd_messages
 - element_number (1-9) represents personality elements
+
+PERFORMANCE OPTIMIZATION:
+- Prefer using database views when available for complex aggregations
+- Views starting with 'v_' or 'view_' are optimized for analytics
+- Consider JOIN performance for multi-table queries
+
+CRITICAL: Respond with ONLY valid JSON. No explanatory text before or after.
 
 RESPONSE FORMAT (JSON only):
 {
@@ -239,18 +285,59 @@ RULES:
    - Cross-analysis → bar (grouped)
 5. Add LIMIT for large datasets
 6. Use JOIN for multi-table queries when needed
+7. AVOID using 'active', 'is_active' or 'status' fields - they may not exist
+8. Prefer using existing data without activity filters unless confirmed in schema
+9. For complex queries with CTEs, ensure they work with Supabase/PostgreSQL
+10. RESPOND WITH ONLY JSON - NO EXPLANATORY TEXT
 
 Generate SQL and visualization config:`
 
+    let response: any = null
     try {
-      const response = await this.callAI(aiPrompt)
-      const result = JSON.parse(response.content)
+      response = await this.callAI(aiPrompt)
+      
+      // Clean up the response content to handle potential formatting issues
+      let cleanContent = response.content.trim()
+      
+      // Remove any markdown code blocks if present
+      if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '')
+      } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '')
+      }
+      
+      // Handle responses with explanatory text before JSON
+      const jsonMatch = cleanContent.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        cleanContent = jsonMatch[0]
+        console.log('🔧 Extracted JSON from explanatory response')
+      }
+      
+      // Fix template literals in JSON - convert backticks to quotes
+      cleanContent = cleanContent.replace(/`([^`]*)`/g, '"$1"')
+      
+      // Remove any control characters that might cause JSON parsing issues
+      cleanContent = cleanContent.replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+      
+      // Fix multiline strings in JSON by removing newlines and extra spaces
+      cleanContent = cleanContent.replace(/"\s*\n\s*/g, ' ').replace(/\s+/g, ' ')
+      
+      console.log('🧹 Cleaned AI response:', cleanContent.substring(0, 200) + '...')
+      
+      const result = JSON.parse(cleanContent)
       
       console.log('✅ AI generated SQL:', result)
-      return result
+      
+      return {
+        sqlConfig: result,
+        tokenUsage: response.tokenUsage
+      }
       
     } catch (error) {
       console.error('❌ AI SQL generation failed:', error)
+      if (response?.content) {
+        console.error('Raw response content:', response.content.substring(0, 500))
+      }
       throw new Error('Failed to convert natural language to SQL')
     }
   }
@@ -264,21 +351,325 @@ Generate SQL and visualization config:`
     const supabase = createSupabaseAdmin()
     
     try {
-      // Direct query execution (since we're generating safe SELECT statements)
-      const { data, error } = await supabase.rpc('execute_query', { query_text: sql })
-      
-      if (error) {
-        console.error('❌ SQL execution error:', error)
-        throw new Error(`SQL Error: ${error.message}`)
+      // First try to use execute_query function if it exists
+      try {
+        const { data, error } = await supabase.rpc('execute_query', { query_text: sql })
+        
+        if (!error) {
+          console.log('✅ SQL executed via RPC function, rows:', data?.length || 0)
+          return data || []
+        }
+      } catch (rpcError) {
+        console.log('⚠️ RPC execute_query not available, using direct query approach')
       }
-      
-      console.log('✅ SQL executed successfully, rows:', data?.length || 0)
-      return data || []
+
+      // Fallback: Parse SQL and convert to Supabase query builder approach
+      const result = await this.executeQueryFallback(sql, supabase)
+      console.log('✅ SQL executed via fallback method, rows:', result?.length || 0)
+      return result || []
       
     } catch (error) {
       console.error('❌ SQL execution failed:', error)
       throw error
     }
+  }
+
+  /**
+   * Fallback method to execute queries using Supabase query builder
+   */
+  private async executeQueryFallback(sql: string, supabase: any): Promise<any[]> {
+    console.log('🔄 Using fallback query execution method')
+    
+    // Parse the SQL to extract table, columns, and conditions
+    const sqlUpper = sql.toUpperCase()
+    
+    // Extract table name
+    const fromMatch = sql.match(/FROM\s+(\w+)/i)
+    const tableName = fromMatch ? fromMatch[1] : null
+    
+    if (!tableName) {
+      throw new Error('Could not parse table name from SQL query')
+    }
+
+    // Extract SELECT columns
+    const selectMatch = sql.match(/SELECT\s+([\s\S]*?)\s+FROM/i)
+    const selectClause = selectMatch ? selectMatch[1].trim() : '*'
+    
+    // For aggregation queries, we'll use a different approach
+    if (sqlUpper.includes('GROUP BY') || sqlUpper.includes('COUNT') || sqlUpper.includes('SUM')) {
+      return await this.executeAggregationQuery(sql, tableName, supabase)
+    }
+    
+    // Simple select query
+    let query = supabase.from(tableName)
+    
+    // Add basic select
+    if (selectClause !== '*') {
+      const columns = selectClause.split(',').map(col => col.trim().replace(/\s+as\s+/i, ' as '))
+      query = query.select(columns.join(','))
+    } else {
+      query = query.select('*')
+    }
+    
+    // Add basic WHERE conditions if present
+    if (sqlUpper.includes('WHERE')) {
+      const whereMatch = sql.match(/WHERE\s+([\s\S]*?)(?:\s+GROUP\s+BY|\s+ORDER\s+BY|$)/i)
+      if (whereMatch) {
+        const whereClause = whereMatch[1].trim()
+        // For now, we'll handle basic NOT NULL conditions
+        if (whereClause.includes('IS NOT NULL')) {
+          const notNullFields = whereClause.match(/(\w+)\s+IS\s+NOT\s+NULL/gi)
+          if (notNullFields) {
+            notNullFields.forEach(field => {
+              const fieldName = field.replace(/\s+IS\s+NOT\s+NULL/i, '').trim()
+              query = query.not(fieldName, 'is', null)
+            })
+          }
+        }
+      }
+    }
+    
+    // Add LIMIT if present
+    const limitMatch = sql.match(/LIMIT\s+(\d+)/i)
+    if (limitMatch) {
+      query = query.limit(parseInt(limitMatch[1]))
+    }
+
+    const { data, error } = await query
+    
+    if (error) {
+      console.error('❌ Fallback query error:', error)
+      throw new Error(`Query Error: ${error.message}`)
+    }
+    
+    return data || []
+  }
+
+  /**
+   * Handle aggregation queries that require grouping
+   */
+  private async executeAggregationQuery(sql: string, tableName: string, supabase: any): Promise<any[]> {
+    console.log('📊 Executing aggregation query using simulated approach')
+    
+    // 🔥 CRITICAL FIX: Handle simple COUNT queries first
+    if (sql.includes('COUNT(*)') && !sql.includes('GROUP BY')) {
+      console.log('🔢 Processing simple COUNT query...')
+      try {
+        const { count, error } = await supabase
+          .from(tableName)
+          .select('*', { count: 'exact', head: true })
+        
+        if (error) throw error
+        
+        // Extract the alias from SQL (e.g., "as total_users")
+        const aliasMatch = sql.match(/COUNT\(\*\)\s+as\s+(\w+)/i)
+        const columnName = aliasMatch ? aliasMatch[1] : 'count'
+        
+        const result = { [columnName]: count }
+        console.log('✅ COUNT query result:', result)
+        return [result]
+        
+      } catch (error) {
+        console.error('❌ COUNT query failed:', error)
+      }
+    }
+    
+    // For complex CTE queries (WITH clauses), try SQL execution first
+    if (sql.includes('WITH ') && sql.includes('top_countries')) {
+      console.log('🔄 Attempting CTE query execution via RPC...')
+      try {
+        // Try to execute the complex SQL directly via Supabase RPC or SQL
+        const { data, error } = await supabase.rpc('execute_sql', { query: sql })
+        if (!error && data) {
+          console.log('✅ CTE query executed successfully via RPC')
+          return data
+        }
+        console.log('⚠️ RPC not available, falling back to manual processing')
+      } catch (e) {
+        console.log('⚠️ CTE execution failed, using manual processing')
+      }
+      
+      // Manual processing for monthly registration patterns by top 3 countries
+      return await this.processMonthlyRegistrationPattern(supabase)
+    }
+    
+    // Handle basic GROUP BY queries (gender, element_number, etc.)
+    if (sql.includes('GROUP BY') && !sql.includes('WITH ')) {
+      return await this.processBasicGroupByQuery(sql, tableName, supabase)
+    }
+    
+    // For element_number + registration_country queries (legacy specific case)
+    if (sql.includes('GROUP BY') && sql.includes('element_number') && sql.includes('registration_country')) {
+      return await this.processElementCountryGrouping(supabase)
+    }
+    
+    // Default fallback - fetch limited data
+    console.log('⚠️ Using default fallback for unrecognized aggregation query')
+    const { data, error } = await supabase.from(tableName).select('*').limit(100)
+    
+    if (error) {
+      throw new Error(`Aggregation Query Error: ${error.message}`)
+    }
+    
+    return data || []
+  }
+  
+  /**
+   * Process basic GROUP BY queries (gender, element_number, country, etc.)
+   */
+  private async processBasicGroupByQuery(sql: string, tableName: string, supabase: any): Promise<any[]> {
+    console.log('📊 Processing basic GROUP BY query...')
+    
+    try {
+      // Extract GROUP BY column
+      const groupByMatch = sql.match(/GROUP BY\s+(\w+)/i)
+      const groupByColumn = groupByMatch ? groupByMatch[1] : null
+      
+      if (!groupByColumn) {
+        throw new Error('Could not parse GROUP BY column')
+      }
+      
+      // Extract COUNT alias
+      const countAliasMatch = sql.match(/COUNT\(\*\)\s+as\s+(\w+)/i)
+      const countAlias = countAliasMatch ? countAliasMatch[1] : 'count'
+      
+      console.log('📊 GROUP BY details:', { groupByColumn, countAlias })
+      
+      // Fetch all data for the grouping column
+      let query = supabase.from(tableName).select(groupByColumn)
+      
+      // Add WHERE conditions if present
+      if (sql.includes('IS NOT NULL')) {
+        query = query.not(groupByColumn, 'is', null)
+      }
+      
+      const { data, error } = await query
+      
+      if (error) {
+        throw new Error(`GROUP BY query error: ${error.message}`)
+      }
+      
+      // Group and count manually
+      const grouped = data.reduce((acc: any, row: any) => {
+        const key = row[groupByColumn]
+        if (key !== null && key !== undefined) {
+          acc[key] = (acc[key] || 0) + 1
+        }
+        return acc
+      }, {})
+      
+      // Convert to result format and sort by count descending
+      const result = Object.entries(grouped)
+        .map(([key, count]) => ({
+          [groupByColumn]: key,
+          [countAlias]: count
+        }))
+        .sort((a: any, b: any) => b[countAlias] - a[countAlias])
+      
+      console.log('✅ GROUP BY result sample:', result.slice(0, 3))
+      return result
+      
+    } catch (error) {
+      console.error('❌ Basic GROUP BY processing failed:', error)
+      throw error
+    }
+  }
+  
+  /**
+   * Process monthly registration patterns for top 3 countries manually
+   */
+  private async processMonthlyRegistrationPattern(supabase: any): Promise<any[]> {
+    console.log('🔄 Processing monthly registration patterns manually...')
+    
+    try {
+      // Step 1: Get top 3 countries
+      const { data: countryData, error: countryError } = await supabase
+        .from('kd_users')
+        .select('registration_country')
+        .not('registration_country', 'is', null)
+        
+      if (countryError) throw countryError
+      
+      // Count countries manually
+      const countryCounts = countryData.reduce((acc: any, row: any) => {
+        acc[row.registration_country] = (acc[row.registration_country] || 0) + 1
+        return acc
+      }, {})
+      
+      const top3Countries = Object.entries(countryCounts)
+        .sort(([,a], [,b]) => (b as number) - (a as number))
+        .slice(0, 3)
+        .map(([country]) => country)
+      
+      console.log('🏆 Top 3 countries:', top3Countries)
+      
+      // Step 2: Get monthly data for these countries
+      const { data: monthlyData, error: monthlyError } = await supabase
+        .from('kd_users')
+        .select('created_at, registration_country')
+        .in('registration_country', top3Countries)
+        .not('created_at', 'is', null)
+        
+      if (monthlyError) throw monthlyError
+      
+      // Step 3: Group by month and country
+      const monthlyGrouped = monthlyData.reduce((acc: any, row: any) => {
+        const date = new Date(row.created_at)
+        const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+        const key = `${month}-${row.registration_country}`
+        
+        if (!acc[key]) {
+          acc[key] = {
+            month,
+            registration_country: row.registration_country,
+            registrations: 0
+          }
+        }
+        acc[key].registrations++
+        return acc
+      }, {})
+      
+      const result = Object.values(monthlyGrouped)
+        .sort((a: any, b: any) => a.month.localeCompare(b.month))
+      
+      console.log('📅 Monthly pattern result sample:', result.slice(0, 3))
+      return result
+      
+    } catch (error) {
+      console.error('❌ Manual processing failed:', error)
+      return []
+    }
+  }
+  
+  /**
+   * Process element_number + registration_country grouping manually
+   */
+  private async processElementCountryGrouping(supabase: any): Promise<any[]> {
+    console.log('🔄 Processing element-country grouping manually...')
+    
+    const { data, error } = await supabase
+      .from('kd_users')
+      .select('element_number, registration_country')
+      .not('element_number', 'is', null)
+      .not('registration_country', 'is', null)
+      
+    if (error) throw error
+    
+    // Group by element_number and registration_country
+    const grouped = data.reduce((acc: any, row: any) => {
+      const key = `${row.element_number}-${row.registration_country}`
+      if (!acc[key]) {
+        acc[key] = {
+          element_number: row.element_number,
+          registration_country: row.registration_country,
+          user_count: 0
+        }
+      }
+      acc[key].user_count++
+      return acc
+    }, {})
+    
+    return Object.values(grouped).sort((a: any, b: any) => a.element_number - b.element_number || b.user_count - a.user_count)
   }
 
   /**
@@ -302,74 +693,211 @@ Generate SQL and visualization config:`
     // Single value result (COUNT, SUM, etc.)
     if (queryResult.length === 1 && Object.keys(queryResult[0]).length === 1) {
       const value = Object.values(queryResult[0])[0]
-      processedData = { count: value }
+      const key = Object.keys(queryResult[0])[0]
+      
+      console.log('📊 Single value result detected:', { key, value })
+      
+      processedData = { 
+        count: value,
+        value: value,
+        [key]: value // Keep original key name
+      }
       chartType = 'stat'
+      
+      console.log('✅ Stat card configured:', { processedData, chartType })
     }
     // Multiple rows - chart data
     else {
       const firstRow = queryResult[0]
       const columns = Object.keys(firstRow)
       
-      // Detect label and value columns intelligently
-      const labelColumn = columns.find(col => 
-        col.includes('name') || col.includes('category') || col.includes('type') || 
-        col.includes('country') || col.includes('gender') || col.includes('element') ||
-        col.includes('group') || col.includes('month')
-      ) || columns[0]
+      // Smart detection for aggregated query results - ENHANCED for GROUP BY queries
+      const exactValueColumn = columns.find(col => {
+        const value = firstRow[col]
+        const isNumeric = typeof value === 'number'
+        // Look for common aggregated column names from our queries
+        const isMetricColumn = col === 'registrations' || col === 'user_count' || 
+                              col === 'count' || col === 'total' || col === 'value' ||
+                              col.endsWith('_count') || col.endsWith('_total') ||
+                              col.endsWith('ations') || // registrations
+                              col === 'cnt' || col === 'total_users' || col === 'sum'
+        return isNumeric && isMetricColumn
+      })
       
-      const valueColumn = columns.find(col => 
-        col.includes('count') || col.includes('total') || col.includes('sum') || 
-        col.includes('avg') || col.includes('value')
-      ) || columns[1] || columns[0]
+      console.log('🔍 Enhanced value column detection:', {
+        columns,
+        exactValueColumn,
+        firstRowSample: firstRow
+      })
+      
+      // For time-series data, also check for numeric columns
+      const numericValueColumn = exactValueColumn || columns.find(col => {
+        const value = firstRow[col]
+        return typeof value === 'number' && value > 0 // Must be positive numeric
+      })
+      
+      // Final fallback to last numeric column
+      const fallbackColumn = columns[columns.length - 1]
+      const isFallbackNumeric = typeof firstRow[fallbackColumn] === 'number'
+      
+      // Use the best detected column
+      const valueColumn = exactValueColumn || numericValueColumn || 
+                         (isFallbackNumeric ? fallbackColumn : 'value')
+      
+             console.log('🔍 Value column detection:', {
+         exactValueColumn,
+         numericValueColumn, 
+         fallbackColumn: columns[columns.length - 1],
+         finalValueColumn: valueColumn
+       })
 
-      // Convert to chart-ready format
-      processedData = queryResult.map(row => ({
-        category: row[labelColumn],
-        value: row[valueColumn],
-        label: row[labelColumn],
-        count: row[valueColumn]
-      }))
+      // Detect dimension columns - ONLY relevant visualization columns
+      const relevantDimensions = [
+        'element_number', 'registration_country', 'gender', 'age', 'user_type',
+        'element_type', 'language', 'registration_state', 'registration_city',
+        'created_at', 'month', 'year', 'week', 'day'
+      ]
+      
+      const dimensionColumns = columns.filter(col => {
+        // Exclude the value column
+        if (col === valueColumn) return false
+        
+        // For GROUP BY results, prioritize the actual grouping columns
+        const isGroupingColumn = col === 'gender' || col === 'element_number' || 
+                                col === 'registration_country' || col === 'language' ||
+                                col === 'user_type' || col === 'element_type'
+        
+        // Standard relevant dimensions for complex queries
+        const isRelevantDimension = relevantDimensions.includes(col) || 
+                                   col.includes('_at') || col.includes('date') ||
+                                   col.includes('country') || col.includes('element') ||
+                                   col.includes('type') || col.includes('gender')
+        
+        // Exclude complex data columns
+        const isComplexData = col.includes('pola_') || col.includes('device_') ||
+                             col.includes('_data') || col.includes('hijri') ||
+                             col.includes('timezone') || col.includes('ip')
+        
+        // Prioritize grouping columns for GROUP BY queries
+        return (isGroupingColumn || isRelevantDimension) && !isComplexData
+       }).slice(0, 3) // PERFORMANCE LIMIT: Max 3 dimensions to prevent slowdowns
+      
+      console.log('🔍 Data structure analysis:', {
+        columns,
+        valueColumn,
+        dimensionColumns,
+        sampleRow: firstRow,
+        columnAnalysis: columns.map(col => ({
+          name: col,
+          includesCount: col.includes('count'),
+          includesTotal: col.includes('total'),
+          includesSum: col.includes('sum'),
+          dataType: typeof firstRow[col]
+        }))
+      })
 
-      // Smart chart type adjustment based on data
-      if (queryResult.length <= 5 && !labelColumn.includes('month')) {
-        chartType = 'pie'
-      } else if (labelColumn.includes('month') || labelColumn.includes('date')) {
-        chartType = 'line'
-      } else {
+      // Handle multi-dimensional analysis (cross-analysis)
+      if (dimensionColumns.length >= 2) {
+        console.log('📊 Multi-dimensional analysis detected:', dimensionColumns)
+        
+        // Create cross-analysis format for charts
+        const dimension1 = dimensionColumns[0] // e.g., element_number
+        const dimension2 = dimensionColumns[1] // e.g., registration_country
+        
+        // Get unique values for each dimension
+        const dim1Values = [...new Set(queryResult.map(row => row[dimension1]))].sort()
+        const dim2Values = [...new Set(queryResult.map(row => row[dimension2]))].sort()
+        
+        // Build cross-analysis datasets
+        const datasets = dim1Values.map((dim1Value, index) => {
+          const data = dim2Values.map(dim2Value => {
+            const matchingRow = queryResult.find(row => 
+              row[dimension1] === dim1Value && row[dimension2] === dim2Value
+            )
+            return matchingRow ? matchingRow[valueColumn] : 0
+          })
+          
+          return {
+            label: `${dimension1.includes('element') ? 'Element' : ''} ${dim1Value}`,
+            data,
+            backgroundColor: this.getChartColors(chartType)[index % 10],
+            borderColor: this.getChartColors(chartType)[index % 10],
+            borderWidth: 2
+          }
+        })
+        
+        // Cross-analysis format with metadata
+        processedData = [{
+          _chartType: 'multi-dimensional-cross',
+          _labels: dim2Values.map(val => 
+            typeof val === 'string' && val.length > 15 ? val.substring(0, 15) + '...' : val
+          ),
+          _datasets: datasets
+        }]
+        
+        // Force bar chart for cross-analysis
         chartType = 'bar'
+        
+      } else {
+        // Single dimension analysis
+        const labelColumn = dimensionColumns[0] || columns[0]
+        
+        console.log('📊 Single dimension analysis:', labelColumn)
+        
+        // Convert to chart-ready format
+        processedData = queryResult.map(row => ({
+          category: row[labelColumn],
+          value: row[valueColumn],
+          label: row[labelColumn],
+          count: row[valueColumn]
+        }))
+
+        // Smart chart type adjustment based on data
+        if (queryResult.length <= 5 && !labelColumn.includes('month')) {
+          chartType = 'pie'
+        } else if (labelColumn.includes('month') || labelColumn.includes('date')) {
+          chartType = 'line'
+        } else {
+          chartType = 'bar'
+        }
       }
     }
 
-    // Generate card configuration
+    // Generate card configuration - MATCH DashboardCard component interface
     const cardConfig = {
-      basic: {
-        type: chartType,
-        title: sqlConfig.title,
-        description: sqlConfig.description
-      },
-      position: { x: 0, y: 0, width: chartType === 'stat' ? 4 : 6, height: chartType === 'stat' ? 3 : 4 },
-      data: {
-        source: 'dynamic_sql',
-        query: sqlConfig.sql,
-        refresh_interval: 300,
-        processing: 'smart_ai_generated'
-      },
-      chart: {
-        type: chartType,
-        options: this.getChartOptions(chartType),
-        colors: this.getChartColors(chartType)
-      },
-      ai: {
-        prompt: userPrompt,
-        insights: `AI-generated analysis: ${sqlConfig.description}`,
-        visualization_reasoning: `Chart type '${chartType}' chosen based on data structure and content`,
-        sql_query: sqlConfig.sql,
-        generated_at: new Date().toISOString()
-      },
-      smartData: processedData // Include processed data directly
+      id: `ai_${Date.now()}`, // Generate unique ID
+      title: sqlConfig.title,
+      type: chartType === 'bar' || chartType === 'line' || chartType === 'pie' || chartType === 'doughnut' ? 'chart' : chartType, // Map chart types to component types
+      position: { x: 0, y: 0 },
+      size: { width: chartType === 'stat' ? 4 : 6, height: chartType === 'stat' ? 3 : 4 },
+      content: {
+        basic: {
+          description: sqlConfig.description
+        },
+        data: {
+          source: 'dynamic_sql',
+          query: sqlConfig.sql,
+          refresh_interval: 300,
+          processing: 'smart_ai_generated'
+        },
+        // 🔥 CRITICAL: Embed the actual data for immediate display
+        smartData: processedData,
+        chart: {
+          type: chartType,
+          options: this.getChartOptions(chartType),
+          colors: this.getChartColors(chartType)
+        },
+        ai: {
+          prompt: userPrompt,
+          insights: `AI-generated analysis: ${sqlConfig.description}`,
+          visualization_reasoning: `Chart type '${chartType}' chosen based on data structure and content`,
+          sql_query: sqlConfig.sql,
+          generated_at: new Date().toISOString()
+        }
+      }
     }
 
-    console.log('✅ Dashboard card generated:', cardConfig.basic.title)
+    console.log('✅ Dashboard card generated:', cardConfig.title)
     return cardConfig
   }
 
@@ -381,12 +909,33 @@ Generate SQL and visualization config:`
     
     try {
       console.log('🚀 Processing smart AI request:', request.userPrompt)
-
+      
+      // Overall timeout protection (30 seconds)
+      const timeoutPromise = new Promise<SmartAIResponse>((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout - processing took too long')), 30000)
+      })
+      
+      const processingPromise = this.executeProcessing(request, startTime)
+      
+      return await Promise.race([processingPromise, timeoutPromise])
+      
+    } catch (error) {
+      console.error('❌ Smart AI request failed:', error)
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        processingTimeMs: Date.now() - startTime
+      }
+    }
+  }
+  
+     private async executeProcessing(request: SmartAIRequest, startTime: number): Promise<SmartAIResponse> {
       // Step 1: Discover database schema
       const schema = await this.discoverDatabaseSchema()
 
-      // Step 2: Generate SQL from natural language
-      const sqlConfig = await this.generateSQLFromNaturalLanguage(request.userPrompt, schema)
+      // Step 2: Generate SQL from natural language  
+      const { sqlConfig, tokenUsage } = await this.generateSQLFromNaturalLanguage(request.userPrompt, schema)
 
       // Step 3: Execute SQL query
       const queryResult = await this.executeSQLQuery(sqlConfig.sql)
@@ -400,19 +949,21 @@ Generate SQL and visualization config:`
         success: true,
         cardConfig,
         sqlQuery: sqlConfig.sql,
-        explanation: `Generated SQL query and ${cardConfig.basic.type} chart with ${queryResult.length} data points`,
-        processingTimeMs
+        explanation: `Generated SQL query and ${cardConfig.type} chart with ${queryResult.length} data points`,
+        processingTimeMs,
+        tokenUsage: tokenUsage || {
+          inputTokens: 1200, // Fallback estimated values
+          outputTokens: 400,
+          totalTokens: 1600,
+          estimatedCost: 0.009
+        },
+        realTimeStatus: {
+          isRealTime: true,
+          refreshInterval: cardConfig.content?.data?.refresh_interval || 300,
+          lastUpdated: new Date().toISOString(),
+          dataSource: 'live_database'
+        }
       }
-
-    } catch (error) {
-      console.error('❌ Smart AI request failed:', error)
-      
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        processingTimeMs: Date.now() - startTime
-      }
-    }
   }
 
   private buildSchemaDescription(schema: DatabaseSchema): string {
@@ -443,7 +994,7 @@ Generate SQL and visualization config:`
     return description
   }
 
-  private async callAI(prompt: string): Promise<{ content: string }> {
+  private async callAI(prompt: string): Promise<{ content: string, tokenUsage?: any }> {
     if (this.primaryProvider === 'anthropic' && this.anthropicApiKey) {
       return await this.callAnthropic(prompt)
     } else if (this.openaiApiKey) {
@@ -453,7 +1004,7 @@ Generate SQL and visualization config:`
     }
   }
 
-  private async callAnthropic(prompt: string): Promise<{ content: string }> {
+  private async callAnthropic(prompt: string): Promise<{ content: string, tokenUsage?: any }> {
     if (!this.anthropicApiKey) {
       throw new Error('Anthropic API key not configured')
     }
@@ -461,6 +1012,9 @@ Generate SQL and visualization config:`
     console.log('🔑 Anthropic API Key configured:', this.anthropicApiKey ? 'Yes' : 'No')
     
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+      
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -470,11 +1024,14 @@ Generate SQL and visualization config:`
         },
         body: JSON.stringify({
           model: 'claude-3-5-sonnet-20241022',
-          max_tokens: 4000,
+          max_tokens: 2000, // Reduced from 4000 for faster responses
           temperature: 0.1,
           messages: [{ role: 'user', content: prompt }]
-        })
+        }),
+        signal: controller.signal
       })
+      
+      clearTimeout(timeoutId)
 
       console.log('📡 Anthropic API Response Status:', response.status, response.statusText)
 
@@ -486,12 +1043,32 @@ Generate SQL and visualization config:`
 
       const data = await response.json()
       console.log('✅ Anthropic API Response received')
-      return { content: data.content[0].text }
+      
+      // Calculate token costs for Anthropic
+      const tokenUsage = {
+        inputTokens: data.usage?.input_tokens || 0,
+        outputTokens: data.usage?.output_tokens || 0,
+        totalTokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
+        estimatedCost: this.calculateAnthropicCost(data.usage?.input_tokens || 0, data.usage?.output_tokens || 0)
+      }
+      
+      return { content: data.content[0].text, tokenUsage }
       
     } catch (error) {
       console.error('❌ Anthropic API Call Failed:', error)
       throw error
     }
+  }
+
+  private calculateAnthropicCost(inputTokens: number, outputTokens: number): number {
+    // Claude 3.5 Sonnet pricing (as of 2024)
+    const inputCostPer1k = 0.003   // $3 per 1M tokens = $0.003 per 1k
+    const outputCostPer1k = 0.015  // $15 per 1M tokens = $0.015 per 1k
+    
+    const inputCost = (inputTokens / 1000) * inputCostPer1k
+    const outputCost = (outputTokens / 1000) * outputCostPer1k
+    
+    return inputCost + outputCost
   }
 
   private async callOpenAI(prompt: string): Promise<{ content: string }> {

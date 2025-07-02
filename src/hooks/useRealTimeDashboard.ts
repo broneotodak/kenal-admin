@@ -88,11 +88,13 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  // Track subscriptions for cleanup
+  // Track subscriptions and mounting state
   const channelsRef = useRef<RealtimeChannel[]>([])
   const isMountedRef = useRef(true)
+  const subscriptionsActiveRef = useRef(false)
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Fetch dashboard data
+  // Fetch dashboard data - no dependencies to prevent recreation
   const fetchDashboardData = useCallback(async () => {
     try {
       console.log('🔄 Fetching real-time dashboard data...')
@@ -336,136 +338,154 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
     }
   }, [timeRange])
 
-  // Set up real-time subscriptions
-  const setupRealtimeSubscriptions = useCallback(() => {
-    // Clean up existing subscriptions
+  // Cleanup subscriptions function
+  const cleanupSubscriptions = useCallback(() => {
+    console.log('🧹 Cleaning up real-time subscriptions...')
+    
+    // Clear any pending retry timeouts
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current)
+      retryTimeoutRef.current = null
+    }
+    
+    // Remove all channels
     channelsRef.current.forEach(channel => {
       try {
         supabase.removeChannel(channel)
+        console.log('✅ Removed channel:', channel.topic)
       } catch (error) {
-        console.warn('Error removing channel:', error)
+        console.warn('⚠️ Error removing channel:', error)
       }
     })
+    
     channelsRef.current = []
+    subscriptionsActiveRef.current = false
+  }, [])
+
+  // Set up real-time subscriptions - stable function with no dependencies
+  const setupRealtimeSubscriptions = useCallback(() => {
+    // Prevent multiple simultaneous setups
+    if (subscriptionsActiveRef.current) {
+      console.log('🔄 Real-time subscriptions already active, skipping setup')
+      return
+    }
+
+    // Clean up any existing subscriptions first
+    cleanupSubscriptions()
+
+    if (!isMountedRef.current) {
+      console.log('🚫 Component unmounted, skipping subscription setup')
+      return
+    }
 
     try {
-      // Add delay to ensure proper connection
-      setTimeout(() => {
-        if (!isMountedRef.current) return
-        
-        // Subscribe to user changes with error handling
-        const usersChannel = supabase
-          .channel('dashboard-users', {
-            config: {
-              presence: {
-                key: 'dashboard-users'
-              }
-            }
-          })
-          .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'kd_users'
-          }, () => {
-            // Refresh data when users change
-            if (isMountedRef.current) {
-              fetchDashboardData()
-            }
-          })
-          .subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-              console.log('✅ Users real-time subscription active')
-            } else if (status === 'CHANNEL_ERROR') {
-              console.warn('⚠️ Users real-time subscription error, retrying...')
-              // Retry after a delay
-              setTimeout(() => {
-                if (isMountedRef.current) {
-                  setupRealtimeSubscriptions()
-                }
-              }, 5000)
-            } else if (status === 'TIMED_OUT') {
-              console.warn('⚠️ Users real-time subscription timed out, retrying...')
-              // Retry after a delay
-              setTimeout(() => {
-                if (isMountedRef.current) {
-                  setupRealtimeSubscriptions()
-                }
-              }, 3000)
-            }
-          })
+      console.log('🚀 Setting up real-time subscriptions...')
+      subscriptionsActiveRef.current = true
 
-        // Subscribe to identity changes with error handling
-        const identityChannel = supabase
-          .channel('dashboard-identity', {
-            config: {
-              presence: {
-                key: 'dashboard-identity'
-              }
-            }
-          })
-          .on('postgres_changes', {
-            event: '*',
-            schema: 'public',
-            table: 'kd_identity'
-          }, () => {
-            // Refresh data when identities change
-            if (isMountedRef.current) {
-              fetchDashboardData()
-            }
-          })
-          .subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-              console.log('✅ Identity real-time subscription active')
-            } else if (status === 'CHANNEL_ERROR') {
-              console.warn('⚠️ Identity real-time subscription error, retrying...')
-              // Retry after a delay
-              setTimeout(() => {
-                if (isMountedRef.current) {
-                  setupRealtimeSubscriptions()
-                }
-              }, 5000)
-            } else if (status === 'TIMED_OUT') {
-              console.warn('⚠️ Identity real-time subscription timed out, retrying...')
-              // Retry after a delay
-              setTimeout(() => {
-                if (isMountedRef.current) {
-                  setupRealtimeSubscriptions()
-                }
-              }, 3000)
-            }
-          })
+      // Create channels with unique identifiers to prevent conflicts
+      const timestamp = Date.now()
+      
+      // Subscribe to user changes
+      const usersChannel = supabase
+        .channel(`dashboard-users-${timestamp}`, {
+          config: {
+            presence: { key: `dashboard-users-${timestamp}` }
+          }
+        })
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'kd_users'
+        }, (payload) => {
+          console.log('📢 Users table change detected:', payload.eventType)
+          if (isMountedRef.current) {
+            fetchDashboardData()
+          }
+        })
+        .subscribe((status) => {
+          console.log('👥 Users subscription status:', status)
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ Users real-time subscription active')
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn(`⚠️ Users subscription ${status}, will retry on next setup`)
+            subscriptionsActiveRef.current = false
+          }
+        })
 
-        if (isMountedRef.current) {
-          channelsRef.current = [usersChannel, identityChannel]
-        }
-      }, 1000) // 1 second delay to ensure proper initialization
+      // Subscribe to identity changes
+      const identityChannel = supabase
+        .channel(`dashboard-identity-${timestamp}`, {
+          config: {
+            presence: { key: `dashboard-identity-${timestamp}` }
+          }
+        })
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'kd_identity'
+        }, (payload) => {
+          console.log('📢 Identity table change detected:', payload.eventType)
+          if (isMountedRef.current) {
+            fetchDashboardData()
+          }
+        })
+        .subscribe((status) => {
+          console.log('🆔 Identity subscription status:', status)
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ Identity real-time subscription active')
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn(`⚠️ Identity subscription ${status}, will retry on next setup`)
+            subscriptionsActiveRef.current = false
+          }
+        })
+
+      // Store channels for cleanup
+      channelsRef.current = [usersChannel, identityChannel]
+
     } catch (error) {
-      console.warn('Failed to set up real-time subscriptions:', error)
-      // Fallback: just use regular data fetching without real-time updates
-      console.log('📊 Using dashboard without real-time updates')
+      console.error('❌ Failed to set up real-time subscriptions:', error)
+      subscriptionsActiveRef.current = false
+      
+      // Schedule a retry after delay if component is still mounted
+      if (isMountedRef.current) {
+        retryTimeoutRef.current = setTimeout(() => {
+          if (isMountedRef.current && !subscriptionsActiveRef.current) {
+            console.log('🔄 Retrying real-time subscription setup...')
+            setupRealtimeSubscriptions()
+          }
+        }, 10000) // 10 second delay
+      }
     }
-  }, [fetchDashboardData])
+  }, [cleanupSubscriptions, fetchDashboardData])
 
   // Load data and set up subscriptions on mount
   useEffect(() => {
     isMountedRef.current = true
+    
+    // Load initial data
     fetchDashboardData()
-    setupRealtimeSubscriptions()
+    
+    // Set up subscriptions after a short delay to ensure proper initialization
+    const setupTimeout = setTimeout(() => {
+      if (isMountedRef.current) {
+        setupRealtimeSubscriptions()
+      }
+    }, 2000)
 
+    // Cleanup function
     return () => {
       isMountedRef.current = false
-      // Clean up subscriptions
-      channelsRef.current.forEach(channel => {
-        supabase.removeChannel(channel)
-      })
-      channelsRef.current = []
+      clearTimeout(setupTimeout)
+      cleanupSubscriptions()
     }
-  }, [fetchDashboardData, setupRealtimeSubscriptions])
+  }, []) // Empty dependency array to prevent recreation
 
-  // Update subscriptions when timeRange changes
+  // Re-setup subscriptions only when timeRange changes
   useEffect(() => {
-    setupRealtimeSubscriptions()
-  }, [setupRealtimeSubscriptions])
+    if (isMountedRef.current) {
+      fetchDashboardData()
+    }
+  }, [timeRange, fetchDashboardData])
 
   return {
     stats,
@@ -474,6 +494,8 @@ export const useRealTimeDashboard = (timeRange: '24hours' | '7days' | '12months'
     chartDataPoints,
     loading,
     error,
-    refetch: fetchDashboardData
+    refetch: fetchDashboardData,
+    // Expose cleanup for manual control
+    cleanup: cleanupSubscriptions
   }
 } 

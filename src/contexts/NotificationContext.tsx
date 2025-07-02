@@ -1,6 +1,7 @@
 'use client'
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
+import { createKenalGitHubService, shouldEnableGitHubMonitoring } from '@/services/githubService'
 
 // Type declaration for browser Notification API
 declare global {
@@ -37,7 +38,7 @@ export interface NotificationItem {
     label: string
     onClick: () => void
   }
-  category: 'growth' | 'system' | 'reports' | 'user' | 'error'
+  category: 'growth' | 'system' | 'reports' | 'user' | 'error' | 'feedback' | 'github' | 'development'
 }
 
 interface ToastNotification {
@@ -73,6 +74,9 @@ interface NotificationContextType {
     growthAlerts: boolean
     systemAlerts: boolean
     weeklyReports: boolean
+    feedbackAlerts: boolean
+    githubAlerts: boolean
+    developmentAlerts: boolean
     soundEnabled: boolean
     browserNotifications: boolean
   }
@@ -98,9 +102,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     growthAlerts: true,
     systemAlerts: true,
     weeklyReports: false,
+    feedbackAlerts: true,
+    githubAlerts: true,
+    developmentAlerts: true,
     soundEnabled: false,
     browserNotifications: false
   })
+
+  // Track if startup notification has been shown in this session
+  const startupNotificationShown = useRef(false)
+  const monitoringSetup = useRef(false)
 
   // Load settings and notifications from localStorage
   useEffect(() => {
@@ -205,6 +216,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       (notification.category === 'growth' && settings.growthAlerts) ||
       (notification.category === 'system' && settings.systemAlerts) ||
       (notification.category === 'reports' && settings.weeklyReports) ||
+      (notification.category === 'feedback' && settings.feedbackAlerts) ||
+      (notification.category === 'github' && settings.githubAlerts) ||
+      (notification.category === 'development' && settings.developmentAlerts) ||
       (notification.category === 'user') ||
       (notification.category === 'error')
 
@@ -223,7 +237,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     showToast(notification.type, notification.message)
 
     // Show browser notification for important alerts
-    if (['error', 'warning'].includes(notification.type) || notification.category === 'growth') {
+    if (['error', 'warning'].includes(notification.type) || 
+        ['feedback', 'github', 'growth'].includes(notification.category)) {
       showBrowserNotification(notification.title, notification.message)
     }
   }, [settings, showToast, showBrowserNotification])
@@ -253,21 +268,137 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // Calculate unread count
   const unreadCount = notifications.filter(n => !n.read).length
 
-  // Demo notifications for testing
+  // Enhanced notification monitoring services
   useEffect(() => {
-    const hasShownDemo = localStorage.getItem('kenal-demo-notifications-shown')
-    if (!hasShownDemo) {
-      setTimeout(() => {
+    // Prevent multiple setups in the same session
+    if (monitoringSetup.current) return
+
+    // Clean up any duplicate startup notifications from previous sessions
+    setNotifications(prev => {
+      const filteredNotifications = prev.filter(notification => 
+        !(notification.title === 'KENAL Admin Ready' && notification.category === 'system')
+      )
+      return filteredNotifications
+    })
+
+    // Show startup notification only once per session
+    if (!startupNotificationShown.current) {
+      const today = new Date().toDateString()
+      const hasShownToday = localStorage.getItem('kenal-startup-notification-shown')
+      
+      if (!hasShownToday || hasShownToday !== today) {
+        setTimeout(() => {
+          addNotification({
+            type: 'info',
+            title: 'KENAL Admin Ready',
+            message: 'Notification system active. Monitoring feedback and GitHub updates.',
+            category: 'system'
+          })
+          localStorage.setItem('kenal-startup-notification-shown', today)
+        }, 2000)
+      }
+      startupNotificationShown.current = true
+    }
+
+    // Set up feedback monitoring
+    const setupFeedbackMonitoring = () => {
+      // Listen for feedback submission events
+      const handleFeedbackSubmitted = (event: any) => {
+        const detail = event.detail
         addNotification({
           type: 'success',
-          title: 'Welcome to KENAL Admin',
-          message: 'Notification system is now active!',
-          category: 'system'
+          title: 'New Feedback Submitted',
+          message: `Feedback "${detail.title || 'Untitled'}" has been submitted successfully.`,
+          category: 'feedback',
+          action: {
+            label: 'View Feedback',
+            onClick: () => window.location.href = '/feedback'
+          }
         })
-        localStorage.setItem('kenal-demo-notifications-shown', 'true')
-      }, 2000)
+      }
+
+      // Listen for feedback status changes
+      const handleFeedbackStatusChange = (event: any) => {
+        const { problemId, newStatus, title } = event.detail
+        const statusMessages: Record<string, string> = {
+          pending: 'is now pending review',
+          in_progress: 'is being worked on',
+          completed: 'has been completed',
+          on_hold: 'has been put on hold',
+          cancelled: 'has been cancelled'
+        }
+
+        const statusMessage = statusMessages[String(newStatus)] || 'status updated'
+
+        addNotification({
+          type: newStatus === 'completed' ? 'success' : 'info',
+          title: 'Feedback Status Update',
+          message: `"${title}" ${statusMessage}.`,
+          category: 'feedback',
+          action: {
+            label: 'View Details',
+            onClick: () => window.location.href = '/feedback'
+          }
+        })
+      }
+
+      window.addEventListener('feedbackSubmitted', handleFeedbackSubmitted)
+      window.addEventListener('feedbackStatusChanged', handleFeedbackStatusChange)
+      
+      return () => {
+        window.removeEventListener('feedbackSubmitted', handleFeedbackSubmitted)
+        window.removeEventListener('feedbackStatusChanged', handleFeedbackStatusChange)
+      }
     }
-  }, [addNotification])
+
+    // Set up GitHub monitoring
+    const setupGitHubMonitoring = () => {
+      // Only enable GitHub monitoring in development or when explicitly configured
+      if (!shouldEnableGitHubMonitoring()) {
+        console.log('GitHub monitoring disabled for production')
+        return () => {}
+      }
+
+      const githubService = createKenalGitHubService()
+      
+      // Monitor for new commits
+      const monitoringInterval = githubService.startMonitoring(
+        (newCommits) => {
+          newCommits.forEach(commit => {
+            addNotification({
+              type: 'info',
+              title: 'New Code Push',
+              message: githubService.formatCommitForNotification(commit),
+              category: 'github',
+              action: {
+                label: 'View Commit',
+                onClick: () => window.open(commit.url, '_blank')
+              }
+            })
+          })
+        },
+        3 * 60 * 1000 // Check every 3 minutes
+      )
+      
+      return () => {
+        if (monitoringInterval) {
+          clearInterval(monitoringInterval)
+        }
+      }
+    }
+
+    const cleanupFeedback = setupFeedbackMonitoring()
+    const cleanupGitHub = setupGitHubMonitoring()
+    
+    // Mark monitoring as set up
+    monitoringSetup.current = true
+
+    return () => {
+      cleanupFeedback()
+      cleanupGitHub()
+      monitoringSetup.current = false
+    }
+  }, []) // Remove addNotification dependency to prevent re-runs
 
   const value: NotificationContextType = {
     showToast,
@@ -384,6 +515,35 @@ export const createNotificationHelpers = (context: NotificationContextType) => (
       title,
       message,
       category: 'system'
+    })
+  },
+
+  feedbackAlert: (title: string, message: string, action?: { label: string, onClick: () => void }) => {
+    context.addNotification({
+      type: 'info',
+      title,
+      message,
+      category: 'feedback',
+      action
+    })
+  },
+
+  githubAlert: (title: string, message: string, action?: { label: string, onClick: () => void }) => {
+    context.addNotification({
+      type: 'info',
+      title,
+      message,
+      category: 'github',
+      action
+    })
+  },
+
+  developmentAlert: (title: string, message: string, severity: AlertColor = 'info') => {
+    context.addNotification({
+      type: severity,
+      title,
+      message,
+      category: 'development'
     })
   }
 }) 

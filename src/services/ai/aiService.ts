@@ -125,60 +125,14 @@ export class AIService {
     const prompt = request.userPrompt.toLowerCase()
     let cardConfig
 
-    console.log('🤖 MOCK AI: Processing prompt:', prompt)
+    console.log('🤖 ENHANCED AI: Processing natural language prompt:', prompt)
 
-    // 🧠 ENHANCED MULTI-DIMENSIONAL ANALYSIS DETECTION - Smart Cross-Analysis!
-    console.log('🔍 Analyzing prompt for multi-dimensional requests:', prompt)
+    // 🧠 ENHANCED NATURAL LANGUAGE UNDERSTANDING
+    const analysisResult = this.analyzeUserIntent(prompt)
+    console.log('🎯 AI Analysis Result:', analysisResult)
     
-    // PRIORITY 1: Multi-dimensional analysis (age + gender, country + element, etc.)
-    if ((prompt.includes('age') && prompt.includes('gender')) || 
-        (prompt.includes('between') && prompt.includes('age') && prompt.includes('gender')) ||
-        (prompt.includes('age') && prompt.includes('by gender')) ||
-        (prompt.includes('gender') && prompt.includes('by age'))) {
-      console.log('🎯 DETECTED: Age + Gender Cross-Analysis!')
-      cardConfig = this.getAgeGenderCrossAnalysisCard(request.userPrompt)
-    } else if ((prompt.includes('country') && prompt.includes('age')) || 
-               (prompt.includes('geographic') && prompt.includes('demographic'))) {
-      console.log('🎯 DETECTED: Country + Age Cross-Analysis!')
-      cardConfig = this.getCountryAgeCrossAnalysisCard(request.userPrompt)
-    } else if ((prompt.includes('element') && prompt.includes('gender')) || 
-               (prompt.includes('element') && prompt.includes('by gender'))) {
-      console.log('🎯 DETECTED: Element + Gender Cross-Analysis!')
-      cardConfig = this.getElementGenderCrossAnalysisCard(request.userPrompt)
-    } else if ((prompt.includes('age') && prompt.includes('element')) || 
-               (prompt.includes('demographic') && prompt.includes('element'))) {
-      console.log('🎯 DETECTED: Age + Element Cross-Analysis!')
-      cardConfig = this.getAgeElementCrossAnalysisCard(request.userPrompt)
-    } 
-    // PRIORITY 2: Identity-specific analysis
-    else if (prompt.includes('identity') || prompt.includes('identities')) {
-      if (prompt.includes('distribution') || prompt.includes('type')) {
-        cardConfig = this.getIdentityTypeCard(request.userPrompt)
-      } else {
-        console.log('🧠 MOCK: Detected IDENTITY query, generating Identity Count card')
-        cardConfig = this.getIdentityCountCard(request.userPrompt)
-      }
-    } 
-    // PRIORITY 3: Single-dimension analysis
-    else if (prompt.includes('age') || prompt.includes('demographic')) {
-      cardConfig = this.getAgeDistributionCard(request.userPrompt)
-    } else if (prompt.includes('country') || prompt.includes('geographic') || prompt.includes('location')) {
-      cardConfig = this.getGeographicCard(request.userPrompt)
-    } else if (prompt.includes('gender')) {
-      cardConfig = this.getGenderCard(request.userPrompt)
-    } else if (prompt.includes('growth') || prompt.includes('trend') || prompt.includes('registration')) {
-      cardConfig = this.getGrowthCard(request.userPrompt)
-    } else if (prompt.includes('element')) {
-      cardConfig = this.getElementCard(request.userPrompt)
-    } else if (prompt.includes('conversation') || prompt.includes('chat') || prompt.includes('message')) {
-      cardConfig = this.getConversationCard(request.userPrompt)
-    } else if (prompt.includes('active') && prompt.includes('user')) {
-      cardConfig = this.getActiveUsersCard(request.userPrompt)
-    } else if (prompt.includes('total') || prompt.includes('count')) {
-      cardConfig = this.getUserCountCard(request.userPrompt)
-    } else {
-      cardConfig = this.getUserCountCard(request.userPrompt)
-    }
+    // Generate card based on intelligent analysis
+    cardConfig = this.generateCardFromIntent(analysisResult, request.userPrompt)
 
     const processingTimeMs = Date.now() - startTime
 
@@ -194,6 +148,415 @@ export class AIService {
       },
       processingTimeMs
     }
+  }
+
+  /**
+   * 🧠 ENHANCED: Analyze user intent with multiple intelligence layers
+   */
+  private analyzeUserIntent(prompt: string) {
+    console.log('🔍 Analyzing user intent with enhanced AI...')
+    
+    const analysis = {
+      dimensions: [] as string[],
+      visualizationType: 'auto',
+      dataScope: 'all',
+      timeframe: 'current',
+      priority: 'medium',
+      complexity: 'simple',
+      intent: 'unknown',
+      confidence: 0
+    }
+
+    // LAYER 1: Dimensional Analysis (what data to show)
+    const dimensionPatterns = {
+      age: /\b(age|demographic|generation|young|old|teen|adult)\b/i,
+      gender: /\b(gender|male|female|men|women|sex)\b/i,
+      country: /\b(country|nation|geographic|location|where|region)\b/i,
+      element: /\b(element|personality|type|category|trait)\b/i,
+      identity: /\b(identity|identities|assessment|completed|profile)\b/i,
+      time: /\b(time|trend|growth|month|day|week|over time|timeline)\b/i,
+      activity: /\b(active|inactive|engagement|usage|behavior)\b/i,
+      conversation: /\b(conversation|chat|message|talk|communication)\b/i
+    }
+
+    Object.entries(dimensionPatterns).forEach(([dimension, pattern]) => {
+      if (pattern.test(prompt)) {
+        analysis.dimensions.push(dimension)
+      }
+    })
+
+    // LAYER 2: Intent Classification (what admin wants to do)
+    const intentPatterns = {
+      compare: /\b(compare|versus|vs|difference|between|against)\b/i,
+      analyze: /\b(analyze|analysis|breakdown|distribution|show me)\b/i,
+      monitor: /\b(monitor|track|watch|observe|keep eye)\b/i,
+      count: /\b(count|total|number|how many|quantity)\b/i,
+      trend: /\b(trend|pattern|over time|growth|decline|increase)\b/i,
+      filter: /\b(filter|where|only|specific|particular|certain)\b/i,
+      segment: /\b(segment|group|category|type|kind|split)\b/i
+    }
+
+    for (const [intent, pattern] of Object.entries(intentPatterns)) {
+      if (pattern.test(prompt)) {
+        analysis.intent = intent
+        break
+      }
+    }
+
+    // LAYER 3: Complexity Assessment
+    if (analysis.dimensions.length >= 2) {
+      analysis.complexity = 'complex'
+      analysis.priority = 'high'
+    } else if (analysis.dimensions.length === 1) {
+      analysis.complexity = 'medium'
+      analysis.priority = 'medium'
+    }
+
+    // LAYER 4: Visualization Intelligence
+    if (analysis.intent === 'trend' || analysis.dimensions.includes('time')) {
+      analysis.visualizationType = 'line'
+    } else if (analysis.intent === 'compare' || analysis.complexity === 'complex') {
+      analysis.visualizationType = 'bar'
+    } else if (analysis.intent === 'count' && analysis.dimensions.length === 0) {
+      analysis.visualizationType = 'stat'
+    } else if (analysis.dimensions.length === 1 && analysis.intent === 'analyze') {
+      analysis.visualizationType = 'pie'
+    } else {
+      analysis.visualizationType = 'auto'
+    }
+
+    // LAYER 5: Scope Detection
+    const scopePatterns = {
+      all: /\b(all|total|entire|complete|whole)\b/i,
+      recent: /\b(recent|new|latest|current|today|this week)\b/i,
+      active: /\b(active|engaged|participating)\b/i,
+      completed: /\b(completed|finished|done|assessed)\b/i
+    }
+
+    for (const [scope, pattern] of Object.entries(scopePatterns)) {
+      if (pattern.test(prompt)) {
+        analysis.dataScope = scope
+        break
+      }
+    }
+
+    // LAYER 6: Confidence Scoring
+    let confidence = 0.5 // Base confidence
+    if (analysis.dimensions.length > 0) confidence += 0.2
+    if (analysis.intent !== 'unknown') confidence += 0.2
+    if (analysis.visualizationType !== 'auto') confidence += 0.1
+    analysis.confidence = Math.min(confidence, 1.0)
+
+    return analysis
+  }
+
+  /**
+   * 🎯 ENHANCED: Generate card based on intelligent intent analysis
+   */
+  private generateCardFromIntent(analysis: any, originalPrompt: string): any {
+    console.log('🎨 Generating card from enhanced analysis:', analysis)
+
+    // Multi-dimensional analysis (highest priority)
+    if (analysis.complexity === 'complex') {
+      return this.generateComplexAnalysisCard(analysis, originalPrompt)
+    }
+
+    // Single dimension with specific intent
+    if (analysis.dimensions.length === 1) {
+      const primaryDimension = analysis.dimensions[0]
+      
+      switch (primaryDimension) {
+        case 'age':
+          return this.getEnhancedAgeCard(analysis, originalPrompt)
+        case 'gender':
+          return this.getEnhancedGenderCard(analysis, originalPrompt)
+        case 'country':
+          return this.getEnhancedCountryCard(analysis, originalPrompt)
+        case 'element':
+          return this.getEnhancedElementCard(analysis, originalPrompt)
+        case 'identity':
+          return this.getEnhancedIdentityCard(analysis, originalPrompt)
+        case 'time':
+          return this.getEnhancedTimeCard(analysis, originalPrompt)
+        case 'activity':
+          return this.getEnhancedActivityCard(analysis, originalPrompt)
+        case 'conversation':
+          return this.getEnhancedConversationCard(analysis, originalPrompt)
+        default:
+          return this.getEnhancedUserCountCard(analysis, originalPrompt)
+      }
+    }
+
+    // Intent-based fallback
+    switch (analysis.intent) {
+      case 'count':
+        return this.getEnhancedUserCountCard(analysis, originalPrompt)
+      case 'trend':
+        return this.getEnhancedGrowthCard(analysis, originalPrompt)
+      case 'analyze':
+        return this.getEnhancedAnalyticsCard(analysis, originalPrompt)
+      default:
+        return this.getEnhancedUserCountCard(analysis, originalPrompt)
+    }
+  }
+
+  /**
+   * 🔗 ENHANCED: Generate complex multi-dimensional analysis
+   */
+  private generateComplexAnalysisCard(analysis: any, prompt: string): any {
+    const dimensions = analysis.dimensions
+    
+    if (dimensions.includes('age') && dimensions.includes('gender')) {
+      return this.getAgeGenderCrossAnalysisCard(prompt)
+    } else if (dimensions.includes('country') && dimensions.includes('age')) {
+      return this.getCountryAgeCrossAnalysisCard(prompt)
+    } else if (dimensions.includes('element') && dimensions.includes('gender')) {
+      return this.getElementGenderCrossAnalysisCard(prompt)
+    } else if (dimensions.includes('age') && dimensions.includes('element')) {
+      return this.getAgeElementCrossAnalysisCard(prompt)
+    } else {
+      // Default to first dimension with enhanced features
+      return this.generateCardFromIntent({
+        ...analysis,
+        dimensions: [dimensions[0]],
+        complexity: 'medium'
+      }, prompt)
+    }
+  }
+
+  /**
+   * 📊 ENHANCED: Age analysis with intelligent features
+   */
+  private getEnhancedAgeCard(analysis: any, prompt: string): any {
+    const baseCard = this.getAgeDistributionCard(prompt)
+    
+    // Enhance based on intent
+    if (analysis.intent === 'trend') {
+      baseCard.basic.title = "Age Demographics Over Time"
+      baseCard.basic.description = "How age distribution has changed over time"
+      baseCard.chart.type = "line"
+      baseCard.data.query = "SELECT DATE_TRUNC('month', created_at) as month, birth_date FROM kd_users WHERE birth_date IS NOT NULL ORDER BY created_at"
+      baseCard.data.processing = "smart_age_trend_analysis"
+    } else if (analysis.dataScope === 'recent') {
+      baseCard.basic.title = "Recent Users by Age"
+      baseCard.basic.description = "Age distribution of users who joined recently"
+      baseCard.data.query = "SELECT birth_date, created_at FROM kd_users WHERE created_at >= CURRENT_DATE - INTERVAL '30 days' AND birth_date IS NOT NULL"
+    } else {
+      // Standard age analysis
+      baseCard.data.query = "SELECT birth_date, created_at FROM kd_users WHERE birth_date IS NOT NULL"
+    }
+    
+    // Add enhanced AI insights
+    (baseCard.ai as any).enhanced_analysis = {
+      detected_intent: analysis.intent,
+      complexity_level: analysis.complexity,
+      confidence_score: analysis.confidence,
+      personalization: "Customized for admin dashboard viewing patterns"
+    }
+    
+    return baseCard
+  }
+
+  /**
+   * 🌍 ENHANCED: Country analysis with admin focus
+   */
+  private getEnhancedCountryCard(analysis: any, prompt: string): any {
+    const baseCard = this.getGeographicCard(prompt)
+    
+    if (analysis.intent === 'monitor') {
+      baseCard.basic.title = "Geographic Expansion Monitoring"
+      baseCard.basic.description = "Track user acquisition across different countries"
+      baseCard.data.refresh_interval = 60 // More frequent for monitoring
+    }
+    
+    // Add proper query for real data
+    baseCard.data.query = "SELECT registration_country, COUNT(*) as value FROM kd_users WHERE registration_country IS NOT NULL GROUP BY registration_country ORDER BY value DESC LIMIT 10"
+    baseCard.data.source = "kd_users"
+    
+    (baseCard.ai as any).enhanced_analysis = analysis
+    return baseCard
+  }
+
+  /**
+   * ⚡ ENHANCED: Activity-focused analysis
+   */
+  private getEnhancedActivityCard(analysis: any, prompt: string): any {
+    return {
+      "basic": {
+        "type": "chart",
+        "title": "User Registration by Element",
+        "description": "Distribution of users across personality elements"
+      },
+      "position": {"x": 0, "y": 0, "width": 6, "height": 4},
+      "data": {
+        "source": "kd_users",
+        "query": "SELECT element_number, COUNT(*) as value FROM kd_users WHERE element_number IS NOT NULL GROUP BY element_number ORDER BY element_number",
+        "refresh_interval": 180
+      },
+      "chart": {
+        "type": analysis.visualizationType === 'auto' ? "bar" : analysis.visualizationType,
+        "options": {
+          "responsive": true,
+          "maintainAspectRatio": false,
+          "plugins": {
+            "legend": {"position": "bottom"},
+            "tooltip": {
+              "mode": "index",
+              "intersect": false
+            }
+          }
+        },
+        "colors": ["#4caf50", "#f44336", "#ff9800", "#2196f3", "#ff5722", "#9c27b0", "#607d8b", "#795548", "#ffc107"]
+      },
+      "ai": {
+        "prompt": prompt,
+        "insights": "Enhanced element analysis with personality distribution",
+        "enhanced_analysis": analysis
+      }
+    }
+  }
+
+  /**
+   * 📈 ENHANCED: Analytics card with admin insights
+   */
+  private getEnhancedAnalyticsCard(analysis: any, prompt: string): any {
+    return {
+      "basic": {
+        "type": "chart", 
+        "title": "Admin Analytics Overview",
+        "description": "Comprehensive user analytics for administrative insights"
+      },
+      "position": {"x": 0, "y": 0, "width": 8, "height": 4},
+      "data": {
+        "source": "kd_users",
+        "query": "SELECT DATE_TRUNC('week', created_at) as week, COUNT(*) as registrations, SUM(CASE WHEN is_active THEN 1 ELSE 0 END) as active_users FROM kd_users GROUP BY week ORDER BY week DESC LIMIT 12",
+        "refresh_interval": 300
+      },
+      "chart": {
+        "type": "line",
+        "options": {
+          "responsive": true,
+          "maintainAspectRatio": false,
+          "scales": {
+            "y": {"beginAtZero": true, "title": {"display": true, "text": "Count"}},
+            "x": {"title": {"display": true, "text": "Week"}}
+          },
+          "plugins": {
+            "legend": {"display": true, "position": "top"}
+          }
+        },
+        "colors": ["#1976d2", "#4caf50"]
+      },
+      "ai": {
+        "prompt": prompt,
+        "insights": "Weekly analytics with registration and activation trends",
+        "enhanced_analysis": analysis
+      }
+    }
+  }
+
+  /**
+   * 💬 ENHANCED: Conversation analysis
+   */
+  private getEnhancedConversationCard(analysis: any, prompt: string): any {
+    return {
+      "basic": {
+        "type": "stat",
+        "title": "Communication Insights", 
+        "description": "User conversation and messaging activity"
+      },
+      "position": {"x": 0, "y": 0, "width": 4, "height": 3},
+      "data": {
+        "source": "kd_conversations",
+        "query": "SELECT COUNT(*) as value FROM kd_conversations WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'",
+        "refresh_interval": 300
+      },
+      "chart": {
+        "type": "stat",
+        "options": {
+          "displayValue": true,
+          "subtitle": "Active Conversations (30 days)"
+        }
+      },
+      "ai": {
+        "prompt": prompt,
+        "insights": "Recent conversation activity for community engagement monitoring",
+        "enhanced_analysis": analysis
+      }
+    }
+  }
+
+  /**
+   * 👥 ENHANCED: User count with context
+   */
+  private getEnhancedUserCountCard(analysis: any, prompt: string): any {
+    const baseCard = this.getUserCountCard(prompt)
+    
+    if (analysis.dataScope === 'active') {
+      baseCard.basic.title = "Active Users"
+      baseCard.basic.description = "Currently active user count"
+      baseCard.data.query = "SELECT COUNT(*) as value FROM kd_users WHERE is_active = true"
+    } else if (analysis.dataScope === 'recent') {
+      baseCard.basic.title = "Recent Registrations"
+      baseCard.basic.description = "Users who joined in the last 30 days"
+      baseCard.data.query = "SELECT COUNT(*) as value FROM kd_users WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'"
+    } else {
+      baseCard.data.query = "SELECT COUNT(*) as value FROM kd_users"
+    }
+    
+    baseCard.data.source = "kd_users"
+    (baseCard.ai as any).enhanced_analysis = analysis
+    return baseCard
+  }
+
+  private getEnhancedGenderCard(analysis: any, prompt: string): any {
+    const baseCard = this.getGenderCard(prompt)
+    baseCard.data.query = "SELECT gender, COUNT(*) as value FROM kd_users WHERE gender IS NOT NULL GROUP BY gender ORDER BY value DESC"
+    baseCard.data.source = "kd_users"
+    if (baseCard.ai) {
+      (baseCard.ai as any).enhanced_analysis = analysis
+    }
+    return baseCard
+  }
+
+  private getEnhancedElementCard(analysis: any, prompt: string): any {
+    const baseCard = this.getElementCard(prompt)
+    baseCard.data.query = "SELECT element_number, COUNT(*) as value FROM kd_users WHERE element_number IS NOT NULL GROUP BY element_number ORDER BY element_number"
+    baseCard.data.source = "kd_users"
+    if (baseCard.ai) {
+      (baseCard.ai as any).enhanced_analysis = analysis
+    }
+    return baseCard
+  }
+
+  private getEnhancedIdentityCard(analysis: any, prompt: string): any {
+    const baseCard = this.getIdentityCountCard(prompt)
+    baseCard.data.query = "SELECT COUNT(*) as value FROM kd_identity"
+    baseCard.data.source = "kd_identity"
+    if (baseCard.ai) {
+      (baseCard.ai as any).enhanced_analysis = analysis
+    }
+    return baseCard
+  }
+
+  private getEnhancedTimeCard(analysis: any, prompt: string): any {
+    const baseCard = this.getGrowthCard(prompt)
+    baseCard.data.query = "SELECT DATE_TRUNC('month', created_at) as month, COUNT(*) as value FROM kd_users GROUP BY month ORDER BY month"
+    baseCard.data.source = "kd_users"
+    if (baseCard.ai) {
+      (baseCard.ai as any).enhanced_analysis = analysis
+    }
+    return baseCard
+  }
+
+  private getEnhancedGrowthCard(analysis: any, prompt: string): any {
+    const baseCard = this.getGrowthCard(prompt)
+    baseCard.data.query = "SELECT DATE_TRUNC('month', created_at) as month, COUNT(*) as value FROM kd_users GROUP BY month ORDER BY month"
+    baseCard.data.source = "kd_users"
+    if (baseCard.ai) {
+      (baseCard.ai as any).enhanced_analysis = analysis
+    }
+    return baseCard
   }
 
   /**
@@ -318,9 +681,8 @@ export class AIService {
           "plugins": {
             "legend": {"display": true, "position": "top"},
             "tooltip": {
-              "callbacks": {
-                "label": "function(context) { return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' users'; }"
-              }
+              "mode": "index",
+              "intersect": false
             }
           },
           "scales": {
@@ -359,9 +721,8 @@ export class AIService {
           "plugins": {
             "legend": {"position": "right"},
             "tooltip": {
-              "callbacks": {
-                "label": "function(context) { return context.label + ': ' + context.parsed + ' users (' + Math.round(context.parsed / context.dataset.data.reduce((a,b) => a+b, 0) * 100) + '%)'; }"
-              }
+              "mode": "index",
+              "intersect": false
             }
           }
         }, 
@@ -396,9 +757,8 @@ export class AIService {
           "plugins": {
             "legend": {"position": "bottom"},
             "tooltip": {
-              "callbacks": {
-                "label": "function(context) { return context.label + ': ' + context.parsed + ' users (' + Math.round(context.parsed / context.dataset.data.reduce((a,b) => a+b, 0) * 100) + '%)'; }"
-              }
+              "mode": "index",
+              "intersect": false
             }
           }
         }, 
@@ -477,10 +837,8 @@ export class AIService {
           "plugins": {
             "legend": {"display": false},
             "tooltip": {
-              "callbacks": {
-                "title": "function(context) { return 'Element ' + context[0].label; }",
-                "label": "function(context) { return context.parsed.y + ' users'; }"
-              }
+              "mode": "index",
+              "intersect": false
             }
           },
           "scales": {

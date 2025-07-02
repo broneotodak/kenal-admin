@@ -44,7 +44,9 @@ import { useTheme as useThemeMode } from '@mui/material/styles'
 import Chart from '@/components/Chart'
 import { useRealTimeDashboard } from '@/hooks/useRealTimeDashboard'
 import { useAuth } from '@/contexts/AuthContext'
+import { usePageVisibility } from '@/hooks/usePageVisibility'
 import { getCountryFlag, getCountryName, formatTime, downloadCSV } from '@/lib/utils'
+import NotificationTester from '@/components/NotificationTester'
 
 // Use any for chart options due to dynamic import
 type ChartOptions = any
@@ -77,6 +79,18 @@ export default function DashboardPage() {
     error,
     refetch: refreshDashboard
   } = useRealTimeDashboard(timeRange)
+
+  // Enhanced page visibility for AFK handling
+  const { isVisible, wasHidden, getAFKMinutes, resetHiddenFlag } = usePageVisibility()
+  
+  // Handle returning from AFK - refresh dashboard data
+  useEffect(() => {
+    if (isVisible && wasHidden && getAFKMinutes() > 0) {
+      console.log(`🔄 Dashboard: User returned after ${getAFKMinutes()} minutes AFK, refreshing data...`)
+      refreshDashboard()
+      resetHiddenFlag()
+    }
+  }, [isVisible, wasHidden, getAFKMinutes, refreshDashboard, resetHiddenFlag])
 
   // Update time only on client side to avoid hydration issues (Malaysia timezone)
   useEffect(() => {
@@ -334,6 +348,9 @@ export default function DashboardPage() {
 
   return (
     <Box>
+      {/* Notification System Tester - Only for neo@todak.com */}
+      {user?.email === 'neo@todak.com' && <NotificationTester />}
+      
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="body2" color="text.secondary">
           Real-time dashboard with live updates • Last updated: {currentTime || '...'} 🇲🇾 MY Time

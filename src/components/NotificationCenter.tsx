@@ -36,7 +36,11 @@ import {
   Computer,
   Assessment,
   Person,
-  Circle
+  Circle,
+  Feedback,
+  GitHub,
+  Code,
+  Message
 } from '@mui/icons-material'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { formatDistanceToNow } from 'date-fns'
@@ -46,6 +50,9 @@ const getNotificationIcon = (type: string, category: string) => {
   if (category === 'system') return <Computer fontSize="small" />
   if (category === 'reports') return <Assessment fontSize="small" />
   if (category === 'user') return <Person fontSize="small" />
+  if (category === 'feedback') return <Feedback fontSize="small" />
+  if (category === 'github') return <GitHub fontSize="small" />
+  if (category === 'development') return <Code fontSize="small" />
   
   switch (type) {
     case 'success': return <CheckCircle fontSize="small" />
@@ -55,7 +62,12 @@ const getNotificationIcon = (type: string, category: string) => {
   }
 }
 
-const getNotificationColor = (type: string) => {
+const getNotificationColor = (type: string, category?: string) => {
+  // Special colors for categories
+  if (category === 'feedback') return '#1976d2' // Blue
+  if (category === 'github') return '#333' // Dark for GitHub
+  if (category === 'development') return '#9c27b0' // Purple
+  
   switch (type) {
     case 'success': return 'success.main'
     case 'error': return 'error.main'
@@ -113,6 +125,21 @@ export default function NotificationCenter() {
   const recentNotifications = notifications.slice(0, 10)
   const hasNotifications = notifications.length > 0
 
+  // Get notification stats by category
+  const getNotificationStats = () => {
+    const stats = {
+      total: notifications.length,
+      unread: unreadCount,
+      feedback: notifications.filter(n => n.category === 'feedback').length,
+      github: notifications.filter(n => n.category === 'github').length,
+      system: notifications.filter(n => n.category === 'system').length,
+      development: notifications.filter(n => n.category === 'development').length
+    }
+    return stats
+  }
+
+  const stats = getNotificationStats()
+
   return (
     <>
       <Tooltip title="Notifications" arrow>
@@ -160,8 +187,8 @@ export default function NotificationCenter() {
         PaperProps={{
           elevation: 3,
           sx: {
-            width: 400,
-            maxHeight: 600,
+            width: 420,
+            maxHeight: 650,
             mt: 1.5,
             '& .MuiAvatar-root': {
               width: 32,
@@ -186,6 +213,46 @@ export default function NotificationCenter() {
                 size="small" 
                 color="primary"
                 sx={{ height: 20, fontSize: '0.7rem' }}
+              />
+            )}
+          </Box>
+
+          {/* Notification Stats */}
+          <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
+            {stats.feedback > 0 && (
+              <Chip
+                icon={<Feedback />}
+                label={`${stats.feedback} Feedback`}
+                size="small"
+                variant="outlined"
+                sx={{ height: 20, fontSize: '0.65rem' }}
+              />
+            )}
+            {stats.github > 0 && (
+              <Chip
+                icon={<GitHub />}
+                label={`${stats.github} GitHub`}
+                size="small"
+                variant="outlined"
+                sx={{ height: 20, fontSize: '0.65rem' }}
+              />
+            )}
+            {stats.system > 0 && (
+              <Chip
+                icon={<Computer />}
+                label={`${stats.system} System`}
+                size="small"
+                variant="outlined"
+                sx={{ height: 20, fontSize: '0.65rem' }}
+              />
+            )}
+            {stats.development > 0 && (
+              <Chip
+                icon={<Code />}
+                label={`${stats.development} Dev`}
+                size="small"
+                variant="outlined"
+                sx={{ height: 20, fontSize: '0.65rem' }}
               />
             )}
           </Box>
@@ -226,7 +293,7 @@ export default function NotificationCenter() {
         {!settings.browserNotifications && (
           <Box sx={{ p: 2, bgcolor: 'action.hover' }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Enable browser notifications for important alerts
+              Enable browser notifications for feedback updates and GitHub pushes
             </Typography>
             <Button
               size="small"
@@ -263,7 +330,7 @@ export default function NotificationCenter() {
                   <ListItemIcon sx={{ minWidth: 40 }}>
                     <Avatar
                       sx={{
-                        bgcolor: getNotificationColor(notification.type),
+                        bgcolor: getNotificationColor(notification.type, notification.category),
                         width: 32,
                         height: 32
                       }}
@@ -303,7 +370,9 @@ export default function NotificationCenter() {
                             sx={{ 
                               height: 16, 
                               fontSize: '0.6rem',
-                              textTransform: 'capitalize'
+                              textTransform: 'capitalize',
+                              borderColor: getNotificationColor(notification.type, notification.category),
+                              color: getNotificationColor(notification.type, notification.category)
                             }}
                           />
                         </Box>
@@ -345,7 +414,7 @@ export default function NotificationCenter() {
               No notifications yet
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              You'll see important updates and alerts here
+              You'll see feedback updates and GitHub pushes here
             </Typography>
           </Box>
         )}

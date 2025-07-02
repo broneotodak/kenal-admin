@@ -90,6 +90,7 @@ export default function CustomDashboardPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [useSmartAI, setUseSmartAI] = useState(true) // Toggle between smart AI and template AI
+  const [activePresetCommand, setActivePresetCommand] = useState<string | null>(null) // Track which preset is processing
   
   // Save/Load functionality state
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
@@ -193,14 +194,24 @@ export default function CustomDashboardPage() {
         console.log('🧠 Using SMART AI service...')
         
         try {
+          // Add timeout protection to prevent infinite loading
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => {
+            console.log('⏰ Smart AI request timeout - aborting')
+            controller.abort()
+          }, 45000) // 45 second timeout
+          
           const response = await fetch('/api/ai/smart-generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               userPrompt: prompt,
               userId: user?.id
-            })
+            }),
+            signal: controller.signal
           })
+          
+          clearTimeout(timeoutId)
 
           const smartResult = await response.json()
           
@@ -213,11 +224,11 @@ export default function CustomDashboardPage() {
           // Create new dashboard card from Smart AI response
           const newCard: DashboardCard = {
             id: Date.now().toString(),
-            title: cardConfig.basic.title,
-            type: cardConfig.basic.type,
+            title: cardConfig.title, // Fixed: Direct property access
+            type: cardConfig.type,   // Fixed: Direct property access
             position: cardConfig.position,
-            size: { width: cardConfig.position.width, height: cardConfig.position.height },
-            content: cardConfig
+            size: cardConfig.size,   // Fixed: Use cardConfig.size directly
+            content: cardConfig.content  // Fixed: Use nested content
           }
 
           setDashboardCards(prev => [...prev, newCard])
@@ -225,7 +236,7 @@ export default function CustomDashboardPage() {
           aiResponse = {
             id: (Date.now() + 1).toString(),
             type: 'assistant' as const,
-            content: `✅ Smart AI Analysis Complete! I've created a "${cardConfig.basic.title}" card for you.\n\n📊 **Card Details:**\n• Type: ${cardConfig.basic.type}\n• Description: ${cardConfig.basic.description}\n\n🧠 **Smart AI Info:**\n• Generated SQL: ${smartResult.sqlQuery}\n• Processing time: ${smartResult.processingTimeMs}ms\n• Provider: ${smartResult.provider}\n\n💡 **Explanation:** ${smartResult.explanation}\n\nThe card has been added to your dashboard with real-time data!`,
+            content: `✅ Smart AI Analysis Complete! I've created a "${cardConfig.title}" card for you.\n\n📊 **Card Details:**\n• Type: ${cardConfig.type}\n• Description: ${cardConfig.content?.basic?.description || 'AI-generated analysis'}\n\n🧠 **Smart AI Info:**\n• Generated SQL: ${smartResult.sqlQuery}\n• Processing time: ${smartResult.processingTimeMs}ms\n• Provider: smart_ai (Anthropic Claude)\n\n💰 **Token Usage:**\n• Input tokens: ${smartResult.tokenUsage?.inputTokens || 'N/A'}\n• Output tokens: ${smartResult.tokenUsage?.outputTokens || 'N/A'}\n• Estimated cost: $${smartResult.tokenUsage?.estimatedCost?.toFixed(6) || '0.000000'}\n\n⚡ **Real-time Status:**\n• Data source: ${smartResult.realTimeStatus?.dataSource || 'live_database'}\n• Refresh interval: ${smartResult.realTimeStatus?.refreshInterval || 300}s\n• Last updated: ${new Date(smartResult.realTimeStatus?.lastUpdated || Date.now()).toLocaleTimeString()}\n\n💡 **Explanation:** ${smartResult.explanation}\n\nThe card has been added to your dashboard with live data!`,
             timestamp: new Date()
           }
 
@@ -322,12 +333,17 @@ export default function CustomDashboardPage() {
       setChatMessages(prev => [...prev, errorResponse])
     } finally {
       setIsLoading(false)
+      setActivePresetCommand(null) // Clear any active preset command state
     }
   }
 
-  // Handle preset command selection - updated to use client-side service
+  // Handle preset command selection - ENHANCED with better UX
   const handlePresetCommand = async (command: typeof presetCommands[0]) => {
     console.log('🎯 Preset command selected:', command.label)
+    
+    // 🎯 UX IMPROVEMENT: Track active command and open chat dialog
+    setActivePresetCommand(command.id)
+    setChatOpen(true)
     
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -336,61 +352,142 @@ export default function CustomDashboardPage() {
       timestamp: new Date()
     }
 
-    setChatMessages(prev => [...prev, userMessage])
+    // 🔄 UX IMPROVEMENT: Add immediate feedback message
+    const loadingMessage: ChatMessage = {
+      id: (Date.now() + 0.5).toString(),
+      type: 'assistant',
+      content: `🔄 **Generating "${command.label}" chart...**\n\n⚡ Using Smart AI to analyze your data\n📊 Creating real-time visualization\n🎯 This usually takes 3-5 seconds\n\n*Please wait while I fetch your data...*`,
+      timestamp: new Date()
+    }
+
+    setChatMessages(prev => [...prev, userMessage, loadingMessage])
     setIsLoading(true)
 
+    // Declare variables at function scope to avoid linting errors
+    let result: any, cardConfig: any
+    let aiResponse: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      type: 'assistant',
+      content: `❌ Sorry, I encountered an error with "${command.label}". Please try again.`,
+      timestamp: new Date()
+    }
+
     try {
-      // Call AI service directly (works in both development and production)
-      const result = await aiService.generateDashboardCard({
-        userPrompt: command.prompt,
-        availableData: [
-          'kd_users', 'kd_identity', 'kd_user_details', 
-          'kd_conversations', 'kd_messages', 'kd_analytics'
-        ],
-        currentDashboard: dashboardCards
-      })
+      if (useSmartAI) {
+        // 🚀 Use Smart AI for preset commands (same as manual messages)
+        console.log('🎯 Preset using SMART AI service...')
+        
+        try {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => {
+            console.log('⏰ Preset Smart AI timeout - aborting')
+            controller.abort()
+          }, 45000)
+          
+          const response = await fetch('/api/ai/smart-generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userPrompt: command.prompt,
+              userId: user?.id
+            }),
+            signal: controller.signal
+          })
+          
+          clearTimeout(timeoutId)
 
-      // Parse the AI response
-      let cardConfig
-      try {
-        cardConfig = JSON.parse(result.content)
-      } catch (e) {
-        // Fallback if JSON parsing fails
-        throw new Error('Invalid AI response format')
+          const smartResult = await response.json()
+          
+          if (!response.ok) {
+            throw new Error(smartResult.error || 'Smart AI request failed')
+          }
+
+          cardConfig = smartResult.cardConfig
+
+          // Create new dashboard card from Smart AI response
+          const newCard: DashboardCard = {
+            id: Date.now().toString(),
+            title: cardConfig.title,
+            type: cardConfig.type,
+            position: cardConfig.position,
+            size: cardConfig.size,
+            content: cardConfig.content
+          }
+
+          setDashboardCards(prev => [...prev, newCard])
+
+          aiResponse = {
+            id: (Date.now() + 1).toString(),
+            type: 'assistant' as const,
+            content: `✅ Smart AI Created "${command.label}" Card!\n\n📊 **Card Details:**\n• Type: ${cardConfig.type}\n• Description: ${cardConfig.content?.basic?.description || 'Real data analysis'}\n\n🧠 **Smart AI Info:**\n• Generated SQL: ${smartResult.sqlQuery}\n• Processing time: ${smartResult.processingTimeMs}ms\n• Provider: smart_ai (Anthropic Claude)\n\n💰 **Token Usage:**\n• Input tokens: ${smartResult.tokenUsage?.inputTokens || 'N/A'}\n• Output tokens: ${smartResult.tokenUsage?.outputTokens || 'N/A'}\n• Estimated cost: $${smartResult.tokenUsage?.estimatedCost?.toFixed(6) || '0.000000'}\n\n⚡ **Real-time Status:**\n• Data source: ${smartResult.realTimeStatus?.dataSource || 'live_database'}\n• Refresh interval: ${smartResult.realTimeStatus?.refreshInterval || 300}s\n\n💡 **Explanation:** ${smartResult.explanation}\n\nReal data loaded successfully!`,
+            timestamp: new Date()
+          }
+
+        } catch (smartAIError) {
+          // Fallback to Template AI for preset commands
+          console.warn('⚠️ Preset Smart AI failed, falling back to Template AI:', smartAIError)
+          throw smartAIError // Re-throw to use Template AI fallback below
+        }
+
+      } else {
+        // Use Template AI (original behavior)
+        throw new Error('Using Template AI as requested')
       }
-
-      // Create new dashboard card from AI response
-      const newCard: DashboardCard = {
-        id: Date.now().toString(),
-        title: cardConfig.basic.title,
-        type: cardConfig.basic.type,
-        position: cardConfig.position,
-        size: { width: cardConfig.position.width, height: cardConfig.position.height },
-        content: cardConfig
-      }
-
-      setDashboardCards(prev => [...prev, newCard])
-
-      const aiResponse: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: `✅ Perfect! I've created a "${cardConfig.basic.title}" card for you.\n\n📊 **Card Details:**\n• Type: ${cardConfig.basic.type}\n• Description: ${cardConfig.basic.description}\n\n🤖 **AI Info:**\n• Provider: ${result.provider}\n• Processing time: ${result.processingTimeMs}ms\n• Cost: $${result.tokenUsage.estimatedCost.toFixed(6)}\n\nThe card has been added to your dashboard!`,
-        timestamp: new Date()
-      }
-      setChatMessages(prev => [...prev, aiResponse])
 
     } catch (error) {
-      console.error('Preset Command Error:', error)
-      const errorResponse: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: `❌ Sorry, I encountered an error with "${command.label}": ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again or use a different command.`,
-        timestamp: new Date()
+      // Template AI fallback for preset commands
+      console.log('📋 Preset using Template AI fallback...')
+      
+      try {
+        result = await aiService.generateDashboardCard({
+          userPrompt: command.prompt,
+          availableData: [
+            'kd_users', 'kd_identity', 'kd_user_details', 
+            'kd_conversations', 'kd_messages', 'kd_analytics'
+          ],
+          currentDashboard: dashboardCards
+        })
+
+        // Parse the AI response
+        try {
+          cardConfig = JSON.parse(result.content)
+        } catch (e) {
+          throw new Error('Invalid AI response format')
+        }
+
+        // Create new dashboard card from Template AI response
+        const newCard: DashboardCard = {
+          id: Date.now().toString(),
+          title: cardConfig.basic.title,
+          type: cardConfig.basic.type,
+          position: cardConfig.position,
+          size: { width: cardConfig.position.width, height: cardConfig.position.height },
+          content: cardConfig
+        }
+
+        setDashboardCards(prev => [...prev, newCard])
+
+        aiResponse = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant' as const,
+          content: `✅ Template AI Created "${command.label}" Card!\n\n📊 **Card Details:**\n• Type: ${cardConfig.basic.type}\n• Description: ${cardConfig.basic.description}\n\n🤖 **Template AI Info:**\n• Provider: ${result.provider}\n• Processing time: ${result.processingTimeMs}ms\n• Cost: $${result.tokenUsage.estimatedCost.toFixed(6)}\n\n💡 **Note:** Using template with processed real data.`,
+          timestamp: new Date()
+        }
+
+      } catch (templateError) {
+        console.error('Both Smart AI and Template AI failed for preset:', templateError)
+        aiResponse = {
+          id: (Date.now() + 1).toString(),
+          type: 'assistant' as const,
+          content: `❌ Sorry, I encountered an error with "${command.label}": ${templateError instanceof Error ? templateError.message : 'Unknown error'}\n\nPlease try again or use a different command.`,
+          timestamp: new Date()
+        }
       }
-      setChatMessages(prev => [...prev, errorResponse])
-    } finally {
-      setIsLoading(false)
     }
+
+    setChatMessages(prev => [...prev, aiResponse])
+    setIsLoading(false)
+    setActivePresetCommand(null) // Clear active command state
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -581,34 +678,66 @@ export default function CustomDashboardPage() {
     }
   }
 
-  // Auto-load default dashboard on mount
+  // Auto-load most recent dashboard on mount
   useEffect(() => {
-    const autoLoadDashboard = async () => {
+    const autoLoadRecentDashboard = async () => {
       try {
-        const response = await fetch('/api/dashboard/save', {
+        // First, get the list of saved dashboards
+        console.log('🔍 Looking for most recent dashboard...')
+        const listResponse = await fetch('/api/dashboard/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            action: 'load',
-            userId: user?.id,
-            dashboardName: 'My Dashboard' // Default dashboard name
+            action: 'list',
+            userId: user?.id
           })
         })
 
-        const result = await response.json()
+        const listResult = await listResponse.json()
         
-        if (result.success && result.data) {
-          setDashboardCards(result.data.cards || [])
-          setCurrentDashboardName('My Dashboard')
-          console.log('✅ Auto-loaded default dashboard')
+        if (listResult.success && listResult.data && listResult.data.length > 0) {
+          // Find the most recently updated dashboard
+          const mostRecent = listResult.data.reduce((latest: any, current: any) => {
+            return new Date(current.updated_at) > new Date(latest.updated_at) ? current : latest
+          })
+
+          console.log('📂 Loading most recent dashboard:', mostRecent.dashboard_name)
+
+          // Load the most recent dashboard
+          const loadResponse = await fetch('/api/dashboard/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'load',
+              userId: user?.id,
+              dashboardName: mostRecent.dashboard_name
+            })
+          })
+
+          const loadResult = await loadResponse.json()
+          
+          if (loadResult.success && loadResult.data) {
+            setDashboardCards(loadResult.data.cards || [])
+            setCurrentDashboardName(mostRecent.dashboard_name)
+            console.log('✅ Auto-loaded most recent dashboard:', mostRecent.dashboard_name)
+            
+            // Show a subtle notification that dashboard was restored
+            setSnackbar({
+              open: true,
+              message: `Welcome back! Restored "${mostRecent.dashboard_name}" dashboard`,
+              severity: 'success'
+            })
+          }
+        } else {
+          console.log('ℹ️ No saved dashboards found - starting fresh')
         }
       } catch (error) {
-        console.log('ℹ️ No default dashboard found - starting fresh')
+        console.log('ℹ️ Could not auto-load dashboard:', error)
       }
     }
 
     if (user?.id) {
-      autoLoadDashboard()
+      autoLoadRecentDashboard()
     }
   }, [user?.id])
 
@@ -703,7 +832,36 @@ export default function CustomDashboardPage() {
       </Box>
 
       {/* Dashboard Grid Area */}
-      <Paper sx={{ p: 4, minHeight: 400, border: '2px dashed', borderColor: 'divider' }}>
+      <Paper sx={{ p: 4, minHeight: 400, border: '2px dashed', borderColor: 'divider', position: 'relative' }}>
+        {/* 🔄 UX IMPROVEMENT: Global loading overlay when generating charts */}
+        {isLoading && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              bgcolor: 'rgba(0, 0, 0, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1,
+              borderRadius: 1
+            }}
+          >
+            <Box sx={{ textAlign: 'center' }}>
+              <CircularProgress size={40} sx={{ mb: 2 }} />
+              <Typography variant="body1" color="text.secondary">
+                Generating chart with real data...
+              </Typography>
+              <Typography variant="caption" color="text.disabled">
+                Please wait while Smart AI analyzes your database
+              </Typography>
+            </Box>
+          </Box>
+        )}
+        
         {dashboardCards.length === 0 ? (
           <Box
             sx={{
@@ -888,13 +1046,13 @@ export default function CustomDashboardPage() {
               {presetCommands.map((command) => (
                 <Grid item xs={12} sm={6} md={4} key={command.id}>
                   <Button
-                    variant="outlined"
+                    variant={activePresetCommand === command.id ? "contained" : "outlined"}
                     size="small"
                     fullWidth
-                    startIcon={command.icon}
+                    startIcon={activePresetCommand === command.id ? <CircularProgress size={16} sx={{ color: 'inherit' }} /> : command.icon}
                     onClick={() => {
                       handlePresetCommand(command)
-                      setChatOpen(false) // Close chat after clicking
+                      // Chat stays open to show progress - will close automatically after completion if needed
                     }}
                     disabled={isLoading}
                     sx={{ 
@@ -902,12 +1060,19 @@ export default function CustomDashboardPage() {
                       textTransform: 'none',
                       py: 1,
                       px: 2,
+                      bgcolor: activePresetCommand === command.id ? 'primary.main' : undefined,
+                      color: activePresetCommand === command.id ? 'primary.contrastText' : undefined,
                       '&:hover': {
                         bgcolor: 'primary.main',
                         color: 'primary.contrastText',
                         '& .MuiSvgIcon-root': {
                           color: 'inherit'
                         }
+                      },
+                      '&.Mui-disabled': {
+                        bgcolor: activePresetCommand === command.id ? 'primary.main' : undefined,
+                        color: activePresetCommand === command.id ? 'primary.contrastText' : undefined,
+                        opacity: activePresetCommand === command.id ? 0.8 : 0.3
                       }
                     }}
                   >
@@ -1052,7 +1217,7 @@ export default function CustomDashboardPage() {
                   secondaryAction={
                     <IconButton
                       edge="end"
-                      onClick={() => handleDeleteDashboard(dashboard.name)}
+                      onClick={() => handleDeleteDashboard(dashboard.dashboard_name)}
                       color="error"
                     >
                       <DeleteIcon />
@@ -1060,14 +1225,14 @@ export default function CustomDashboardPage() {
                   }
                 >
                   <ListItemButton
-                    onClick={() => handleLoadDashboard(dashboard.name)}
+                    onClick={() => handleLoadDashboard(dashboard.dashboard_name)}
                     sx={{ borderRadius: 1 }}
                   >
                     <ListItemIcon>
                       <DashboardIcon color="primary" />
                     </ListItemIcon>
                     <ListItemText
-                      primary={dashboard.name}
+                      primary={dashboard.dashboard_name}
                       secondary={
                         <Box>
                           <Typography variant="caption" color="text.secondary">
@@ -1077,6 +1242,18 @@ export default function CustomDashboardPage() {
                           <Typography variant="caption" color="text.secondary">
                             Created: {new Date(dashboard.created_at).toLocaleDateString()}
                           </Typography>
+                          {dashboard.is_active && (
+                            <>
+                              <br />
+                              <Chip 
+                                label="Active" 
+                                size="small" 
+                                color="success" 
+                                variant="outlined"
+                                sx={{ mt: 0.5 }}
+                              />
+                            </>
+                          )}
                         </Box>
                       }
                     />

@@ -12,14 +12,14 @@ export async function POST(request: NextRequest) {
     if (action === 'save') {
       // Save or update dashboard
       const { data, error } = await supabase
-        .from('admin_dashboards')
+        .from('admin_custom_dashboards')
         .upsert({
-          user_id: userId,
-          name: dashboardName,
+          admin_user_id: userId,
+          dashboard_name: dashboardName,
           dashboard_config: dashboardConfig,
           updated_at: new Date().toISOString()
         }, {
-          onConflict: 'user_id,name'
+          onConflict: 'admin_user_id,dashboard_name'
         })
         .select()
       
@@ -35,10 +35,10 @@ export async function POST(request: NextRequest) {
     } else if (action === 'load') {
       // Load dashboard
       const { data, error } = await supabase
-        .from('admin_dashboards')
+        .from('admin_custom_dashboards')
         .select('*')
-        .eq('user_id', userId)
-        .eq('name', dashboardName)
+        .eq('admin_user_id', userId)
+        .eq('dashboard_name', dashboardName)
         .single()
       
       if (error) {
@@ -61,9 +61,9 @@ export async function POST(request: NextRequest) {
     } else if (action === 'list') {
       // List all dashboards for user
       const { data, error } = await supabase
-        .from('admin_dashboards')
-        .select('name, created_at, updated_at')
-        .eq('user_id', userId)
+        .from('admin_custom_dashboards')
+        .select('dashboard_name, created_at, updated_at, is_active')
+        .eq('admin_user_id', userId)
         .order('updated_at', { ascending: false })
       
       if (error) throw error
@@ -77,10 +77,10 @@ export async function POST(request: NextRequest) {
     } else if (action === 'delete') {
       // Delete dashboard
       const { error } = await supabase
-        .from('admin_dashboards')
+        .from('admin_custom_dashboards')
         .delete()
-        .eq('user_id', userId)
-        .eq('name', dashboardName)
+        .eq('admin_user_id', userId)
+        .eq('dashboard_name', dashboardName)
       
       if (error) throw error
       
@@ -88,6 +88,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: 'Dashboard deleted successfully'
+      })
+      
+    } else if (action === 'rename') {
+      // ENHANCED: Add rename functionality
+      const { newName } = await request.json()
+      
+      if (!newName || !newName.trim()) {
+        return NextResponse.json({
+          success: false,
+          message: 'New dashboard name is required'
+        }, { status: 400 })
+      }
+      
+      const { data, error } = await supabase
+        .from('admin_custom_dashboards')
+        .update({ 
+          dashboard_name: newName.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('admin_user_id', userId)
+        .eq('dashboard_name', dashboardName)
+        .select()
+      
+      if (error) {
+        // Check if it's a unique constraint violation
+        if (error.code === '23505') {
+          return NextResponse.json({
+            success: false,
+            message: 'A dashboard with that name already exists'
+          }, { status: 409 })
+        }
+        throw error
+      }
+      
+      if (!data || data.length === 0) {
+        return NextResponse.json({
+          success: false,
+          message: 'Dashboard not found'
+        }, { status: 404 })
+      }
+      
+      console.log('✅ Dashboard renamed successfully')
+      return NextResponse.json({
+        success: true,
+        message: 'Dashboard renamed successfully',
+        data: data[0]
       })
     }
     

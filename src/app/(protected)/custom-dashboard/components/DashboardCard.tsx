@@ -102,90 +102,23 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
         return
       }
 
-      // Enhanced data type detection based on AI-generated card configuration
-      let dataType = 'user_count' // default
-      let processing = card.content?.data?.processing || null
+      // Extract query information from AI-generated card
+      const query = card.content?.data?.query || ''
+      const processing = card.content?.data?.processing || ''
+      const source = card.content?.data?.source || 'kd_users'
       
-      const titleLower = card.title.toLowerCase()
-      const queryLower = card.content?.data?.query?.toLowerCase() || ''
-      const descriptionLower = card.content?.basic?.description?.toLowerCase() || ''
-      const aiInsights = card.content?.ai?.insights?.toLowerCase() || ''
+      console.log('📊 Calling real-data API with:', { query, processing, source })
       
-      // Smart detection for different data types
-      if (processing === 'smart_age_analysis' || 
-          titleLower.includes('age') || 
-          titleLower.includes('demographic') ||
-          descriptionLower.includes('age') || 
-          aiInsights.includes('age') ||
-          queryLower.includes('birth_date') || 
-          queryLower.includes('age')) {
-        dataType = 'user_age'
-        console.log('🎯 Detected AGE ANALYSIS request')
-      } else if (titleLower.includes('identity') || 
-                 titleLower.includes('identities') ||
-                 descriptionLower.includes('identity') ||
-                 aiInsights.includes('identity') ||
-                 queryLower.includes('kd_identity') ||
-                 queryLower.includes('identity_assessment') ||
-                 titleLower.includes('personality') ||
-                 descriptionLower.includes('assessment')) {
-        if (titleLower.includes('distribution') || titleLower.includes('type')) {
-          dataType = 'identity_distribution'
-          console.log('🧠 Detected IDENTITY DISTRIBUTION request')
-        } else {
-          dataType = 'identity_count'
-          console.log('🧠 Detected IDENTITY COUNT request')
-        }
-      } else if (titleLower.includes('active') && titleLower.includes('user')) {
-        dataType = 'active_users'
-        console.log('🎯 Detected ACTIVE USERS request')
-      } else if (titleLower.includes('conversation') || 
-                 titleLower.includes('chat') || 
-                 titleLower.includes('message') ||
-                 queryLower.includes('kd_conversation')) {
-        dataType = 'conversation_count'
-        console.log('💬 Detected CONVERSATION request')
-      } else if (titleLower.includes('country') || 
-                 titleLower.includes('geographic') || 
-                 titleLower.includes('location') ||
-                 queryLower.includes('registration_country')) {
-        dataType = 'user_geography'
-        console.log('🌍 Detected GEOGRAPHY request')
-      } else if (titleLower.includes('gender') || 
-                 queryLower.includes('gender')) {
-        dataType = 'user_gender'
-        console.log('👫 Detected GENDER request')
-      } else if (titleLower.includes('element') || 
-                 queryLower.includes('element_number')) {
-        dataType = 'user_elements'
-        console.log('🔥 Detected ELEMENT request')
-      } else if (card.type === 'chart' || 
-                 titleLower.includes('growth') || 
-                 titleLower.includes('trend') ||
-                 queryLower.includes('growth')) {
-        dataType = 'user_growth'
-        console.log('📈 Detected GROWTH request')
-      } else if (card.type === 'table' || 
-                 titleLower.includes('table') || 
-                 titleLower.includes('list') ||
-                 titleLower.includes('recent')) {
-        dataType = 'user_table'
-        console.log('📋 Detected TABLE request')
-      }
-      
-      console.log('📊 Final request params:', { dataType, processing, cardType: card.type })
-      
-      // Call server-side API for real data with enhanced parameters
+      // Call the new real-data API
       const response = await fetch('/api/dashboard/real-data', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          type: dataType,
-          cardType: card.type,
-          processing: processing,
-          cardConfig: card.content // Pass full card configuration for context
+          query,
+          processing,
+          source
         })
       })
       
@@ -196,26 +129,16 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
       }
       
       console.log('✅ Real data received:', result)
-      
-      // Format data based on type
-      if (dataType === 'user_count' || card.type === 'stat') {
-        setData([result.data])
-      } else {
-        setData(result.data)
-      }
+      setData(result.data)
       
     } catch (err) {
       console.error('❌ Real data fetch failed:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch data')
-      
-      // NO MOCK DATA - Show proper error state only
       setData(null)
     } finally {
       setLoading(false)
     }
   }
-
-
 
   useEffect(() => {
     fetchData()
@@ -271,11 +194,31 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
 
     switch (card.type) {
       case 'stat':
-        const statValue = data[0]?.count || data[0]?.total || data[0]?.value || 0
+        // Smart detection for stat values - support multiple formats
+        let statValue = 0
+        
+        console.log('📊 Stat card data received:', data)
+        
+        if (Array.isArray(data) && data.length > 0) {
+          const firstItem = data[0]
+          // Try common stat field names
+          statValue = firstItem?.count || firstItem?.total || firstItem?.value || 
+                     firstItem?.total_users || firstItem?.user_count || 
+                     firstItem?.registrations ||
+                     Object.values(firstItem).find(val => typeof val === 'number') || 0
+        } else if (typeof data === 'object' && data !== null) {
+          // Handle direct object format
+          statValue = data.count || data.total || data.value ||
+                     data.total_users || data.user_count ||
+                     Object.values(data).find(val => typeof val === 'number') || 0
+        }
+        
+        console.log('📊 Final stat value:', statValue)
+        
         return (
           <Box sx={{ textAlign: 'center', py: 3 }}>
             <Typography variant="h2" color="primary" fontWeight="bold">
-              {statValue.toLocaleString()}
+              {typeof statValue === 'number' ? statValue.toLocaleString() : statValue}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {card.content?.basic?.description || 'Total Count'}
@@ -287,9 +230,19 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
         // Handle cross-analysis data format (datasets + labels) vs regular array format
         let chartData
         
-        if (data?.datasets && data?.labels) {
-          // Cross-analysis format from API (age+gender, country+age, etc.)
-          console.log('📊 Cross-analysis data detected:', data)
+        // Check for new cross-analysis format with metadata
+        const crossAnalysisMetadata = data.find((item: any) => item._chartType)
+        
+        if (crossAnalysisMetadata) {
+          // New cross-analysis format with metadata
+          console.log('📊 Cross-analysis with metadata detected:', crossAnalysisMetadata._chartType)
+          chartData = {
+            labels: crossAnalysisMetadata._labels,
+            datasets: crossAnalysisMetadata._datasets
+          }
+        } else if (data?.datasets && data?.labels) {
+          // Legacy cross-analysis format from API (age+gender, country+age, etc.)
+          console.log('📊 Legacy cross-analysis data detected:', data)
           chartData = {
             labels: data.labels,
             datasets: data.datasets
@@ -368,9 +321,26 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
         let hasTimeData = false
         let hasCategoricalData = false
         let dataLength = 0
+        let isCrossAnalysis = false
         
-        if (data?.datasets && data?.labels) {
-          // Cross-analysis format - check labels for patterns
+        if (crossAnalysisMetadata) {
+          // New cross-analysis format with metadata
+          const labels = crossAnalysisMetadata._labels || []
+          dataLength = labels.length
+          isCrossAnalysis = true
+          
+          // Force categorical for cross-analysis
+          hasCategoricalData = true
+          
+          // Age-based cross analysis
+          hasTimeData = labels.some((label: string) => 
+            typeof label === 'string' && (label.includes('-') || label.includes('Q') || label.match(/\d{4}/))
+          )
+          
+          console.log('📊 Cross-analysis type detected:', crossAnalysisMetadata._chartType)
+          
+        } else if (data?.datasets && data?.labels) {
+          // Legacy cross-analysis format - check labels for patterns
           const labels = data.labels || []
           dataLength = labels.length
           hasTimeData = labels.some((label: string) => 
@@ -395,11 +365,16 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
           hasTimeData,
           hasCategoricalData,
           dataLength,
+          isCrossAnalysis,
           sampleLabels: chartData.labels.slice(0, 3)
         })
         
         // Override chart type for better visualization
-        if (hasCategoricalData && !hasTimeData) {
+        if (isCrossAnalysis) {
+          // Cross-analysis data (age+gender, country+age, etc.) - always use grouped bar chart
+          selectedChartType = 'bar'
+          console.log('📊 Using BAR chart for cross-analysis:', crossAnalysisMetadata?._chartType)
+        } else if (hasCategoricalData && !hasTimeData) {
           // Categorical data (age groups, countries, etc.) - use bar chart
           selectedChartType = 'bar'
           console.log('📊 Switching to BAR chart for categorical data')
