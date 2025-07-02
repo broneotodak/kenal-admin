@@ -7,7 +7,18 @@ export async function POST(request: NextRequest) {
     
     console.log('💾 Dashboard save request:', { action, userId, dashboardName })
     
-    const supabase = createSupabaseAdmin()
+    // Enhanced error handling for environment setup
+    let supabase
+    try {
+      supabase = createSupabaseAdmin()
+    } catch (envError) {
+      console.error('❌ Environment configuration error:', envError)
+      return NextResponse.json({
+        success: false,
+        error: 'Dashboard service temporarily unavailable',
+        details: 'Environment configuration issue'
+      }, { status: 503 })
+    }
     
     if (action === 'save') {
       // Save or update dashboard
@@ -23,7 +34,10 @@ export async function POST(request: NextRequest) {
         })
         .select()
       
-      if (error) throw error
+      if (error) {
+        console.error('❌ Dashboard save error:', error)
+        throw error
+      }
       
       console.log('✅ Dashboard saved successfully')
       return NextResponse.json({
@@ -49,6 +63,7 @@ export async function POST(request: NextRequest) {
             message: 'Dashboard not found'
           })
         }
+        console.error('❌ Dashboard load error:', error)
         throw error
       }
       
@@ -66,7 +81,10 @@ export async function POST(request: NextRequest) {
         .eq('admin_user_id', userId)
         .order('updated_at', { ascending: false })
       
-      if (error) throw error
+      if (error) {
+        console.error('❌ Dashboard list error:', error)
+        throw error
+      }
       
       console.log('✅ Dashboard list retrieved')
       return NextResponse.json({
@@ -82,7 +100,10 @@ export async function POST(request: NextRequest) {
         .eq('admin_user_id', userId)
         .eq('dashboard_name', dashboardName)
       
-      if (error) throw error
+      if (error) {
+        console.error('❌ Dashboard delete error:', error)
+        throw error
+      }
       
       console.log('✅ Dashboard deleted successfully')
       return NextResponse.json({
@@ -112,6 +133,7 @@ export async function POST(request: NextRequest) {
         .select()
       
       if (error) {
+        console.error('❌ Dashboard rename error:', error)
         // Check if it's a unique constraint violation
         if (error.code === '23505') {
           return NextResponse.json({
@@ -145,13 +167,22 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ Dashboard API error:', error)
     
+    // Enhanced error response with more details for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const isEnvironmentError = errorMessage.includes('SUPABASE_SERVICE_ROLE_KEY')
+    
     return NextResponse.json(
       { 
         success: false,
-        error: 'Failed to process dashboard request',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: isEnvironmentError 
+          ? 'Dashboard service configuration error' 
+          : 'Failed to process dashboard request',
+        details: isEnvironmentError 
+          ? 'Please check environment variables configuration'
+          : errorMessage,
+        timestamp: new Date().toISOString()
       },
-      { status: 500 }
+      { status: isEnvironmentError ? 503 : 500 }
     )
   }
 } 
