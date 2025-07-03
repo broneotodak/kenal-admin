@@ -923,8 +923,30 @@ export default function AnalyticsPage() {
     }
   }, [timeRange])
 
+  // Monitor tab changes for data refresh
+  useEffect(() => {
+    // Only reload if we've already done initial load and specific tabs need fresh data
+    if (hasInitiallyLoaded.current && (activeTab === 5 || activeTab === 4)) {
+      // For AI Age Analysis or Identity Network tabs, ensure fresh data
+      console.log(`🔄 Tab ${activeTab} activated - checking for data refresh`)
+      if (!loading) {
+        loadAnalyticsData()
+      }
+    }
+  }, [activeTab])
+
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue)
+    
+    // Reload data when switching to tabs that need fresh data
+    // This ensures data is refreshed when switching between tabs
+    if (newValue === 5 || newValue === 4) { // AI Age Analysis or Identity Network tabs
+      // Add loading state to prevent multiple calls
+      if (!loading) {
+        console.log(`📊 Reloading data for tab ${newValue}`)
+        loadAnalyticsData()
+      }
+    }
   }
 
   const chartOptions = {
@@ -2649,53 +2671,53 @@ export default function AnalyticsPage() {
 
                 <Grid container spacing={3} sx={{ mt: 2 }}>
                   <Grid item xs={6} sm={3}>
-                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'primary.light', borderRadius: 2 }}>
-                      <Typography variant="h4" fontWeight="bold" color="primary.dark">
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: alpha(theme.palette.primary.main, 0.1), borderRadius: 2 }}>
+                      <Typography variant="h4" fontWeight="bold" sx={{ color: theme.palette.mode === 'dark' ? '#fff' : 'primary.dark' }}>
                         {analyticsData.totalIdentities.toLocaleString()}
                       </Typography>
-                      <Typography variant="body2" fontWeight="bold">
+                      <Typography variant="body2" fontWeight="bold" sx={{ color: theme.palette.mode === 'dark' ? '#fff' : 'text.primary' }}>
                         Total Identities
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? 'grey.400' : 'text.secondary' }}>
                         From kd_identity table
                       </Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={6} sm={3}>
-                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'success.light', borderRadius: 2 }}>
-                      <Typography variant="h4" fontWeight="bold" color="success.dark">
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: alpha(theme.palette.success.main, 0.1), borderRadius: 2 }}>
+                      <Typography variant="h4" fontWeight="bold" sx={{ color: theme.palette.mode === 'dark' ? '#fff' : 'success.dark' }}>
                         406
                       </Typography>
-                      <Typography variant="body2" fontWeight="bold">
+                      <Typography variant="body2" fontWeight="bold" sx={{ color: theme.palette.mode === 'dark' ? '#fff' : 'text.primary' }}>
                         Active Creators
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? 'grey.400' : 'text.secondary' }}>
                         Users with identities
                       </Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={6} sm={3}>
-                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'warning.light', borderRadius: 2 }}>
-                      <Typography variant="h4" fontWeight="bold" color="warning.dark">
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: alpha(theme.palette.warning.main, 0.1), borderRadius: 2 }}>
+                      <Typography variant="h4" fontWeight="bold" sx={{ color: theme.palette.mode === 'dark' ? '#fff' : 'warning.dark' }}>
                         6.6
                       </Typography>
-                      <Typography variant="body2" fontWeight="bold">
+                      <Typography variant="body2" fontWeight="bold" sx={{ color: theme.palette.mode === 'dark' ? '#fff' : 'text.primary' }}>
                         Avg per User
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? 'grey.400' : 'text.secondary' }}>
                         Identities created
                       </Typography>
                     </Box>
                   </Grid>
                   <Grid item xs={6} sm={3}>
-                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'error.light', borderRadius: 2 }}>
-                      <Typography variant="h4" fontWeight="bold" color="error.dark">
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: alpha(theme.palette.error.main, 0.1), borderRadius: 2 }}>
+                      <Typography variant="h4" fontWeight="bold" sx={{ color: theme.palette.mode === 'dark' ? '#fff' : 'error.dark' }}>
                         185
                       </Typography>
-                      <Typography variant="body2" fontWeight="bold">
+                      <Typography variant="body2" fontWeight="bold" sx={{ color: theme.palette.mode === 'dark' ? '#fff' : 'text.primary' }}>
                         Power User Max
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" sx={{ color: theme.palette.mode === 'dark' ? 'grey.400' : 'text.secondary' }}>
                         Single user record
                       </Typography>
                     </Box>

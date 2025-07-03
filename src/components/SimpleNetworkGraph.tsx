@@ -133,7 +133,7 @@ export default function SimpleNetworkGraph({ isDarkMode = false }: SimpleNetwork
                   })
                 }
                 
-                console.log(`🔗 Found match: "${identity1.name}" (${identity1.birthdate}) shared by users ${identity1.user_id.slice(0,8)} and ${identity2.user_id.slice(0,8)}`)
+                // console.log(`🔗 Found match: "${identity1.name}" (${identity1.birthdate}) shared by users ${identity1.user_id.slice(0,8)} and ${identity2.user_id.slice(0,8)}`)
               }
             }
           }

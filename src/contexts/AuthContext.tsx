@@ -375,11 +375,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Clear browser storage
       try {
-        localStorage.removeItem('sb-etkuxatycjqwvfjjwxqm-auth-token')
+        // Get all localStorage keys
+        const keysToRemove = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key && (key.includes('supabase') || key.includes('sb-'))) {
+            keysToRemove.push(key)
+          }
+        }
+        
+        // Remove all Supabase-related keys
+        keysToRemove.forEach(key => {
+          localStorage.removeItem(key)
+        })
+        
+        // Also clear sessionStorage
         sessionStorage.clear()
-        console.log('✅ Browser storage cleared')
+        
+        // Clear cookies if any
+        document.cookie.split(";").forEach(function(c) { 
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
+        })
+        
+        console.log('✅ All auth storage cleared')
       } catch (storageError) {
-        console.warn('⚠️ Could not clear storage:', storageError)
+        console.warn('⚠️ Storage clear error:', storageError)
       }
       
       // Sign out from Supabase
@@ -396,8 +416,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         globalCleanup()
       }, 1000)
       
-      // Navigate to login
-      router.push('/login')
+      // Force reload to clear any in-memory state and redirect
+      if (typeof window !== 'undefined') {
+        // Use replace to prevent back button issues
+        window.location.replace('/login')
+      } else {
+        // Fallback for SSR
+        router.push('/login')
+      }
+      
       console.log('✅ Enhanced logout process completed')
       
     } catch (e) {
@@ -405,16 +432,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Even if signOut fails, we've already cleaned up local state
       globalCleanup()
       
-      // Clear storage as fallback
       try {
         localStorage.clear()
         sessionStorage.clear()
-        console.log('✅ Fallback storage clear completed')
-      } catch (storageError) {
-        console.warn('⚠️ Fallback storage clear failed:', storageError)
-      }
+      } catch {}
       
-      router.push('/login')
+      // Force redirect
+      window.location.replace('/login')
     }
   }
 

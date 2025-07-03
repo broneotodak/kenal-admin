@@ -38,10 +38,14 @@ export function createSupabaseServer() {
 
 // Admin Supabase client using service role key (for bypassing RLS)
 export function createSupabaseAdmin() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  // Support both variable names for compatibility with Netlify
+  // Note: NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY is used in production (Netlify)
+  // while SUPABASE_SERVICE_ROLE_KEY is the standard name
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 
+                         process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY
   
   if (!serviceRoleKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set in environment variables')
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY is not set in environment variables')
   }
   
   return createServerClient(

@@ -15,6 +15,7 @@ import {
   Divider,
   Stack,
   Alert,
+  AlertTitle,
   CircularProgress,
   Fab,
   Dialog,
@@ -101,6 +102,7 @@ export default function CustomDashboardPage() {
   const [loadingList, setLoadingList] = useState(false)
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' })
   const [currentDashboardName, setCurrentDashboardName] = useState('Untitled Dashboard')
+  const [migrationNeeded, setMigrationNeeded] = useState(false) // Table exists as admin_custom_dashboards
 
   // Preset commands for quick admin actions
   const presetCommands = [
@@ -531,6 +533,21 @@ export default function CustomDashboardPage() {
     setChatMessages(prev => [...prev, resizeMessage])
   }
 
+  // Check if migration is needed
+  const checkMigration = async () => {
+    try {
+      const response = await fetch('/api/dashboard/migrate')
+      const result = await response.json()
+      
+      if (!result.success && result.message === 'Manual migration required') {
+        setMigrationNeeded(true)
+        console.log('Migration SQL:', result.sql)
+      }
+    } catch (error) {
+      console.error('Migration check failed:', error)
+    }
+  }
+
   // Save dashboard functionality
   const handleSaveDashboard = async () => {
     if (!dashboardName.trim()) {
@@ -601,7 +618,12 @@ export default function CustomDashboardPage() {
       const result = await response.json()
       
       if (result.success) {
-        setSavedDashboards(result.data || [])
+        // Map dashboard_name to name for frontend compatibility
+        const mappedData = (result.data || []).map((item: any) => ({
+          ...item,
+          name: item.dashboard_name || item.name
+        }))
+        setSavedDashboards(mappedData)
       } else {
         throw new Error(result.error || 'Failed to load dashboards')
       }
@@ -696,12 +718,18 @@ export default function CustomDashboardPage() {
         const listResult = await listResponse.json()
         
         if (listResult.success && listResult.data && listResult.data.length > 0) {
+          // Map dashboard_name to name for frontend compatibility
+          const mappedData = (listResult.data || []).map((item: any) => ({
+            ...item,
+            name: item.dashboard_name || item.name
+          }))
+          
           // Find the most recently updated dashboard
-          const mostRecent = listResult.data.reduce((latest: any, current: any) => {
+          const mostRecent = mappedData.reduce((latest: any, current: any) => {
             return new Date(current.updated_at) > new Date(latest.updated_at) ? current : latest
           })
 
-          console.log('📂 Loading most recent dashboard:', mostRecent.dashboard_name)
+          console.log('📂 Loading most recent dashboard:', mostRecent.name)
 
           // Load the most recent dashboard
           const loadResponse = await fetch('/api/dashboard/save', {
@@ -710,7 +738,7 @@ export default function CustomDashboardPage() {
             body: JSON.stringify({
               action: 'load',
               userId: user?.id,
-              dashboardName: mostRecent.dashboard_name
+              dashboardName: mostRecent.name
             })
           })
 
@@ -718,21 +746,27 @@ export default function CustomDashboardPage() {
           
           if (loadResult.success && loadResult.data) {
             setDashboardCards(loadResult.data.cards || [])
-            setCurrentDashboardName(mostRecent.dashboard_name)
-            console.log('✅ Auto-loaded most recent dashboard:', mostRecent.dashboard_name)
+            setCurrentDashboardName(mostRecent.name)
+            console.log('✅ Auto-loaded most recent dashboard:', mostRecent.name)
             
             // Show a subtle notification that dashboard was restored
             setSnackbar({
               open: true,
-              message: `Welcome back! Restored "${mostRecent.dashboard_name}" dashboard`,
+              message: `Welcome back! Restored "${mostRecent.name}" dashboard`,
               severity: 'success'
             })
           }
         } else {
           console.log('ℹ️ No saved dashboards found - starting fresh')
+          // Check if migration is needed
+          checkMigration()
         }
       } catch (error) {
         console.log('ℹ️ Could not auto-load dashboard:', error)
+        // Check if migration is needed in case of error
+        if (error instanceof Error && error.message.includes('relation')) {
+          checkMigration()
+        }
       }
     }
 
@@ -753,6 +787,29 @@ export default function CustomDashboardPage() {
 
   return (
     <Box sx={{ p: 3, minHeight: '100vh', bgcolor: 'background.default' }}>
+      {/* Migration Notice */}
+      {migrationNeeded && (
+        <Alert 
+          severity="warning" 
+          sx={{ mb: 3 }}
+          action={
+            <Button 
+              color="inherit" 
+              size="small"
+              onClick={() => {
+                window.open('https://supabase.com/dashboard/project/etkuxatycjqwvfjjwxqm/sql', '_blank')
+              }}
+            >
+              Open Supabase SQL Editor
+            </Button>
+          }
+        >
+          <AlertTitle>Database Migration Required</AlertTitle>
+          The dashboard save feature requires a database table that doesn't exist yet. 
+          Please run the migration script in Supabase SQL editor. Check the browser console for the SQL script.
+        </Alert>
+      )}
+
       {/* Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Box>
