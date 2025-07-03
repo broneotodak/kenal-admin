@@ -474,6 +474,18 @@ Generate SQL and visualization config:`
       }
     }
     
+    // 🔥 NEW: Handle gender, age group, and element number analysis (3D)
+    if (sql.includes('WITH age_groups') && sql.includes('gender') && sql.includes('age_group') && sql.includes('element_number')) {
+      console.log('🎯 Processing 3D analysis: gender + age group + element number...')
+      return await this.processGenderAgeElementAnalysis(supabase)
+    }
+    
+    // 🔥 NEW: Handle gender and age group analysis specifically (2D)
+    if (sql.includes('WITH age_groups') && sql.includes('gender') && sql.includes('age_group')) {
+      console.log('🎯 Processing gender and age group analysis...')
+      return await this.processGenderAgeGroupAnalysis(supabase)
+    }
+    
     // For complex CTE queries (WITH clauses), try SQL execution first
     if (sql.includes('WITH ') && sql.includes('top_countries')) {
       console.log('🔄 Attempting CTE query execution via RPC...')
@@ -673,6 +685,184 @@ Generate SQL and visualization config:`
   }
 
   /**
+   * Process gender and age group analysis specifically
+   */
+  private async processGenderAgeGroupAnalysis(supabase: any): Promise<any[]> {
+    console.log('🎯 Processing gender and age group analysis manually...')
+    
+    try {
+      const { data, error } = await supabase
+        .from('kd_users')
+        .select('gender, birth_date')
+        .not('gender', 'is', null)
+        .not('birth_date', 'is', null)
+        
+      if (error) throw error
+      
+      // Process each row to calculate age groups
+      const processedData = data.reduce((acc: any, row: any) => {
+        const birthDate = new Date(row.birth_date)
+        const today = new Date()
+        const age = today.getFullYear() - birthDate.getFullYear()
+        
+        // Determine age group
+        let ageGroup = '50+'
+        if (age < 20) ageGroup = '<20'
+        else if (age < 30) ageGroup = '20-29'
+        else if (age < 40) ageGroup = '30-39'
+        else if (age < 50) ageGroup = '40-49'
+        
+        const key = `${row.gender}-${ageGroup}`
+        if (!acc[key]) {
+          acc[key] = {
+            gender: row.gender,
+            age_group: ageGroup,
+            count: 0
+          }
+        }
+        acc[key].count++
+        return acc
+      }, {})
+      
+      // Convert to array and sort by gender then age group
+      const result = Object.values(processedData).sort((a: any, b: any) => {
+        if (a.gender === b.gender) {
+          // Sort age groups properly: <20, 20-29, 30-39, 40-49, 50+
+          const ageOrder = ['<20', '20-29', '30-39', '40-49', '50+']
+          return ageOrder.indexOf(a.age_group) - ageOrder.indexOf(b.age_group)
+        }
+        return a.gender.localeCompare(b.gender)
+      })
+      
+      console.log('✅ Gender and age group analysis result:', result.slice(0, 5))
+      return result
+      
+    } catch (error) {
+      console.error('❌ Gender and age group analysis failed:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Process 3D analysis: gender, age group, and element number with SMART INTELLIGENCE
+   */
+  private async processGenderAgeElementAnalysis(supabase: any): Promise<any[]> {
+    console.log('🎯 Processing 3D analysis: gender + age group + element number with smart aggregation...')
+    
+    try {
+      const { data, error } = await supabase
+        .from('kd_users')
+        .select('gender, birth_date, element_number')
+        .not('gender', 'is', null)
+        .not('birth_date', 'is', null)
+        .not('element_number', 'is', null)
+        
+      if (error) throw error
+      
+      // Process each row to calculate age groups and create 3D structure
+      const processedData = data.reduce((acc: any, row: any) => {
+        const birthDate = new Date(row.birth_date)
+        const today = new Date()
+        const age = today.getFullYear() - birthDate.getFullYear()
+        
+        // Determine age group
+        let ageGroup = '50+'
+        if (age < 20) ageGroup = '<20'
+        else if (age < 30) ageGroup = '20-29'
+        else if (age < 40) ageGroup = '30-39'
+        else if (age < 50) ageGroup = '40-49'
+        
+        // Create unique key for 3D combination
+        const key = `${row.gender}-${ageGroup}-${row.element_number}`
+        if (!acc[key]) {
+          acc[key] = {
+            gender: row.gender,
+            age_group: ageGroup,
+            element_number: row.element_number,
+            user_count: 0
+          }
+        }
+        acc[key].user_count++
+        return acc
+      }, {})
+      
+      // Convert to array and sort by count (most popular first)
+      const allResults = Object.values(processedData).sort((a: any, b: any) => b.user_count - a.user_count)
+      
+      // 🧠 SMART INTELLIGENCE: Analyze data characteristics and adapt
+      console.log('🧠 Smart Data Analysis:')
+      console.log('- Total combinations:', allResults.length)
+      console.log('- Top combination count:', (allResults[0] as any)?.user_count || 0)
+      console.log('- Data distribution:', allResults.slice(0, 3).map((r: any) => `${r.gender} ${r.age_group} E${r.element_number}: ${r.user_count}`))
+      
+      // 🎯 INTELLIGENT STRATEGY: Focus on TOP elements to avoid overwhelming chart
+      const elementPopularity = allResults.reduce((acc: any, item: any) => {
+        acc[item.element_number] = (acc[item.element_number] || 0) + item.user_count
+        return acc
+      }, {} as any)
+      
+      const topElements = Object.entries(elementPopularity as any)
+        .sort(([,a], [,b]) => (b as number) - (a as number))
+        .slice(0, 5) // Top 5 most popular elements
+        .map(([element]) => parseInt(element))
+      
+      console.log('🎯 Smart filtering: Focusing on top 5 elements:', topElements)
+      
+      // Filter to only show top elements + create "Others" category
+      const filteredResults = allResults.filter((item: any) => topElements.includes(item.element_number))
+      
+      // Calculate "Others" category for remaining elements
+      const othersData = allResults.filter((item: any) => !topElements.includes(item.element_number))
+      const othersGrouped = othersData.reduce((acc: any, item: any) => {
+        const key = `${item.gender}-${item.age_group}`
+        acc[key] = (acc[key] || 0) + item.user_count
+        return acc
+      }, {} as any)
+      
+      // Add "Others" category if significant
+      Object.entries(othersGrouped as any).forEach(([key, count]) => {
+        if ((count as number) > 0) {
+          const [gender, age_group] = key.split('-')
+          filteredResults.push({
+            gender,
+            age_group,
+            element_number: 'Others',
+            user_count: count as number
+          })
+        }
+      })
+      
+      // Final sort by gender, age group, then element preference
+      const result = filteredResults.sort((a: any, b: any) => {
+        // Primary sort: gender
+        if (a.gender !== b.gender) {
+          return a.gender.localeCompare(b.gender)
+        }
+        
+        // Secondary sort: age group
+        if (a.age_group !== b.age_group) {
+          const ageOrder = ['<20', '20-29', '30-39', '40-49', '50+']
+          return ageOrder.indexOf(a.age_group) - ageOrder.indexOf(b.age_group)
+        }
+        
+        // Tertiary sort: element number (Others last)
+        if (a.element_number === 'Others') return 1
+        if (b.element_number === 'Others') return -1
+        return a.element_number - b.element_number
+      })
+      
+      console.log('✅ Smart 3D analysis result (filtered for readability):', result.slice(0, 5))
+      console.log('📊 Reduced from', allResults.length, 'to', result.length, 'data points for better visualization')
+      
+      return result
+      
+    } catch (error) {
+      console.error('❌ 3D Gender + Age + Element analysis failed:', error)
+      throw error
+    }
+  }
+
+  /**
    * STEP 4: Generate Final Dashboard Card Configuration
    */
   private generateDashboardCard(
@@ -751,36 +941,38 @@ Generate SQL and visualization config:`
          finalValueColumn: valueColumn
        })
 
-      // Detect dimension columns - ONLY relevant visualization columns
-      const relevantDimensions = [
-        'element_number', 'registration_country', 'gender', 'age', 'user_type',
-        'element_type', 'language', 'registration_state', 'registration_city',
-        'created_at', 'month', 'year', 'week', 'day'
-      ]
+      // 🔥 CRITICAL FIX: Only analyze columns from ACTUAL query results
+      // For time-series, detect labels properly
+      const isTimeSeries = columns.some(col => 
+        col.includes('month_label') || col.includes('date_label') || 
+        col.includes('time_period') || col === 'month'
+      )
       
       const dimensionColumns = columns.filter(col => {
         // Exclude the value column
         if (col === valueColumn) return false
         
-        // For GROUP BY results, prioritize the actual grouping columns
-        const isGroupingColumn = col === 'gender' || col === 'element_number' || 
+        // Skip numeric/aggregated columns
+        const isNumericColumn = col.includes('count') || col.includes('total') || 
+                               col.includes('sum') || col.includes('avg') ||
+                               col.includes('users') || col.includes('cumulative') ||
+                               col === 'new_users' || col === 'value'
+        
+        if (isNumericColumn) return false
+        
+        // For time-series data, only use the label column
+        if (isTimeSeries) {
+          return col.includes('month_label') || col.includes('date_label') || 
+                 col.includes('time_period') || col === 'month' || col === 'year'
+        }
+        
+        // For GROUP BY results, use actual grouping columns from query
+        const isGroupingColumn = col === 'gender' || col === 'age_group' || col === 'element_number' || 
                                 col === 'registration_country' || col === 'language' ||
                                 col === 'user_type' || col === 'element_type'
         
-        // Standard relevant dimensions for complex queries
-        const isRelevantDimension = relevantDimensions.includes(col) || 
-                                   col.includes('_at') || col.includes('date') ||
-                                   col.includes('country') || col.includes('element') ||
-                                   col.includes('type') || col.includes('gender')
-        
-        // Exclude complex data columns
-        const isComplexData = col.includes('pola_') || col.includes('device_') ||
-                             col.includes('_data') || col.includes('hijri') ||
-                             col.includes('timezone') || col.includes('ip')
-        
-        // Prioritize grouping columns for GROUP BY queries
-        return (isGroupingColumn || isRelevantDimension) && !isComplexData
-       }).slice(0, 3) // PERFORMANCE LIMIT: Max 3 dimensions to prevent slowdowns
+        return isGroupingColumn
+      }).slice(0, 3) // PERFORMANCE LIMIT: Max 3 dimensions to prevent slowdowns
       
       console.log('🔍 Data structure analysis:', {
         columns,
@@ -800,40 +992,90 @@ Generate SQL and visualization config:`
       if (dimensionColumns.length >= 2) {
         console.log('📊 Multi-dimensional analysis detected:', dimensionColumns)
         
-        // Create cross-analysis format for charts
-        const dimension1 = dimensionColumns[0] // e.g., element_number
-        const dimension2 = dimensionColumns[1] // e.g., registration_country
-        
-        // Get unique values for each dimension
-        const dim1Values = [...new Set(queryResult.map(row => row[dimension1]))].sort()
-        const dim2Values = [...new Set(queryResult.map(row => row[dimension2]))].sort()
-        
-        // Build cross-analysis datasets
-        const datasets = dim1Values.map((dim1Value, index) => {
-          const data = dim2Values.map(dim2Value => {
-            const matchingRow = queryResult.find(row => 
-              row[dimension1] === dim1Value && row[dimension2] === dim2Value
-            )
-            return matchingRow ? matchingRow[valueColumn] : 0
+        if (dimensionColumns.length >= 3) {
+          // 3+ Dimensional Analysis: Use first 2 dims for chart, 3rd+ for series grouping
+          console.log('📊 3+ Dimensional analysis: Using enhanced grouping')
+          
+          const dimension1 = dimensionColumns[0] // Primary axis (e.g., age_group)
+          const dimension2 = dimensionColumns[1] // Series grouping (e.g., gender) 
+          const dimension3 = dimensionColumns[2] // Sub-grouping (e.g., element_number)
+          
+          // Get unique values for primary dimensions
+          const dim1Values = [...new Set(queryResult.map(row => row[dimension1]))].sort()
+          const dim2Values = [...new Set(queryResult.map(row => row[dimension2]))].sort()
+          
+          // For 3+ dimensions, create combined series labels
+          const combinedSeriesMap = new Map()
+          queryResult.forEach(row => {
+            const seriesKey = `${row[dimension2]} (${dimension3}: ${row[dimension3]})`
+            const dim1Key = row[dimension1]
+            const mapKey = `${seriesKey}-${dim1Key}`
+            
+            if (!combinedSeriesMap.has(seriesKey)) {
+              combinedSeriesMap.set(seriesKey, new Map())
+            }
+            combinedSeriesMap.get(seriesKey).set(dim1Key, row[valueColumn])
           })
           
-          return {
-            label: `${dimension1.includes('element') ? 'Element' : ''} ${dim1Value}`,
-            data,
-            backgroundColor: this.getChartColors(chartType)[index % 10],
-            borderColor: this.getChartColors(chartType)[index % 10],
-            borderWidth: 2
-          }
-        })
-        
-        // Cross-analysis format with metadata
-        processedData = [{
-          _chartType: 'multi-dimensional-cross',
-          _labels: dim2Values.map(val => 
-            typeof val === 'string' && val.length > 15 ? val.substring(0, 15) + '...' : val
-          ),
-          _datasets: datasets
-        }]
+          // Build datasets for 3+ dimensional data
+          const datasets = Array.from(combinedSeriesMap.entries()).map(([seriesLabel, dataMap], index) => {
+            const data = dim1Values.map(dim1Value => dataMap.get(dim1Value) || 0)
+            
+            return {
+              label: seriesLabel,
+              data,
+              backgroundColor: this.getChartColors(chartType)[index % 10],
+              borderColor: this.getChartColors(chartType)[index % 10],
+              borderWidth: 2
+            }
+          })
+          
+          // 3D Cross-analysis format with metadata
+          processedData = [{
+            _chartType: '3d-multi-dimensional-cross',
+            _labels: dim1Values.map(val => 
+              typeof val === 'string' && val.length > 15 ? val.substring(0, 15) + '...' : val
+            ),
+            _datasets: datasets,
+            _dimensions: dimensionColumns
+          }]
+          
+        } else {
+          // 2D Analysis (existing logic)
+          const dimension1 = dimensionColumns[0] // e.g., gender
+          const dimension2 = dimensionColumns[1] // e.g., age_group
+          
+          // Get unique values for each dimension
+          const dim1Values = [...new Set(queryResult.map(row => row[dimension1]))].sort()
+          const dim2Values = [...new Set(queryResult.map(row => row[dimension2]))].sort()
+          
+          // Build cross-analysis datasets
+          const datasets = dim1Values.map((dim1Value, index) => {
+            const data = dim2Values.map(dim2Value => {
+              const matchingRow = queryResult.find(row => 
+                row[dimension1] === dim1Value && row[dimension2] === dim2Value
+              )
+              return matchingRow ? matchingRow[valueColumn] : 0
+            })
+            
+            return {
+              label: `${dimension1.includes('element') ? 'Element' : ''} ${dim1Value}`,
+              data,
+              backgroundColor: this.getChartColors(chartType)[index % 10],
+              borderColor: this.getChartColors(chartType)[index % 10],
+              borderWidth: 2
+            }
+          })
+          
+          // 2D Cross-analysis format with metadata
+          processedData = [{
+            _chartType: 'multi-dimensional-cross',
+            _labels: dim2Values.map(val => 
+              typeof val === 'string' && val.length > 15 ? val.substring(0, 15) + '...' : val
+            ),
+            _datasets: datasets
+          }]
+        }
         
         // Force bar chart for cross-analysis
         chartType = 'bar'
@@ -863,13 +1105,39 @@ Generate SQL and visualization config:`
       }
     }
 
+    // 🧠 SMART CHART SIZING: Automatically adjust size based on data complexity
+    let chartWidth = chartType === 'stat' ? 4 : 6
+    let chartHeight = chartType === 'stat' ? 3 : 4
+    
+    // Intelligent sizing based on actual chart complexity, not raw data
+    const firstDataItem = Array.isArray(processedData) && processedData.length > 0 ? processedData[0] : null
+    const hasMultipleSeries = firstDataItem && '_datasets' in firstDataItem && firstDataItem._datasets?.length > 1
+    const dataPoints: number = firstDataItem && '_labels' in firstDataItem 
+      ? (firstDataItem._labels as any[])?.length || 0
+      : Array.isArray(processedData) ? processedData.length : 0
+    const isTimeSeries = sqlConfig.sql.includes('month') || sqlConfig.sql.includes('date_trunc')
+    
+    if (hasMultipleSeries && firstDataItem && '_datasets' in firstDataItem && firstDataItem._datasets?.length > 5) {
+      console.log('🎯 Complex multi-series chart: Using extra large size')
+      chartWidth = 12  // Much wider for multiple series
+      chartHeight = 8  // Much taller for better series visibility
+    } else if (isTimeSeries && dataPoints >= 6) {
+      console.log('🎯 Time-series chart: Using optimal size for trend visibility')
+      chartWidth = 8   // Good width for time trends
+      chartHeight = 5  // Standard height for time series
+    } else if (hasMultipleSeries || dataPoints > 20) {
+      console.log('🎯 Multi-dimensional data: Using large chart size')
+      chartWidth = 10
+      chartHeight = 6
+    }
+
     // Generate card configuration - MATCH DashboardCard component interface
     const cardConfig = {
       id: `ai_${Date.now()}`, // Generate unique ID
       title: sqlConfig.title,
       type: chartType === 'bar' || chartType === 'line' || chartType === 'pie' || chartType === 'doughnut' ? 'chart' : chartType, // Map chart types to component types
       position: { x: 0, y: 0 },
-      size: { width: chartType === 'stat' ? 4 : 6, height: chartType === 'stat' ? 3 : 4 },
+      size: { width: chartWidth, height: chartHeight },
       content: {
         basic: {
           description: sqlConfig.description
@@ -1013,7 +1281,7 @@ Generate SQL and visualization config:`
     
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 25000) // 25 second timeout
       
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
