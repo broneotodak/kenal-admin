@@ -363,18 +363,26 @@ export class AIService {
   private getEnhancedCountryCard(analysis: any, prompt: string): any {
     const baseCard = this.getGeographicCard(prompt)
     
-    if (analysis.intent === 'monitor') {
-      baseCard.basic.title = "Geographic Expansion Monitoring"
-      baseCard.basic.description = "Track user acquisition across different countries"
-      baseCard.data.refresh_interval = 60 // More frequent for monitoring
+    // Create a new card structure to avoid TypeScript issues
+    const enhancedCard = {
+      ...baseCard,
+      basic: {
+        ...baseCard.basic,
+        title: analysis.intent === 'monitor' ? "Geographic Expansion Monitoring" : baseCard.basic.title,
+        description: analysis.intent === 'monitor' ? "Track user acquisition across different countries" : baseCard.basic.description
+      },
+      data: {
+        source: "kd_users",
+        query: "SELECT registration_country, COUNT(*) as value FROM kd_users WHERE registration_country IS NOT NULL GROUP BY registration_country ORDER BY value DESC LIMIT 10",
+        refresh_interval: analysis.intent === 'monitor' ? 60 : baseCard.data.refresh_interval
+      },
+      ai: {
+        ...baseCard.ai,
+        enhanced_analysis: analysis
+      }
     }
     
-    // Add proper query for real data
-    baseCard.data.query = "SELECT registration_country, COUNT(*) as value FROM kd_users WHERE registration_country IS NOT NULL GROUP BY registration_country ORDER BY value DESC LIMIT 10"
-    baseCard.data.source = "kd_users"
-    
-    (baseCard.ai as any).enhanced_analysis = analysis
-    return baseCard
+    return enhancedCard
   }
 
   /**
@@ -492,71 +500,91 @@ export class AIService {
   private getEnhancedUserCountCard(analysis: any, prompt: string): any {
     const baseCard = this.getUserCountCard(prompt)
     
+    let query = "SELECT COUNT(*) as value FROM kd_users"
+    let title = baseCard.basic.title
+    let description = baseCard.basic.description
+    
     if (analysis.dataScope === 'active') {
-      baseCard.basic.title = "Active Users"
-      baseCard.basic.description = "Currently active user count"
-      baseCard.data.query = "SELECT COUNT(*) as value FROM kd_users WHERE is_active = true"
+      title = "Active Users"
+      description = "Currently active user count"
+      query = "SELECT COUNT(*) as value FROM kd_users WHERE is_active = true"
     } else if (analysis.dataScope === 'recent') {
-      baseCard.basic.title = "Recent Registrations"
-      baseCard.basic.description = "Users who joined in the last 30 days"
-      baseCard.data.query = "SELECT COUNT(*) as value FROM kd_users WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'"
-    } else {
-      baseCard.data.query = "SELECT COUNT(*) as value FROM kd_users"
+      title = "Recent Registrations"
+      description = "Users who joined in the last 30 days"
+      query = "SELECT COUNT(*) as value FROM kd_users WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'"
     }
     
-    baseCard.data.source = "kd_users"
-    (baseCard.ai as any).enhanced_analysis = analysis
-    return baseCard
+    return {
+      ...baseCard,
+      basic: { ...baseCard.basic, title, description },
+      data: { ...baseCard.data, source: "kd_users", query },
+      ai: { ...baseCard.ai, enhanced_analysis: analysis }
+    }
   }
 
   private getEnhancedGenderCard(analysis: any, prompt: string): any {
     const baseCard = this.getGenderCard(prompt)
-    baseCard.data.query = "SELECT gender, COUNT(*) as value FROM kd_users WHERE gender IS NOT NULL GROUP BY gender ORDER BY value DESC"
-    baseCard.data.source = "kd_users"
-    if (baseCard.ai) {
-      (baseCard.ai as any).enhanced_analysis = analysis
+    return {
+      ...baseCard,
+      data: {
+        ...baseCard.data,
+        source: "kd_users",
+        query: "SELECT gender, COUNT(*) as value FROM kd_users WHERE gender IS NOT NULL GROUP BY gender ORDER BY value DESC"
+      },
+      ai: { ...baseCard.ai, enhanced_analysis: analysis }
     }
-    return baseCard
   }
 
   private getEnhancedElementCard(analysis: any, prompt: string): any {
     const baseCard = this.getElementCard(prompt)
-    baseCard.data.query = "SELECT element_number, COUNT(*) as value FROM kd_users WHERE element_number IS NOT NULL GROUP BY element_number ORDER BY element_number"
-    baseCard.data.source = "kd_users"
-    if (baseCard.ai) {
-      (baseCard.ai as any).enhanced_analysis = analysis
+    return {
+      ...baseCard,
+      data: {
+        ...baseCard.data,
+        source: "kd_users",
+        query: "SELECT element_number, COUNT(*) as value FROM kd_users WHERE element_number IS NOT NULL GROUP BY element_number ORDER BY element_number"
+      },
+      ai: { ...baseCard.ai, enhanced_analysis: analysis }
     }
-    return baseCard
   }
 
   private getEnhancedIdentityCard(analysis: any, prompt: string): any {
     const baseCard = this.getIdentityCountCard(prompt)
-    baseCard.data.query = "SELECT COUNT(*) as value FROM kd_identity"
-    baseCard.data.source = "kd_identity"
-    if (baseCard.ai) {
-      (baseCard.ai as any).enhanced_analysis = analysis
+    return {
+      ...baseCard,
+      data: {
+        ...baseCard.data,
+        source: "kd_identity",
+        query: "SELECT COUNT(*) as value FROM kd_identity"
+      },
+      ai: { ...baseCard.ai, enhanced_analysis: analysis }
     }
-    return baseCard
   }
 
   private getEnhancedTimeCard(analysis: any, prompt: string): any {
     const baseCard = this.getGrowthCard(prompt)
-    baseCard.data.query = "SELECT DATE_TRUNC('month', created_at) as month, COUNT(*) as value FROM kd_users GROUP BY month ORDER BY month"
-    baseCard.data.source = "kd_users"
-    if (baseCard.ai) {
-      (baseCard.ai as any).enhanced_analysis = analysis
+    return {
+      ...baseCard,
+      data: {
+        ...baseCard.data,
+        source: "kd_users",
+        query: "SELECT DATE_TRUNC('month', created_at) as month, COUNT(*) as value FROM kd_users GROUP BY month ORDER BY month"
+      },
+      ai: { ...baseCard.ai, enhanced_analysis: analysis }
     }
-    return baseCard
   }
 
   private getEnhancedGrowthCard(analysis: any, prompt: string): any {
     const baseCard = this.getGrowthCard(prompt)
-    baseCard.data.query = "SELECT DATE_TRUNC('month', created_at) as month, COUNT(*) as value FROM kd_users GROUP BY month ORDER BY month"
-    baseCard.data.source = "kd_users"
-    if (baseCard.ai) {
-      (baseCard.ai as any).enhanced_analysis = analysis
+    return {
+      ...baseCard,
+      data: {
+        ...baseCard.data,
+        source: "kd_users",
+        query: "SELECT DATE_TRUNC('month', created_at) as month, COUNT(*) as value FROM kd_users GROUP BY month ORDER BY month"
+      },
+      ai: { ...baseCard.ai, enhanced_analysis: analysis }
     }
-    return baseCard
   }
 
   /**
