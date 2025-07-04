@@ -161,14 +161,21 @@ export function useFeedback() {
     setSubmitting(true)
     try {
       const priorityMap = {
-        urgent: 5,
-        bug: 4,
-        feature: 3,
-        general: 3
+        urgent: 1,    // Highest priority
+        bug: 2,       // High priority
+        feature: 3,   // Normal priority
+        general: 3    // Normal priority
       }
 
       console.log('🔍 Attempting insert with content length:', data.description.length)
       console.log('🔍 Content preview:', data.description.substring(0, 100) + '...')
+      
+      const priorityValue = data.priority || priorityMap[data.type]
+      console.log('🔍 Priority mapping:', { 
+        type: data.type, 
+        mappedPriority: priorityMap[data.type],
+        finalPriority: priorityValue
+      })
       
       const { data: result, error } = await supabase
         .from('kd_problem_updates')
@@ -178,7 +185,7 @@ export function useFeedback() {
           type: data.type,
           status: 'pending',
           project: data.project,
-          priority: data.priority || priorityMap[data.type],
+          priority: priorityValue,
           created_by: user.id
         })
         .select()

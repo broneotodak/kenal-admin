@@ -62,6 +62,8 @@ export default function FeedbackForm({
       
       if (success) {
         // Send ntfy notification
+        // Note: ntfy uses 1-5 scale where 5 is highest priority
+        // This is different from database priority where 1 is highest
         const priorityMap: Record<string, 1 | 2 | 3 | 4 | 5> = {
           urgent: 5,
           bug: 4,
