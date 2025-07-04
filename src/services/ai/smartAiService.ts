@@ -268,26 +268,80 @@ CRITICAL: Respond with ONLY valid JSON. No explanatory text before or after.
 RESPONSE FORMAT (JSON only):
 {
   "sql": "SELECT statement here",
-  "chartType": "bar|line|pie|doughnut|stat|table",
+  "chartType": "bar|line|pie|doughnut|stat|table|radar|polarArea|scatter|bubble",
   "title": "Chart title",
   "description": "What this shows",
   "reasoning": "Why this SQL and chart type"
 }
 
-RULES:
+CHART TYPE SELECTION GUIDE:
+1. **PIE/DOUGHNUT** - Use when:
+   - User asks for: "pie chart", "distribution", "breakdown", "composition", "percentage", "share", "portion"
+   - Showing parts of a whole (must sum to 100%)
+   - 2-8 categories only
+   - Examples: "Show gender distribution as pie chart", "Element breakdown"
+
+2. **BAR** - Use when:
+   - User asks for: "bar chart", "comparison", "ranking", "top X", "by category"
+   - Comparing discrete categories
+   - Showing rankings or top performers
+   - Cross-analysis (multiple dimensions)
+   - Examples: "Compare users by country", "Top 10 countries"
+
+3. **LINE** - Use when:
+   - User asks for: "trend", "over time", "growth", "timeline", "history", "progression"
+   - Time series data (dates/months/years on X-axis)
+   - Showing trends or changes over time
+   - Examples: "User growth over time", "Monthly registrations"
+
+4. **STAT** - Use when:
+   - User asks for: "total", "count", "sum", "average", "single number"
+   - Single numeric value needed
+   - KPIs or metrics
+   - Examples: "Total users", "Average age"
+
+5. **TABLE** - Use when:
+   - User asks for: "list", "table", "details", "show me users", "records"
+   - Detailed record view needed
+   - Multiple columns of data
+   - Examples: "List recent users", "Show user details"
+
+6. **DOUGHNUT** - Use when:
+   - Similar to pie but user wants modern look
+   - User specifically mentions "doughnut" or "donut"
+
+7. **RADAR** - Use when:
+   - User asks for: "radar", "spider", "web chart", "multi-dimensional comparison"
+   - Comparing multiple metrics for entities
+   - Example: "Compare element strengths"
+
+8. **SCATTER** - Use when:
+   - User asks for: "correlation", "relationship between", "scatter plot"
+   - Showing relationship between two numeric variables
+   - Example: "Age vs activity correlation"
+
+NATURAL LANGUAGE UNDERSTANDING:
+- "Show me" → Determine chart type from data nature
+- "How many" → Usually STAT or BAR
+- "Compare" → BAR or RADAR
+- "Over time" → LINE
+- "Breakdown" / "Distribution" → PIE or DOUGHNUT
+- "List of" → TABLE
+- "Trend" → LINE
+- "Top/Best/Most" → BAR with ORDER BY DESC
+- "By [category]" → BAR grouped by that category
+- "Percentage" → PIE/DOUGHNUT with percentage calculations
+
+SQL GENERATION RULES:
 1. Use real column names from schema above
 2. Include proper WHERE clauses for data quality (exclude nulls if needed)  
 3. Use appropriate aggregations (COUNT, SUM, AVG, etc.)
-4. Choose chart type based on data nature:
-   - COUNT queries → stat or bar
-   - Time series → line  
-   - Categories → bar or pie
-   - Cross-analysis → bar (grouped)
-5. Add LIMIT for large datasets
-6. Use JOIN for multi-table queries when needed
-7. AVOID using 'active', 'is_active' or 'status' fields - they may not exist
-8. Prefer using existing data without activity filters unless confirmed in schema
-9. For complex queries with CTEs, ensure they work with Supabase/PostgreSQL
+4. Add LIMIT for large datasets
+5. Use JOIN for multi-table queries when needed
+6. AVOID using 'active', 'is_active' or 'status' fields - they may not exist
+7. For PIE/DOUGHNUT charts, ensure data represents parts of whole
+8. For TIME series, use DATE_TRUNC for proper grouping
+9. Always ORDER BY for rankings/top X queries
 10. RESPOND WITH ONLY JSON - NO EXPLANATORY TEXT
 
 Generate SQL and visualization config:`

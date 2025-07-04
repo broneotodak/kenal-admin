@@ -83,7 +83,7 @@ export default function CustomDashboardPage() {
     {
       id: '1',
       type: 'assistant',
-      content: 'Hello! I\'m your AI assistant. I can help you create custom dashboard cards with data from your KENAL system. Try asking me something like:\n\n• "Show me total users"\n• "Create a chart of user growth"\n• "Display users by country"\n• "Show recent registrations"',
+      content: 'Hello! I\'m your AI assistant. I can help you create custom dashboard cards with data from your KENAL system. Try asking me something like:\n\n**📊 Basic Requests:**\n• "Show me total users"\n• "How many users registered this month?"\n• "List recent registrations"\n\n**📈 Trends & Analytics:**\n• "Show user growth trend over time"\n• "Display monthly registration trend"\n• "What\'s the registration pattern?"\n\n**🥧 Distributions & Breakdowns:**\n• "Show gender distribution as pie chart"\n• "Display element breakdown as doughnut chart"\n• "What percentage of users are from each country?"\n\n**📊 Comparisons & Rankings:**\n• "Compare users by country"\n• "Show top 10 countries by user count"\n• "Rank elements by popularity"\n\n**🎯 Specific Chart Types:**\n• "Create a pie chart of gender distribution"\n• "Show age groups in a bar chart"\n• "Display user growth as a line chart"\n• "Make a doughnut chart of element types"\n\n💡 **Pro tip:** I understand natural language! Just describe what you want to see and I\'ll choose the best visualization for you.',
       timestamp: new Date()
     }
   ])

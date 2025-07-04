@@ -34,7 +34,7 @@ import {
   Edit as EditIcon,
   Visibility as ViewIcon,
 } from '@mui/icons-material'
-import { Line, Bar, Pie, Doughnut } from 'react-chartjs-2'
+import { Line, Bar, Pie, Doughnut, Radar, Scatter, PolarArea, Bubble } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -46,6 +46,8 @@ import {
   Title,
   Tooltip,
   Legend,
+  RadialLinearScale,
+  Filler,
 } from 'chart.js'
 import { supabase } from '@/lib/supabase'
 
@@ -62,7 +64,9 @@ ChartJS.register(
   ArcElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  RadialLinearScale,
+  Filler
 )
 
 interface DashboardCardProps {
@@ -388,13 +392,58 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
           console.log('📊 Using chart type for small categorical data:', selectedChartType)
         }
 
-        const ChartComponent = selectedChartType === 'bar' ? Bar :
-                              selectedChartType === 'pie' ? Pie :
-                              selectedChartType === 'doughnut' ? Doughnut : Line
+        // Map chart type to component
+        const ChartComponent = 
+          selectedChartType === 'bar' ? Bar :
+          selectedChartType === 'pie' ? Pie :
+          selectedChartType === 'doughnut' ? Doughnut :
+          selectedChartType === 'radar' ? Radar :
+          selectedChartType === 'scatter' ? Scatter :
+          selectedChartType === 'polarArea' ? PolarArea :
+          selectedChartType === 'bubble' ? Bubble :
+          Line
+
+        // Adjust chart options based on type
+        const typeSpecificOptions = {
+          ...chartOptions,
+          ...(selectedChartType === 'radar' || selectedChartType === 'polarArea' ? {
+            scales: {
+              r: {
+                beginAtZero: true,
+                ticks: {
+                  callback: function(value: any) {
+                    return value.toLocaleString()
+                  }
+                }
+              }
+            }
+          } : {}),
+          ...(selectedChartType === 'scatter' || selectedChartType === 'bubble' ? {
+            scales: {
+              x: {
+                type: 'linear',
+                position: 'bottom',
+                ticks: {
+                  callback: function(value: any) {
+                    return value.toLocaleString()
+                  }
+                }
+              },
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: function(value: any) {
+                    return value.toLocaleString()
+                  }
+                }
+              }
+            }
+          } : {})
+        }
 
         return (
           <Box sx={{ height: 200 }}>
-            <ChartComponent data={chartData} options={chartOptions} />
+            <ChartComponent data={chartData} options={typeSpecificOptions} />
           </Box>
         )
 
