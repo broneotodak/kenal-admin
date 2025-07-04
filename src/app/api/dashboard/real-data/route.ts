@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
       
       data = Object.entries(ageGroups).map(([category, value]) => ({ category, value }))
       
-    } else if (source === 'kd_users' && query.includes('gender')) {
+    } else if (source === 'kd_users' && query && query.includes('gender')) {
       // Real gender distribution
       const { data: genderData, error } = await supabase
         .from('kd_users')
@@ -282,7 +282,7 @@ export async function POST(request: NextRequest) {
         .filter(([_, count]) => count > 0)
         .map(([category, value]) => ({ category, value }))
         
-    } else if (source === 'kd_users' && query.includes('country')) {
+    } else if (source === 'kd_users' && query && query.includes('country')) {
       // Real country distribution
       const { data: countryData, error } = await supabase
         .from('kd_users')
@@ -305,7 +305,7 @@ export async function POST(request: NextRequest) {
         .slice(0, 10)
         .map(([category, value]) => ({ category, value }))
         
-    } else if (source === 'kd_users' && query.includes('element')) {
+    } else if (source === 'kd_users' && query && query.includes('element')) {
       // Real element distribution
       const { data: elementData, error } = await supabase
         .from('kd_users')
@@ -326,7 +326,7 @@ export async function POST(request: NextRequest) {
         .sort(([a], [b]) => parseInt(a.split(' ')[1]) - parseInt(b.split(' ')[1]))
         .map(([category, value]) => ({ category, value }))
         
-    } else if (source === 'kd_users' && query.includes('COUNT(*)')) {
+    } else if (source === 'kd_users' && query && query.includes('COUNT(*)')) {
       // Simple count queries
       let countQuery = supabase.from('kd_users').select('id', { count: 'exact', head: true })
       
@@ -345,7 +345,7 @@ export async function POST(request: NextRequest) {
       
       data = [{ count: count || 0 }]
       
-    } else if (source === 'kd_users' && query.includes('DATE_TRUNC')) {
+    } else if (source === 'kd_users' && query && query.includes('DATE_TRUNC')) {
       // Growth trend over time
       const { data: growthData, error } = await supabase
         .from('kd_users')
