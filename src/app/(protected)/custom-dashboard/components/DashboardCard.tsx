@@ -421,8 +421,8 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
           ...(selectedChartType === 'scatter' || selectedChartType === 'bubble' ? {
             scales: {
               x: {
-                type: 'linear',
-                position: 'bottom',
+                type: 'linear' as const,
+                position: 'bottom' as const,
                 ticks: {
                   callback: function(value: any) {
                     return value.toLocaleString()
