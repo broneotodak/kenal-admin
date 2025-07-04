@@ -1,14 +1,14 @@
 {
   "version": "2.1.0",
-  "buildTime": "2025-07-01T09:43:59.641Z",
-  "gitCommitHash": "f10af26dabe65515d4d797d6f1858b34629dd18e",
-  "gitCommitShort": "f10af26",
+  "buildTime": "2025-07-04T06:02:19.740Z",
+  "gitCommitHash": "3095ef4ed467a7ef19917cfe33d1f3ff2f01ce4d",
+  "gitCommitShort": "3095ef4",
   "gitBranch": "main",
-  "gitCommitMessage": "Fix database column errors causing Netlify build failures\n\n- Remove non-existent 'username' column from database queries\n- Replace with 'name' column that actually exists in kd_users table\n- Remove 'is_active' column references that cause SQL errors\n- Fix API routes: check-tables, test-real-data, execute-query\n- Add verbose logging and memory optimization to Netlify build\n- Build now completes successfully without database errors\n\nResolves: 'column kd_users.username does not exist' build failures",
-  "gitCommitDate": "2025-07-01T17:40:20+08:00",
+  "gitCommitMessage": "Fix chart scale configuration for different chart types\n\n- Separated scale configurations to prevent type conflicts\n- Radar/PolarArea charts now only use 'r' scale (radial)\n- Scatter/Bubble charts use linear x/y scales\n- Line/Bar charts use standard x/y scales\n- Pie/Doughnut charts have no scales\n- Fixes TypeScript error about incompatible scale types",
+  "gitCommitDate": "2025-07-04T13:26:20+08:00",
   "gitAuthor": "broneotodak",
   "isDirty": true,
   "environment": "development",
-  "buildId": "1751363039864",
+  "buildId": "1751608939955",
   "repository": "BroLanTodak/adminkenal"
 }

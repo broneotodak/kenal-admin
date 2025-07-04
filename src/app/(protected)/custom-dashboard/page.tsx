@@ -533,6 +533,32 @@ export default function CustomDashboardPage() {
     setChatMessages(prev => [...prev, resizeMessage])
   }
 
+  const handleChartTypeChange = (cardId: string, newChartType: string) => {
+    setDashboardCards(prev => prev.map(card => 
+      card.id === cardId 
+        ? { 
+            ...card, 
+            content: {
+              ...card.content,
+              chart: {
+                ...card.content?.chart,
+                type: newChartType
+              }
+            }
+          }
+        : card
+    ))
+    
+    // Add confirmation message to chat
+    const chartTypeMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'assistant',
+      content: `📊 Chart type changed to ${newChartType}! You can always change it back using the card menu.`,
+      timestamp: new Date()
+    }
+    setChatMessages(prev => [...prev, chartTypeMessage])
+  }
+
   // Check if migration is needed
   const checkMigration = async () => {
     try {
@@ -966,6 +992,7 @@ export default function CustomDashboardPage() {
                     onDelete={handleDeleteCard}
                     onRefresh={handleRefreshCard}
                     onResize={handleResizeCard}
+                    onChartTypeChange={handleChartTypeChange}
                   />
                 </Grid>
               )

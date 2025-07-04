@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -21,6 +21,7 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  Divider
 } from '@mui/material'
 import {
   AutoAwesome as AIIcon,
@@ -33,6 +34,14 @@ import {
   BarChart as StatIcon,
   Edit as EditIcon,
   Visibility as ViewIcon,
+  BarChart as BarChartIcon,
+  PieChart as PieChartIcon,
+  ShowChart as LineChartIcon,
+  DonutLarge as DoughnutIcon,
+  Radar as RadarIcon,
+  ScatterPlot as ScatterIcon,
+  BubbleChart as BubbleIcon,
+  Hexagon as PolarIcon
 } from '@mui/icons-material'
 import { Line, Bar, Pie, Doughnut, Radar, Scatter, PolarArea, Bubble } from 'react-chartjs-2'
 import {
@@ -81,13 +90,16 @@ interface DashboardCardProps {
   onDelete: (cardId: string) => void
   onRefresh?: (cardId: string) => void
   onResize?: (cardId: string, newSize: { width: number, height: number }) => void
+  onChartTypeChange?: (cardId: string, newChartType: string) => void
 }
 
-export default function DashboardCard({ card, onDelete, onRefresh, onResize }: DashboardCardProps) {
+export default function DashboardCard({ card, onDelete, onRefresh, onResize, onChartTypeChange }: DashboardCardProps) {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [currentChartType, setCurrentChartType] = useState(card.content?.chart?.type || 'bar')
+  const [chartTypeMenuAnchor, setChartTypeMenuAnchor] = useState<null | HTMLElement>(null)
 
   // Execute SQL query and fetch data - USE SERVER-SIDE API FOR REAL DATA
   const fetchData = async () => {
@@ -154,6 +166,7 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
 
   const handleMenuClose = () => {
     setAnchorEl(null)
+    setChartTypeMenuAnchor(null)
   }
 
   const handleDelete = () => {
@@ -165,6 +178,24 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
     fetchData()
     handleMenuClose()
     if (onRefresh) onRefresh(card.id)
+  }
+
+  const handleChartTypeMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    event.stopPropagation()
+    setChartTypeMenuAnchor(event.currentTarget)
+  }
+
+  const handleChartTypeMenuClose = () => {
+    setChartTypeMenuAnchor(null)
+  }
+
+  const handleChartTypeChange = (newType: string) => {
+    setCurrentChartType(newType)
+    if (onChartTypeChange) {
+      onChartTypeChange(card.id, newType)
+    }
+    handleChartTypeMenuClose()
+    handleMenuClose()
   }
 
   const renderContent = () => {
@@ -269,8 +300,8 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
           }
         }
 
-        // Smart chart type selection based on data characteristics
-        let selectedChartType = card.content?.chart?.type || 'line'
+        // Use current chart type from state (user can manually change it)
+        let selectedChartType = currentChartType
         
         // Auto-detect better chart type based on data - handle both formats
         let hasTimeData = false
@@ -324,24 +355,8 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
           sampleLabels: chartData.labels.slice(0, 3)
         })
         
-        // Override chart type for better visualization
-        if (isCrossAnalysis) {
-          // Cross-analysis data (age+gender, country+age, etc.) - always use grouped bar chart
-          selectedChartType = 'bar'
-          console.log('📊 Using BAR chart for cross-analysis:', crossAnalysisMetadata?._chartType)
-        } else if (hasCategoricalData && !hasTimeData) {
-          // Categorical data (age groups, countries, etc.) - use bar chart
-          selectedChartType = 'bar'
-          console.log('📊 Switching to BAR chart for categorical data')
-        } else if (hasTimeData) {
-          // Time series data - use line chart
-          selectedChartType = 'line'
-          console.log('📊 Using LINE chart for time series data')
-        } else if (dataLength <= 8 && hasCategoricalData) {
-          // Small categorical dataset - could use doughnut
-          selectedChartType = selectedChartType === 'doughnut' ? 'doughnut' : 'bar'
-          console.log('📊 Using chart type for small categorical data:', selectedChartType)
-        }
+        // No longer auto-override chart type - user has manual control
+        console.log('📊 Using user-selected chart type:', selectedChartType)
 
         // Map chart type to component
         const ChartComponent = 
@@ -510,6 +525,20 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
     }
   }
 
+  const getChartTypeIcon = (type: string) => {
+    switch (type) {
+      case 'bar': return <BarChartIcon fontSize="small" />
+      case 'line': return <LineChartIcon fontSize="small" />
+      case 'pie': return <PieChartIcon fontSize="small" />
+      case 'doughnut': return <DoughnutIcon fontSize="small" />
+      case 'radar': return <RadarIcon fontSize="small" />
+      case 'scatter': return <ScatterIcon fontSize="small" />
+      case 'bubble': return <BubbleIcon fontSize="small" />
+      case 'polarArea': return <PolarIcon fontSize="small" />
+      default: return <ChartIcon fontSize="small" />
+    }
+  }
+
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <CardContent sx={{ flex: 1 }}>
@@ -578,6 +607,17 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
           </ListItemIcon>
           <ListItemText>View Query</ListItemText>
         </MenuItem>
+        {card.type === 'chart' && (
+          <>
+            <Divider />
+            <MenuItem onClick={handleChartTypeMenuOpen}>
+              <ListItemIcon>
+                {getChartTypeIcon(currentChartType)}
+              </ListItemIcon>
+              <ListItemText>Change Chart Type</ListItemText>
+            </MenuItem>
+          </>
+        )}
         <MenuItem onClick={() => {
           if (onResize) {
             const newWidth = card.size.width === 4 ? 6 : card.size.width === 6 ? 8 : 4
@@ -596,6 +636,62 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
             <DeleteIcon fontSize="small" color="error" />
           </ListItemIcon>
           <ListItemText>Delete Card</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      {/* Chart Type Submenu */}
+      <Menu
+        anchorEl={chartTypeMenuAnchor}
+        open={Boolean(chartTypeMenuAnchor)}
+        onClose={handleChartTypeMenuClose}
+      >
+        <MenuItem onClick={() => handleChartTypeChange('bar')} selected={currentChartType === 'bar'}>
+          <ListItemIcon>
+            <BarChartIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Bar Chart</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleChartTypeChange('line')} selected={currentChartType === 'line'}>
+          <ListItemIcon>
+            <LineChartIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Line Chart</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleChartTypeChange('pie')} selected={currentChartType === 'pie'}>
+          <ListItemIcon>
+            <PieChartIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Pie Chart</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleChartTypeChange('doughnut')} selected={currentChartType === 'doughnut'}>
+          <ListItemIcon>
+            <DoughnutIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Doughnut Chart</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleChartTypeChange('radar')} selected={currentChartType === 'radar'}>
+          <ListItemIcon>
+            <RadarIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Radar Chart</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleChartTypeChange('polarArea')} selected={currentChartType === 'polarArea'}>
+          <ListItemIcon>
+            <PolarIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Polar Area Chart</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleChartTypeChange('scatter')} selected={currentChartType === 'scatter'}>
+          <ListItemIcon>
+            <ScatterIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Scatter Plot</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => handleChartTypeChange('bubble')} selected={currentChartType === 'bubble'}>
+          <ListItemIcon>
+            <BubbleIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Bubble Chart</ListItemText>
         </MenuItem>
       </Menu>
     </Card>
