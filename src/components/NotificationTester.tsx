@@ -14,7 +14,11 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  IconButton,
+  Collapse,
+  CardActions,
+  Tooltip
 } from '@mui/material'
 import {
   Feedback,
@@ -22,7 +26,10 @@ import {
   Computer,
   Code,
   Notifications,
-  Science
+  Science,
+  ExpandMore,
+  ExpandLess,
+  Minimize
 } from '@mui/icons-material'
 import { useNotifications } from '@/contexts/NotificationContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -32,6 +39,7 @@ export default function NotificationTester() {
   const { addNotification, settings } = useNotifications()
   const [selectedType, setSelectedType] = useState<'info' | 'success' | 'warning' | 'error'>('info')
   const [selectedCategory, setSelectedCategory] = useState<'feedback' | 'github' | 'system' | 'development'>('feedback')
+  const [isExpanded, setIsExpanded] = useState(false)
 
   // 🔒 SECURITY: Only visible to neo@todak.com
   if (!user || user.email !== 'neo@todak.com') {
@@ -221,9 +229,20 @@ export default function NotificationTester() {
   }
 
   return (
-    <Card sx={{ mb: 4 }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+    <Card sx={{ mb: 4, transition: 'all 0.3s ease' }}>
+      <CardActions 
+        sx={{ 
+          px: 2, 
+          py: 1, 
+          bgcolor: 'action.hover',
+          cursor: 'pointer',
+          '&:hover': {
+            bgcolor: 'action.selected'
+          }
+        }}
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
           <Science sx={{ color: 'primary.main' }} />
           <Typography variant="h6" fontWeight="600">
             Notification System Tester
@@ -235,158 +254,173 @@ export default function NotificationTester() {
             variant="outlined"
           />
         </Box>
-
-        <Alert severity="info" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            This testing interface helps verify the enhanced notification system. 
-            Current settings: Feedback {settings.feedbackAlerts ? '✅' : '❌'}, 
-            GitHub {settings.githubAlerts ? '✅' : '❌'}, 
-            System {settings.systemAlerts ? '✅' : '❌'}, 
-            Development {settings.developmentAlerts ? '✅' : '❌'}
-          </Typography>
-        </Alert>
-
-        {/* Quick Test Buttons */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          {testNotifications.map((notification, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index}>
-              <Card 
-                variant="outlined" 
-                sx={{ 
-                  height: '100%',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  '&:hover': { 
-                    boxShadow: 2,
-                    transform: 'translateY(-2px)'
-                  }
-                }}
-                onClick={() => handleTestNotification(notification.category)}
-              >
-                <CardContent sx={{ textAlign: 'center', p: 2 }}>
-                  <Box 
-                    sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'center', 
-                      mb: 1,
-                      color: notification.color 
-                    }}
-                  >
-                    {notification.icon}
-                  </Box>
-                  <Typography variant="body2" fontWeight="600" gutterBottom>
-                    {notification.title}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {notification.description}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-
-        {/* Custom Notification Builder */}
-        <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1, mb: 3 }}>
-          <Typography variant="subtitle2" fontWeight="600" gutterBottom>
-            Custom Notification Builder
-          </Typography>
-          
-          <Grid container spacing={2} sx={{ mb: 2 }}>
-            <Grid item xs={6}>
-              <FormControl size="small" fullWidth>
-                <InputLabel>Type</InputLabel>
-                <Select
-                  value={selectedType}
-                  label="Type"
-                  onChange={(e) => setSelectedType(e.target.value as any)}
-                >
-                  <MenuItem value="info">Info</MenuItem>
-                  <MenuItem value="success">Success</MenuItem>
-                  <MenuItem value="warning">Warning</MenuItem>
-                  <MenuItem value="error">Error</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={6}>
-              <FormControl size="small" fullWidth>
-                <InputLabel>Category</InputLabel>
-                <Select
-                  value={selectedCategory}
-                  label="Category"
-                  onChange={(e) => setSelectedCategory(e.target.value as any)}
-                >
-                  <MenuItem value="feedback">Feedback</MenuItem>
-                  <MenuItem value="github">GitHub</MenuItem>
-                  <MenuItem value="system">System</MenuItem>
-                  <MenuItem value="development">Development</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-          
-          <Button 
-            variant="contained" 
-            size="small" 
-            onClick={handleCustomNotification}
-            startIcon={<Notifications />}
+        <Tooltip title={isExpanded ? "Collapse" : "Expand"}>
+          <IconButton 
+            size="small"
+            sx={{ 
+              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.3s ease'
+            }}
           >
-            Create Custom Notification
-          </Button>
-        </Box>
+            <ExpandMore />
+          </IconButton>
+        </Tooltip>
+      </CardActions>
+      
+      <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+        <CardContent>
+          <Alert severity="info" sx={{ mb: 3 }}>
+            <Typography variant="body2">
+              This testing interface helps verify the enhanced notification system. 
+              Current settings: Feedback {settings.feedbackAlerts ? '✅' : '❌'}, 
+              GitHub {settings.githubAlerts ? '✅' : '❌'}, 
+              System {settings.systemAlerts ? '✅' : '❌'}, 
+              Development {settings.developmentAlerts ? '✅' : '❌'}
+            </Typography>
+          </Alert>
 
-        {/* Event Testing */}
-        <Box sx={{ p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
-          <Typography variant="subtitle2" fontWeight="600" gutterBottom>
-            Event System Testing
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Test the actual events that trigger notifications in the real system.
-          </Typography>
-          
-          <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-            <Button 
-              variant="outlined" 
-              size="small" 
-              onClick={triggerFeedbackEvent}
-            >
-              Trigger Feedback Event
-            </Button>
-            <Button 
-              variant="outlined" 
-              size="small" 
-              onClick={triggerStatusChangeEvent}
-            >
-              Trigger Status Change
-            </Button>
+          {/* Quick Test Buttons */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            {testNotifications.map((notification, index) => (
+              <Grid item xs={12} sm={6} md={3} key={index}>
+                <Card 
+                  variant="outlined" 
+                  sx={{ 
+                    height: '100%',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': { 
+                      boxShadow: 2,
+                      transform: 'translateY(-2px)'
+                    }
+                  }}
+                  onClick={() => handleTestNotification(notification.category)}
+                >
+                  <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                    <Box 
+                      sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        mb: 1,
+                        color: notification.color 
+                      }}
+                    >
+                      {notification.icon}
+                    </Box>
+                    <Typography variant="body2" fontWeight="600" gutterBottom>
+                      {notification.title}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {notification.description}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+
+          {/* Custom Notification Builder */}
+          <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1, mb: 3 }}>
+            <Typography variant="subtitle2" fontWeight="600" gutterBottom>
+              Custom Notification Builder
+            </Typography>
+            
+            <Grid container spacing={2} sx={{ mb: 2 }}>
+              <Grid item xs={6}>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Type</InputLabel>
+                  <Select
+                    value={selectedType}
+                    label="Type"
+                    onChange={(e) => setSelectedType(e.target.value as any)}
+                  >
+                    <MenuItem value="info">Info</MenuItem>
+                    <MenuItem value="success">Success</MenuItem>
+                    <MenuItem value="warning">Warning</MenuItem>
+                    <MenuItem value="error">Error</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={6}>
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Category</InputLabel>
+                  <Select
+                    value={selectedCategory}
+                    label="Category"
+                    onChange={(e) => setSelectedCategory(e.target.value as any)}
+                  >
+                    <MenuItem value="feedback">Feedback</MenuItem>
+                    <MenuItem value="github">GitHub</MenuItem>
+                    <MenuItem value="system">System</MenuItem>
+                    <MenuItem value="development">Development</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+            
             <Button 
               variant="contained" 
-              size="small"
-              color="success"
-              onClick={sendReleaseAnnouncement}
-              startIcon={<GitHub />}
+              size="small" 
+              onClick={handleCustomNotification}
+              startIcon={<Notifications />}
             >
-              🚀 Send Release Announcement
+              Create Custom Notification
             </Button>
-          </Stack>
+          </Box>
 
-          <Typography variant="subtitle2" fontWeight="600" gutterBottom sx={{ mt: 2 }}>
-            Cleanup Tools
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            Fix duplicate notifications and reset the system.
-          </Typography>
-          
-          <Button 
-            variant="contained" 
-            size="small" 
-            color="warning"
-            onClick={clearDuplicateNotifications}
-          >
-            Clear Duplicate Notifications
-          </Button>
-        </Box>
-      </CardContent>
+          {/* Event Testing */}
+          <Box sx={{ p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
+            <Typography variant="subtitle2" fontWeight="600" gutterBottom>
+              Event System Testing
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Test the actual events that trigger notifications in the real system.
+            </Typography>
+            
+            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+              <Button 
+                variant="outlined" 
+                size="small" 
+                onClick={triggerFeedbackEvent}
+              >
+                Trigger Feedback Event
+              </Button>
+              <Button 
+                variant="outlined" 
+                size="small" 
+                onClick={triggerStatusChangeEvent}
+              >
+                Trigger Status Change
+              </Button>
+              <Button 
+                variant="contained" 
+                size="small"
+                color="success"
+                onClick={sendReleaseAnnouncement}
+                startIcon={<GitHub />}
+              >
+                🚀 Send Release Announcement
+              </Button>
+            </Stack>
+
+            <Typography variant="subtitle2" fontWeight="600" gutterBottom sx={{ mt: 2 }}>
+              Cleanup Tools
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Fix duplicate notifications and reset the system.
+            </Typography>
+            
+            <Button 
+              variant="contained" 
+              size="small" 
+              color="warning"
+              onClick={clearDuplicateNotifications}
+            >
+              Clear Duplicate Notifications
+            </Button>
+          </Box>
+        </CardContent>
+      </Collapse>
     </Card>
   )
 } 

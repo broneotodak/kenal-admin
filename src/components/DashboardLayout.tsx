@@ -501,18 +501,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 {user?.email}
               </Typography>
-              <Chip
-                label="Auto-logout: 30min"
-                size="small"
-                variant="outlined"
-                color="success"
-                sx={{
-                  display: { xs: 'none', lg: 'flex' },
-                  height: 20,
-                  fontSize: '0.65rem',
-                  '& .MuiChip-label': { px: 1 }
-                }}
-              />
             </Box>
             <IconButton
               size="large"
@@ -532,15 +520,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               }}
             >
               <MenuItem onClick={handleClose}>Profile</MenuItem>
-              <MenuItem 
-                onClick={() => {
-                  handleExtendSession()
-                  handleClose()
-                }}
-              >
-                Extend Session
-              </MenuItem>
-
+              <Divider />
               <MenuItem onClick={handleLogout}>Logout</MenuItem>
             </Menu>
           </Box>
