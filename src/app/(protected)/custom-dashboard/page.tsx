@@ -76,7 +76,7 @@ interface DashboardCard {
 }
 
 export default function CustomDashboardPage() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, loading: authLoading } = useAuth()
   const theme = useTheme()
   const [dashboardCards, setDashboardCards] = useState<DashboardCard[]>([])
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -801,11 +801,34 @@ export default function CustomDashboardPage() {
     }
   }, [user?.id])
 
-  if (!isAdmin) {
+  // Show loading state while auth is being checked
+  if (authLoading) {
+    return (
+      <Box sx={{ 
+        p: 3, 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
+        <CircularProgress />
+      </Box>
+    )
+  }
+
+  // Special override for neo@todak.com
+  const isNeoTodak = user?.email === 'neo@todak.com'
+  
+  if (!isAdmin && !isNeoTodak) {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error">
           Access denied. Admin privileges required.
+          {user?.email && (
+            <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+              Logged in as: {user.email}
+            </Typography>
+          )}
         </Alert>
       </Box>
     )

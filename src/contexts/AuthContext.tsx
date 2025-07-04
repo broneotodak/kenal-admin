@@ -158,14 +158,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Check if user is admin (user_type = 5) - WITH IMPROVED ERROR HANDLING
   const checkAdminStatus = async (userId: string): Promise<boolean> => {
     try {
-      // For neo@todak.com, allow direct access
+      // For neo@todak.com, allow direct access - check both session and user parameter
       const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user?.email === 'neo@todak.com') {
-        console.log('✅ Admin access granted for neo@todak.com')
+      const currentUserEmail = session?.user?.email
+      
+      console.log('🔍 Admin check for:', { userId, currentUserEmail })
+      
+      if (currentUserEmail === 'neo@todak.com') {
+        console.log('✅ Admin access granted for neo@todak.com (special access)')
         return true
       }
 
-      console.log('🔍 Checking admin status for user:', userId)
+      console.log('🔍 Checking admin status in database for user:', userId)
       
       // Shorter timeout for faster fallback
       const timeoutPromise = new Promise<never>((_, reject) => 
@@ -174,7 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       const queryPromise = supabase
         .from('kd_users')
-        .select('user_type')
+        .select('user_type, email')
         .eq('id', userId)
         .single()
       
@@ -185,25 +189,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Handle specific error cases
         if (error.message?.includes('timeout')) {
-          console.warn('⏰ Admin check timed out - denying access for safety')
+          console.warn('⏰ Admin check timed out - checking if neo@todak.com')
+          // Double-check for neo@todak.com in case of timeout
+          if (currentUserEmail === 'neo@todak.com') {
+            console.log('✅ Allowing neo@todak.com despite timeout')
+            return true
+          }
           return false
         }
         
         // If it's an RLS error, allow access for development
         if (error.message?.includes('RLS') || error.message?.includes('policy') || error.code === '42501') {
-          console.log('🔓 RLS policy issue - allowing access (dev mode)')
-          return true
-        }
-        
-        // If user not found in kd_users, deny access
-        if (error.code === 'PGRST116') {
-          console.log('❌ User not found in kd_users table')
+          console.log('🔓 RLS policy issue - checking if neo@todak.com')
+          if (currentUserEmail === 'neo@todak.com') {
+            console.log('✅ Allowing neo@todak.com despite RLS error')
+            return true
+          }
           return false
         }
         
-        // For other errors, deny access for safety
-        console.warn('⚠️ Unknown error - denying access for safety')
+        // If user not found in kd_users, check email
+        if (error.code === 'PGRST116') {
+          console.log('❌ User not found in kd_users table')
+          if (currentUserEmail === 'neo@todak.com') {
+            console.log('✅ Allowing neo@todak.com even though not in kd_users')
+            return true
+          }
+          return false
+        }
+        
+        // For other errors, still check for neo@todak.com
+        console.warn('⚠️ Unknown error - checking if neo@todak.com')
+        if (currentUserEmail === 'neo@todak.com') {
+          console.log('✅ Allowing neo@todak.com despite unknown error')
+          return true
+        }
         return false
+      }
+      
+      // Check if email matches neo@todak.com from database
+      if (data?.email === 'neo@todak.com') {
+        console.log('✅ Admin access granted for neo@todak.com (from database)')
+        return true
       }
       
       const isAdmin = data?.user_type === 5
@@ -212,6 +239,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
     } catch (e) {
       console.error('❌ Admin status check failed:', e)
+      
+      // Last resort - check session email again
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user?.email === 'neo@todak.com') {
+          console.log('✅ Final fallback: Allowing neo@todak.com')
+          return true
+        }
+      } catch {}
+      
       console.log('🔒 Defaulting to non-admin access')
       return false
     }
@@ -247,6 +284,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (adminStatus) {
               // Setup session monitoring for admin users
               setupSessionMonitoring()
+            }
+            
+            // For neo@todak.com, double-check admin status
+            if (session.user.email === 'neo@todak.com' && !adminStatus) {
+              console.warn('⚠️ neo@todak.com should be admin, retrying...')
+              // Retry once after a short delay
+              setTimeout(async () => {
+                const retryStatus = await checkAdminStatus(session.user.id)
+                if (retryStatus) {
+                  console.log('✅ Admin status confirmed on retry')
+                  setIsAdmin(true)
+                  setupSessionMonitoring()
+                }
+              }, 500)
             }
           } catch (adminError) {
             console.warn('⚠️ Admin check failed, defaulting to false:', adminError)
@@ -288,12 +339,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === 'SIGNED_IN' && session?.user) {
         setUser(session.user)
         setIsSessionValid(true)
-        const adminStatus = await checkAdminStatus(session.user.id)
-        setIsAdmin(adminStatus)
         
-        if (adminStatus) {
-          setupSessionMonitoring()
-        }
+        // Add small delay to ensure session is fully established
+        setTimeout(async () => {
+          const adminStatus = await checkAdminStatus(session.user.id)
+          setIsAdmin(adminStatus)
+          
+          if (adminStatus) {
+            setupSessionMonitoring()
+          }
+        }, 100) // 100ms delay
       }
       
       if (event === 'TOKEN_REFRESHED' && session?.user) {
