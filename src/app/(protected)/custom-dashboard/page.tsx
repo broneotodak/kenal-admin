@@ -75,6 +75,16 @@ interface DashboardCard {
   content: any
 }
 
+interface PresetCommand {
+  id: string
+  label: string
+  prompt: string
+  icon: React.ReactElement
+  category: string
+  description: string
+  usage_count: number
+}
+
 export default function CustomDashboardPage() {
   const { user, isAdmin, loading: authLoading } = useAuth()
   const theme = useTheme()
@@ -103,16 +113,19 @@ export default function CustomDashboardPage() {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' })
   const [currentDashboardName, setCurrentDashboardName] = useState('Untitled Dashboard')
   const [migrationNeeded, setMigrationNeeded] = useState(false) // Table exists as admin_custom_dashboards
+  const [dynamicPresets, setDynamicPresets] = useState<PresetCommand[]>([]) // Dynamic preset commands
+  const [presetLoading, setPresetLoading] = useState(true)
 
-  // Preset commands for quick admin actions
-  const presetCommands = [
+  // Default preset commands (fallback when no usage data)
+  const defaultPresetCommands = [
     {
       id: 'user_count',
       label: 'Total Users',
       prompt: 'Show me total number of users',
       icon: <GroupIcon />,
       category: 'Users',
-      description: 'Display total user count'
+      description: 'Display total user count',
+      usage_count: 0
     },
     {
       id: 'age_distribution', 
@@ -120,7 +133,8 @@ export default function CustomDashboardPage() {
       prompt: 'Show me user distribution by age groups',
       icon: <GroupIcon />,
       category: 'Demographics',
-      description: 'Age demographics chart'
+      description: 'Age demographics chart',
+      usage_count: 0
     },
     {
       id: 'user_growth',
@@ -128,7 +142,8 @@ export default function CustomDashboardPage() {
       prompt: 'Create a chart showing user growth over time',
       icon: <TrendingUpIcon />,
       category: 'Analytics', 
-      description: 'Monthly registration trend'
+      description: 'Monthly registration trend',
+      usage_count: 0
     },
     {
       id: 'geographic',
@@ -136,7 +151,8 @@ export default function CustomDashboardPage() {
       prompt: 'Show users by country distribution',
       icon: <PublicIcon />,
       category: 'Demographics',
-      description: 'Geographic distribution'
+      description: 'Geographic distribution',
+      usage_count: 0
     },
     {
       id: 'gender',
@@ -144,7 +160,8 @@ export default function CustomDashboardPage() {
       prompt: 'Display gender distribution of users',
       icon: <GenderIcon />,
       category: 'Demographics', 
-      description: 'Gender breakdown chart'
+      description: 'Gender breakdown chart',
+      usage_count: 0
     },
     {
       id: 'elements',
@@ -152,7 +169,8 @@ export default function CustomDashboardPage() {
       prompt: 'Show distribution of users by element types',
       icon: <ElementIcon />,
       category: 'KENAL Data',
-      description: 'Element 1-9 distribution'
+      description: 'Element 1-9 distribution',
+      usage_count: 0
     },
     {
       id: 'recent_users',
@@ -160,7 +178,8 @@ export default function CustomDashboardPage() {
       prompt: 'Show me a table of recent user registrations',
       icon: <TableIcon />,
       category: 'Users',
-      description: 'Latest user signups'
+      description: 'Latest user signups',
+      usage_count: 0
     },
     {
       id: 'active_users',
@@ -168,9 +187,13 @@ export default function CustomDashboardPage() {
       prompt: 'Show me count of active users',
       icon: <GroupIcon />,
       category: 'Users', 
-      description: 'Currently active users'
+      description: 'Currently active users',
+      usage_count: 0
     }
   ]
+
+  // Use dynamic presets if available, otherwise use defaults
+  const presetCommands = dynamicPresets.length > 0 ? dynamicPresets : defaultPresetCommands
 
   // Real AI integration - updated to use client-side service
   const handleSendMessage = async () => {
@@ -574,6 +597,82 @@ export default function CustomDashboardPage() {
     }
   }
 
+  // Fetch popular prompts and update quick commands
+  const fetchPopularPrompts = async () => {
+    if (!user?.id) return
+    
+    try {
+      setPresetLoading(true)
+      const response = await fetch('/api/dashboard/popular-prompts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      })
+      
+      const result = await response.json()
+      
+      if (result.success && result.data && result.data.length > 0) {
+        console.log('📊 Loaded popular prompts:', result.data.length)
+        
+        // Convert popular prompts to preset commands
+        const popularCommands: PresetCommand[] = result.data.map((item: any, index: number) => {
+          // Try to determine icon based on keywords
+          let icon = <AIIcon />
+          let category = 'Popular'
+          
+          const promptLower = item.prompt.toLowerCase()
+          if (promptLower.includes('user') || promptLower.includes('registration')) {
+            icon = <GroupIcon />
+            category = 'Users'
+          } else if (promptLower.includes('trend') || promptLower.includes('growth') || promptLower.includes('time')) {
+            icon = <TrendingUpIcon />
+            category = 'Analytics'
+          } else if (promptLower.includes('country') || promptLower.includes('geographic')) {
+            icon = <PublicIcon />
+            category = 'Demographics'
+          } else if (promptLower.includes('gender')) {
+            icon = <GenderIcon />
+            category = 'Demographics'
+          } else if (promptLower.includes('element')) {
+            icon = <ElementIcon />
+            category = 'KENAL Data'
+          } else if (promptLower.includes('table') || promptLower.includes('list')) {
+            icon = <TableIcon />
+            category = 'Data'
+          }
+          
+          return {
+            id: `popular_${index}`,
+            label: item.label || item.prompt.slice(0, 30) + '...',
+            prompt: item.prompt,
+            icon,
+            category,
+            description: `Used ${item.usage_count} times`,
+            usage_count: item.usage_count
+          }
+        })
+        
+        // Merge with defaults - keep top 4 popular + 4 defaults
+        const topPopular = popularCommands.slice(0, 4)
+        const selectedDefaults = defaultPresetCommands
+          .filter(cmd => !topPopular.some(pop => 
+            pop.prompt.toLowerCase() === cmd.prompt.toLowerCase()
+          ))
+          .slice(0, 4)
+        
+        setDynamicPresets([...topPopular, ...selectedDefaults])
+      } else {
+        console.log('ℹ️ No popular prompts yet, using defaults')
+        setDynamicPresets([])
+      }
+    } catch (error) {
+      console.error('Failed to fetch popular prompts:', error)
+      setDynamicPresets([])
+    } finally {
+      setPresetLoading(false)
+    }
+  }
+
   // Save dashboard functionality
   const handleSaveDashboard = async () => {
     if (!dashboardName.trim()) {
@@ -800,6 +899,25 @@ export default function CustomDashboardPage() {
       autoLoadRecentDashboard()
     }
   }, [user?.id])
+
+  useEffect(() => {
+    // Fetch popular prompts when user is available
+    if (user?.id) {
+      fetchPopularPrompts()
+    }
+  }, [user?.id])
+
+  // Refresh popular prompts when chat is open
+  useEffect(() => {
+    if (chatOpen && user?.id && !presetLoading) {
+      const interval = setInterval(() => {
+        console.log('🔄 Refreshing popular prompts...')
+        fetchPopularPrompts()
+      }, 30000) // Refresh every 30 seconds
+
+      return () => clearInterval(interval)
+    }
+  }, [chatOpen, user?.id, presetLoading])
 
   // Show loading state while auth is being checked
   if (authLoading) {
@@ -1148,55 +1266,68 @@ export default function CustomDashboardPage() {
             <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <AIIcon sx={{ fontSize: 16 }} />
               Quick Commands
+              {presetLoading && <CircularProgress size={12} sx={{ ml: 1 }} />}
             </Typography>
-            <Grid container spacing={1}>
-              {presetCommands.map((command) => (
-                <Grid item xs={12} sm={6} md={4} key={command.id}>
-                  <Button
-                    variant={activePresetCommand === command.id ? "contained" : "outlined"}
-                    size="small"
-                    fullWidth
-                    startIcon={activePresetCommand === command.id ? <CircularProgress size={16} sx={{ color: 'inherit' }} /> : command.icon}
-                    onClick={() => {
-                      handlePresetCommand(command)
-                      // Chat stays open to show progress - will close automatically after completion if needed
-                    }}
-                    disabled={isLoading}
-                    sx={{ 
-                      justifyContent: 'flex-start',
-                      textTransform: 'none',
-                      py: 1,
-                      px: 2,
-                      bgcolor: activePresetCommand === command.id ? 'primary.main' : undefined,
-                      color: activePresetCommand === command.id ? 'primary.contrastText' : undefined,
-                      '&:hover': {
-                        bgcolor: 'primary.main',
-                        color: 'primary.contrastText',
-                        '& .MuiSvgIcon-root': {
-                          color: 'inherit'
-                        }
-                      },
-                      '&.Mui-disabled': {
+            
+            {presetLoading ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Loading personalized commands...
+                </Typography>
+              </Box>
+            ) : (
+              <Grid container spacing={1}>
+                {presetCommands.map((command) => (
+                  <Grid item xs={12} sm={6} md={4} key={command.id}>
+                    <Button
+                      variant={activePresetCommand === command.id ? "contained" : "outlined"}
+                      size="small"
+                      fullWidth
+                      startIcon={activePresetCommand === command.id ? <CircularProgress size={16} sx={{ color: 'inherit' }} /> : command.icon}
+                      onClick={() => {
+                        handlePresetCommand(command)
+                        // Chat stays open to show progress - will close automatically after completion if needed
+                      }}
+                      disabled={isLoading}
+                      sx={{ 
+                        justifyContent: 'flex-start',
+                        textTransform: 'none',
+                        py: 1,
+                        px: 2,
                         bgcolor: activePresetCommand === command.id ? 'primary.main' : undefined,
                         color: activePresetCommand === command.id ? 'primary.contrastText' : undefined,
-                        opacity: activePresetCommand === command.id ? 0.8 : 0.3
-                      }
-                    }}
-                  >
-                    <Box sx={{ textAlign: 'left', overflow: 'hidden' }}>
-                      <Typography variant="body2" fontWeight="medium" noWrap>
-                        {command.label}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        {command.description}
-                      </Typography>
-                    </Box>
-                  </Button>
-                </Grid>
-              ))}
-            </Grid>
+                        '&:hover': {
+                          bgcolor: 'primary.main',
+                          color: 'primary.contrastText',
+                          '& .MuiSvgIcon-root': {
+                            color: 'inherit'
+                          }
+                        },
+                        '&.Mui-disabled': {
+                          bgcolor: activePresetCommand === command.id ? 'primary.main' : undefined,
+                          color: activePresetCommand === command.id ? 'primary.contrastText' : undefined,
+                          opacity: activePresetCommand === command.id ? 0.8 : 0.3
+                        }
+                      }}
+                    >
+                      <Box sx={{ textAlign: 'left', overflow: 'hidden' }}>
+                        <Typography variant="body2" fontWeight="medium" noWrap>
+                          {command.label}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {command.description}
+                        </Typography>
+                      </Box>
+                    </Button>
+                  </Grid>
+                ))}
+              </Grid>
+            )}
+            
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              💡 Click any command above or type your own request below
+              {dynamicPresets.length > 0 
+                ? '🌟 Showing your most used commands' 
+                : '💡 Click any command above or type your own request below'}
             </Typography>
           </Box>
 
