@@ -80,14 +80,48 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       console.log('🔄 Dashboard logout initiated...')
       setShowLogoutWarning(false)
       
+      // Immediate UI feedback
+      setAnchorEl(null)
+      
       // Let AuthContext handle the complete logout process including navigation
       await signOut()
       
       console.log('✅ Dashboard logout completed')
     } catch (error) {
       console.error('❌ Dashboard logout error:', error)
-      // Force navigation as fallback
-      router.push('/login')
+      
+      // Force logout - clear everything manually
+      try {
+        // Clear all localStorage
+        localStorage.clear()
+        sessionStorage.clear()
+        
+        // Clear all cookies
+        document.cookie.split(";").forEach(function(c) { 
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/")
+        })
+      } catch (e) {
+        console.error('Storage clear error:', e)
+      }
+      
+      // Force navigation using multiple methods
+      try {
+        // Method 1: window.location (most reliable)
+        window.location.href = '/login'
+      } catch (e1) {
+        try {
+          // Method 2: window.location.replace
+          window.location.replace('/login')
+        } catch (e2) {
+          try {
+            // Method 3: router.push as last resort
+            router.push('/login')
+          } catch (e3) {
+            // Method 4: Force reload to root
+            window.location.href = '/'
+          }
+        }
+      }
     }
   }
 

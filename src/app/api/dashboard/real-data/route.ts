@@ -2,21 +2,51 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseAdmin } from '@/lib/supabase-server'
 
 interface DataRequest {
-  query: string
+  query?: string
   processing?: string
-  source: string
+  source?: string
+  type?: string
+  cardType?: string
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { query, processing, source }: DataRequest = await request.json()
+    const requestData: DataRequest = await request.json()
+    const { query, processing, source, type, cardType } = requestData
     
-    console.log('📊 Real Data Request:', { query, processing, source })
+    console.log('📊 Real Data Request:', requestData)
     
     const supabase = createSupabaseAdmin()
     
     // Execute the query based on source and processing type
     let data: any[] = []
+    
+    // Handle identity count request
+    if (type === 'identity_count') {
+      console.log('🎯 Fetching real identity count from kd_identity table')
+      
+      const { count, error } = await supabase
+        .from('kd_identity')
+        .select('*', { count: 'exact', head: true })
+      
+      if (error) {
+        console.error('❌ Error fetching identity count:', error)
+        throw error
+      }
+      
+      console.log('✅ Real identity count:', count)
+      
+      return NextResponse.json({
+        success: true,
+        data: { count: count || 0 },
+        source: 'real_database',
+        metadata: {
+          table: 'kd_identity',
+          type: 'identity_count',
+          executedAt: new Date().toISOString()
+        }
+      })
+    }
     
     // CROSS-ANALYSIS HANDLERS (Multi-dimensional)
     if (processing === 'age_gender_cross_analysis') {
