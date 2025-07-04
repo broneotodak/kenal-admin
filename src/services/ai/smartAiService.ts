@@ -274,6 +274,16 @@ RESPONSE FORMAT (JSON only):
   "reasoning": "Why this SQL and chart type"
 }
 
+🚨 IMPORTANT CHART TYPE RULES:
+1. **USER EXPLICITLY MENTIONS CHART TYPE** → ALWAYS use that exact type
+   - "as doughnut" → chartType: "doughnut" 
+   - "pie chart" → chartType: "pie"
+   - "bar graph" → chartType: "bar"
+   - "line chart" → chartType: "line"
+   - NO EXCEPTIONS - user's explicit choice overrides all other logic
+
+2. **USER DOESN'T SPECIFY** → Use these smart defaults:
+
 CHART TYPE SELECTION GUIDE:
 1. **PIE/DOUGHNUT** - Use when:
    - User asks for: "pie chart", "distribution", "breakdown", "composition", "percentage", "share", "portion"
@@ -309,6 +319,7 @@ CHART TYPE SELECTION GUIDE:
 6. **DOUGHNUT** - Use when:
    - Similar to pie but user wants modern look
    - User specifically mentions "doughnut" or "donut"
+   - Prefer over pie for element/personality breakdowns
 
 7. **RADAR** - Use when:
    - User asks for: "radar", "spider", "web chart", "multi-dimensional comparison"
@@ -325,12 +336,13 @@ NATURAL LANGUAGE UNDERSTANDING:
 - "How many" → Usually STAT or BAR
 - "Compare" → BAR or RADAR
 - "Over time" → LINE
-- "Breakdown" / "Distribution" → PIE or DOUGHNUT
+- "Breakdown" / "Distribution" → DOUGHNUT (preferred) or PIE
 - "List of" → TABLE
 - "Trend" → LINE
 - "Top/Best/Most" → BAR with ORDER BY DESC
 - "By [category]" → BAR grouped by that category
 - "Percentage" → PIE/DOUGHNUT with percentage calculations
+- "as [chart type]" → ALWAYS use specified chart type
 
 SQL GENERATION RULES:
 1. Use real column names from schema above
@@ -1131,8 +1143,13 @@ Generate SQL and visualization config:`
           }]
         }
         
-        // Force bar chart for cross-analysis
-        chartType = 'bar'
+        // Only force bar chart for cross-analysis if AI didn't specify a preference
+        if (chartType === 'chart' || chartType === 'auto' || chartType === 'stat') {
+          chartType = 'bar' // Default to bar for multi-dimensional data
+          console.log('📊 Auto-selected bar chart for cross-analysis')
+        } else {
+          console.log('✅ Respecting AI chart type choice for cross-analysis:', chartType)
+        }
         
       } else {
         // Single dimension analysis
@@ -1148,13 +1165,28 @@ Generate SQL and visualization config:`
           count: row[valueColumn]
         }))
 
-        // Smart chart type adjustment based on data
-        if (queryResult.length <= 5 && !labelColumn.includes('month')) {
-          chartType = 'pie'
-        } else if (labelColumn.includes('month') || labelColumn.includes('date')) {
-          chartType = 'line'
+        // 🚨 RESPECT AI'S CHART TYPE CHOICE - Only adjust if it's incompatible
+        // Smart chart type adjustment ONLY if AI didn't specify or chose poorly
+        const originalChartType = chartType
+        if (chartType === 'chart' || chartType === 'auto') {
+          // AI didn't specify - use smart defaults
+          if (queryResult.length <= 5 && !labelColumn.includes('month')) {
+            chartType = 'doughnut' // Default to doughnut for small datasets
+          } else if (labelColumn.includes('month') || labelColumn.includes('date')) {
+            chartType = 'line'
+          } else {
+            chartType = 'bar'
+          }
+          console.log('📊 Auto-selected chart type:', chartType, 'for data characteristics')
         } else {
-          chartType = 'bar'
+          // AI specified a type - RESPECT IT unless data is incompatible
+          console.log('✅ Respecting AI chart type choice:', chartType)
+          
+          // Only override if truly incompatible (e.g., pie chart with 100+ items)
+          if ((chartType === 'pie' || chartType === 'doughnut') && queryResult.length > 20) {
+            console.warn('⚠️ Too many items for pie/doughnut chart, switching to bar')
+            chartType = 'bar'
+          }
         }
       }
     }
