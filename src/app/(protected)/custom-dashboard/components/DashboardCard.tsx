@@ -269,55 +269,6 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
           }
         }
 
-        // Enhanced chart options with better formatting
-        const chartOptions = {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { 
-              display: true,
-              position: 'top' as const,
-              labels: {
-                usePointStyle: true,
-                padding: 15
-              }
-            },
-            title: { display: false },
-            tooltip: {
-              mode: 'index' as const,
-              intersect: false,
-              callbacks: {
-                label: function(context: any) {
-                  const label = context.dataset.label || ''
-                  const value = context.parsed.y || context.parsed
-                  return `${label}: ${value.toLocaleString()}`
-                }
-              }
-            }
-          },
-          scales: {
-            y: { 
-              beginAtZero: true,
-              ticks: {
-                callback: function(value: any) {
-                  return value.toLocaleString()
-                }
-              }
-            },
-            x: {
-              ticks: {
-                maxRotation: 45,
-                minRotation: 0
-              }
-            }
-          },
-          // Animation settings
-          animation: {
-            duration: 1000,
-            easing: 'easeInOutQuart' as const
-          }
-        }
-
         // Smart chart type selection based on data characteristics
         let selectedChartType = card.content?.chart?.type || 'line'
         
@@ -403,42 +354,90 @@ export default function DashboardCard({ card, onDelete, onRefresh, onResize }: D
           selectedChartType === 'bubble' ? Bubble :
           Line
 
-        // Adjust chart options based on type
-        const typeSpecificOptions = {
-          ...chartOptions,
-          ...(selectedChartType === 'radar' || selectedChartType === 'polarArea' ? {
-            scales: {
-              r: {
-                beginAtZero: true,
-                ticks: {
-                  callback: function(value: any) {
-                    return value.toLocaleString()
-                  }
+        // Build chart options based on type
+        let typeSpecificOptions: any = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { 
+              display: true,
+              position: 'top' as const,
+              labels: {
+                usePointStyle: true,
+                padding: 15
+              }
+            },
+            title: { display: false },
+            tooltip: {
+              mode: 'index' as const,
+              intersect: false,
+              callbacks: {
+                label: function(context: any) {
+                  const label = context.dataset.label || ''
+                  const value = context.parsed.y || context.parsed.r || context.parsed
+                  return `${label}: ${value.toLocaleString()}`
                 }
               }
             }
-          } : {}),
-          ...(selectedChartType === 'scatter' || selectedChartType === 'bubble' ? {
-            scales: {
-              x: {
-                type: 'linear' as const,
-                position: 'bottom' as const,
-                ticks: {
-                  callback: function(value: any) {
-                    return value.toLocaleString()
-                  }
-                }
-              },
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  callback: function(value: any) {
-                    return value.toLocaleString()
-                  }
+          },
+          animation: {
+            duration: 1000,
+            easing: 'easeInOutQuart' as const
+          }
+        }
+
+        // Add scale configuration based on chart type
+        if (selectedChartType === 'radar' || selectedChartType === 'polarArea') {
+          // Radial charts use 'r' scale
+          typeSpecificOptions.scales = {
+            r: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value: any) {
+                  return value.toLocaleString()
                 }
               }
             }
-          } : {})
+          }
+        } else if (selectedChartType === 'scatter' || selectedChartType === 'bubble') {
+          // Scatter/bubble charts need linear x scale
+          typeSpecificOptions.scales = {
+            x: {
+              type: 'linear' as const,
+              position: 'bottom' as const,
+              ticks: {
+                callback: function(value: any) {
+                  return value.toLocaleString()
+                }
+              }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: {
+                callback: function(value: any) {
+                  return value.toLocaleString()
+                }
+              }
+            }
+          }
+        } else if (selectedChartType !== 'pie' && selectedChartType !== 'doughnut') {
+          // Standard x/y scales for line, bar charts (pie/doughnut don't have scales)
+          typeSpecificOptions.scales = {
+            y: { 
+              beginAtZero: true,
+              ticks: {
+                callback: function(value: any) {
+                  return value.toLocaleString()
+                }
+              }
+            },
+            x: {
+              ticks: {
+                maxRotation: 45,
+                minRotation: 0
+              }
+            }
+          }
         }
 
         return (
