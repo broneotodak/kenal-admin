@@ -42,7 +42,7 @@ export interface CreateCommentData {
 }
 
 export function useFeedback() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [problems, setProblems] = useState<FeedbackProblem[]>([])
   const [comments, setComments] = useState<Record<string, FeedbackComment[]>>({})
   const [allComments, setAllComments] = useState<FeedbackComment[]>([])
@@ -280,7 +280,7 @@ export function useFeedback() {
 
   // Delete problem (admin only)
   const deleteProblem = useCallback(async (problemId: string): Promise<boolean> => {
-    if (!user?.email || !['neo@todak.com', 'lan@todak.com'].includes(user.email)) {
+    if (!isAdmin) {
       console.error('❌ Delete access denied - admin privileges required')
       return false
     }
@@ -311,13 +311,14 @@ export function useFeedback() {
       }
 
       console.log('✅ Problem deleted successfully')
-      await refreshData()
+      await fetchProblems()
+      await fetchAllComments()
       return true
     } catch (error) {
       console.error('Error deleting problem:', error)
       return false
     }
-  }, [user])
+  }, [isAdmin, fetchProblems, fetchAllComments])
 
   // Manual refresh function
   const refreshData = useCallback(async () => {
@@ -350,8 +351,8 @@ export function useFeedback() {
 
   // Check if user has admin privileges for feedback management
   const isPrivilegedUser = useCallback(() => {
-    return user?.email && ['neo@todak.com', 'lan@todak.com'].includes(user.email)
-  }, [user])
+    return isAdmin
+  }, [isAdmin])
 
   // Initial data load - FIXED to prevent infinite loops
   useEffect(() => {
